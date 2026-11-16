@@ -8,6 +8,7 @@
     "commitlint": "commitlint --edit",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply ou-link --local",
+    "db:migrate:remote": "wrangler d1 migrations apply ou-link --remote",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "lint:check": "biome check .",

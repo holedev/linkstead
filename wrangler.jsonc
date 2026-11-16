@@ -8,9 +8,8 @@
     {
       "binding": "DB",
       "database_name": "ou-link",
-      // Placeholder. No database has been created yet; `wrangler dev` and the local migrations
-      // work without a real id, a deploy does not.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // The trial database (APAC). An id is an address, not a secret - access is the account's.
+      "database_id": "5c8c803a-6c94-4454-a743-35d81e6490c0",
       "migrations_dir": "migrations"
     }
   ]

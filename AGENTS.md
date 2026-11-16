@@ -85,7 +85,8 @@ The admin UI is Vietnamese only.
 ## Commands
 
 - `pnpm dev` - the Worker on a local D1 (`wrangler dev`)
-- `pnpm db:generate` - a migration from `src/db/schema.ts`; `pnpm db:migrate:local` applies them locally
+- `pnpm db:generate` - a migration from `src/db/schema.ts`; `pnpm db:migrate:local` applies them locally,
+  `pnpm db:migrate:remote` to the trial database
 - `pnpm test` / `pnpm check-types` / `pnpm lint:check`
 
 ## Layout
