@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getPlatformProxy } from "wrangler";
+import { stretchPassword } from "../domain/password";
 import { createApp } from "./app";
 import { createD1Store } from "./store-d1";
 
@@ -31,6 +32,18 @@ const TABLES = [
   "units",
   "accounts"
 ];
+
+/**
+ * What a browser sends in place of a password. Remembered, because the stretching is slow on
+ * purpose and the tests sign the same few people in again and again.
+ */
+const stretched = new Map<string, Promise<string>>();
+const passwordKey = (email: string, password: string): Promise<string> => {
+  const id = `${email.trim().toLowerCase()}\n${password}`;
+  const known = stretched.get(id) ?? stretchPassword(password, email);
+  stretched.set(id, known);
+  return known;
+};
 
 type RequestOptions = { body?: unknown; headers?: Record<string, string>; bytes?: Uint8Array };
 
@@ -119,8 +132,14 @@ const startHarness = async () => {
     return {
       delete: (path: string, options?: RequestOptions) => request("DELETE", path, options),
       get: (path: string, options?: RequestOptions) => request("GET", path, options),
+      /** Signs in the way the UI does: the password is stretched before it leaves. */
+      login: async (email: string, password: string) =>
+        request("POST", "/api/auth/login", { body: { email, passwordKey: await passwordKey(email, password) } }),
       post: (path: string, body?: unknown, options?: RequestOptions) => request("POST", path, { ...options, body }),
       put: (path: string, body?: unknown, options?: RequestOptions) => request("PUT", path, { ...options, body }),
+      /** Uses a one-time link the way the UI does. */
+      setup: async (token: string, email: string, password: string) =>
+        request("POST", "/api/auth/setup", { body: { passwordKey: await passwordKey(email, password), token } }),
       /** Sends a file as the request body, the way the UI uploads a logo. */
       upload: (path: string, bytes: Uint8Array, options?: RequestOptions) =>
         request("PUT", path, { ...options, bytes, headers: { "content-type": "image/png", ...options?.headers } })
@@ -132,8 +151,8 @@ const startHarness = async () => {
     const browser = client();
     const created = await browser.post("/api/bootstrap", { email }, { headers: bearer(BOOTSTRAP_TOKEN) });
     const { setupUrl } = (await created.json()) as { setupUrl: string };
-    await browser.post("/api/auth/setup", { password, token: tokenOf(setupUrl) });
-    await browser.post("/api/auth/login", { email, password });
+    await browser.setup(tokenOf(setupUrl), email, password);
+    await browser.login(email, password);
     return browser;
   };
 
@@ -153,4 +172,4 @@ const startHarness = async () => {
 const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
 const tokenOf = (setupUrl: string) => new URL(setupUrl).searchParams.get("token") ?? "";
 
-export { BOOTSTRAP_TOKEN, bearer, ORIGIN, startHarness, tokenOf };
+export { BOOTSTRAP_TOKEN, bearer, ORIGIN, passwordKey, startHarness, tokenOf };

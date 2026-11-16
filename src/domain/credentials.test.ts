@@ -1,25 +1,41 @@
 import { describe, expect, it } from "vitest";
 import { isUniversityEmail, normalizeEmail } from "./email";
-import { checkNewPassword, hashPassword, verifyPassword } from "./password";
+import { checkNewPassword, isStretched, sealPassword, stretchPassword, verifyPassword } from "./password";
 import { hashSecret, newSecret } from "./secret";
 
 const HEX_64 = /^[0-9a-f]{64}$/;
 const URL_SAFE = /^oul_[A-Za-z0-9_-]{43}$/;
 
 describe("password", () => {
-  it("verifies the password it hashed and no other", async () => {
-    const stored = await hashPassword("mot-mat-khau-du-dai");
-    expect(await verifyPassword("mot-mat-khau-du-dai", stored)).toBe(true);
-    expect(await verifyPassword("mot-mat-khau-du-daI", stored)).toBe(false);
+  it("is stretched the same way every time for one account, and differently for another", async () => {
+    const stretched = await stretchPassword("mot-mat-khau-du-dai", " Ai-Do@OU.edu.vn");
+    expect(stretched).toBe(await stretchPassword("mot-mat-khau-du-dai", "ai-do@ou.edu.vn"));
+    expect(stretched).not.toBe(await stretchPassword("mot-mat-khau-du-dai", "nguoi-khac@ou.edu.vn"));
+    expect(stretched).not.toBe(await stretchPassword("mot-mat-khau-du-daI", "ai-do@ou.edu.vn"));
+    expect(isStretched(stretched)).toBe(true);
   });
 
-  it("salts, so the same password never hashes the same way twice", async () => {
-    expect(await hashPassword("mot-mat-khau-du-dai")).not.toBe(await hashPassword("mot-mat-khau-du-dai"));
+  it("verifies the password it sealed and no other", async () => {
+    const right = await stretchPassword("mot-mat-khau-du-dai", "ai-do@ou.edu.vn");
+    const wrong = await stretchPassword("mot-mat-khau-du-daI", "ai-do@ou.edu.vn");
+    const stored = await sealPassword(right);
+    expect(await verifyPassword(right, stored)).toBe(true);
+    expect(await verifyPassword(wrong, stored)).toBe(false);
   });
 
-  it("refuses a stored value it does not recognise instead of throwing", async () => {
-    expect(await verifyPassword("x", "")).toBe(false);
-    expect(await verifyPassword("x", "bcrypt$10$abc$def")).toBe(false);
+  it("salts, so the same password is never stored the same way twice, and is not stored as sent", async () => {
+    const stretched = await stretchPassword("mot-mat-khau-du-dai", "ai-do@ou.edu.vn");
+    const stored = await sealPassword(stretched);
+    expect(stored).not.toBe(await sealPassword(stretched));
+    expect(stored).not.toContain(stretched);
+  });
+
+  it("refuses a raw password and a stored value it does not recognise, instead of throwing", async () => {
+    const stretched = await stretchPassword("mot-mat-khau-du-dai", "ai-do@ou.edu.vn");
+    expect(isStretched("mot-mat-khau-du-dai")).toBe(false);
+    expect(await verifyPassword("mot-mat-khau-du-dai", await sealPassword(stretched))).toBe(false);
+    expect(await verifyPassword(stretched, "")).toBe(false);
+    expect(await verifyPassword(stretched, "pbkdf2-sha256$100000$abc$def")).toBe(false);
   });
 
   it("asks for at least twelve characters", () => {

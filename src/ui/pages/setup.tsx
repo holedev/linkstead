@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
+import { checkNewPassword } from "../../domain/password";
 import { api } from "../api";
 import { Button, Card, ErrorText, Field } from "../components";
 import { messageOf } from "../messages";
@@ -15,9 +16,18 @@ const SetupPage = () => {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  // Whose password this is: shown so nobody sets it for the wrong account, and needed to stretch it.
+  const [email, setEmail] = useState("");
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: asked once, with the token the page opened with
   useEffect(() => {
     window.history.replaceState(null, "", window.location.pathname);
+    if (token) {
+      api
+        .setupAccount(token)
+        .then((account) => setEmail(account.email))
+        .catch((failure) => setError(messageOf(failure)));
+    }
   }, []);
 
   const submit = async (event: FormEvent) => {
@@ -26,10 +36,15 @@ const SetupPage = () => {
       setError("Hai lần nhập mật khẩu không giống nhau.");
       return;
     }
+    // Checked here because only the browser ever sees the password itself.
+    if (checkNewPassword(password)) {
+      setError("Mật khẩu phải có ít nhất 12 ký tự.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
-      await api.setPassword(token, password);
+      await api.setPassword(token, email, password);
       setDone(true);
     } catch (failure) {
       setError(messageOf(failure));
@@ -50,6 +65,13 @@ const SetupPage = () => {
           </div>
         ) : (
           <form className='space-y-4' onSubmit={submit}>
+            {email && (
+              <p className='text-sm'>
+                Đặt mật khẩu cho tài khoản <strong className='break-all'>{email}</strong>.
+              </p>
+            )}
+            {/* Lets a password manager file the new password under the right account. */}
+            <input autoComplete='username' hidden readOnly type='email' value={email} />
             <Field hint='Ít nhất 12 ký tự.' label='Mật khẩu mới'>
               {(props) => (
                 <input
@@ -76,7 +98,7 @@ const SetupPage = () => {
               )}
             </Field>
             <ErrorText>{token ? error : "Đường dẫn này thiếu mã. Hãy mở lại đúng đường dẫn bạn được gửi."}</ErrorText>
-            <Button className='w-full' disabled={busy || !token} type='submit' variant='primary'>
+            <Button className='w-full' disabled={busy || !(token && email)} type='submit' variant='primary'>
               {busy ? "Đang lưu..." : "Đặt mật khẩu"}
             </Button>
           </form>

@@ -97,11 +97,9 @@ describe("creating a Link", () => {
     const admin = await h.signedInAdmin();
     const added = await admin.post("/api/units/2/members", { email: "nxb@ou.edu.vn" });
     const publisher = h.client();
-    await publisher.post("/api/auth/setup", {
-      password: "mat-khau-du-dai",
-      token: tokenOf(((await added.json()) as { setupUrl: string }).setupUrl)
-    });
-    await publisher.post("/api/auth/login", { email: "nxb@ou.edu.vn", password: "mat-khau-du-dai" });
+    const { setupUrl } = (await added.json()) as { setupUrl: string };
+    await publisher.setup(tokenOf(setupUrl), "nxb@ou.edu.vn", "mat-khau-du-dai");
+    await publisher.login("nxb@ou.edu.vn", "mat-khau-du-dai");
 
     expect((await h.client().post("/api/links", { name: "Thử", target: TARGET, unitId: 1 })).status).toBe(401);
     expect((await publisher.post("/api/links", { name: "Thử", target: TARGET, unitId: 1 })).status).toBe(403);

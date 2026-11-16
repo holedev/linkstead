@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { BOOTSTRAP_TOKEN, bearer, ORIGIN, startHarness, tokenOf } from "./test-harness";
+import { BOOTSTRAP_TOKEN, bearer, ORIGIN, passwordKey, startHarness, tokenOf } from "./test-harness";
 
 let h: Awaited<ReturnType<typeof startHarness>>;
 beforeAll(async () => {
@@ -57,25 +57,52 @@ describe("the one-time password link", () => {
     return tokenOf(((await created.json()) as { setupUrl: string }).setupUrl);
   };
 
-  it("sets a password of at least twelve characters, and works once", async () => {
+  it("sets a password from the browser's stretched value, and works once", async () => {
     const token = await issue();
     const browser = h.client();
+    // A raw password is refused: the server only ever takes what the browser stretched.
+    const raw = await browser.post("/api/auth/setup", { passwordKey: PASSWORD, token });
+    expect(raw.status).toBe(422);
+    expect(await raw.json()).toEqual({ error: "bad-password-key" });
+    expect((await browser.post("/api/auth/setup", { password: PASSWORD, token })).status).toBe(422);
 
-    expect((await browser.post("/api/auth/setup", { password: "ngan", token })).status).toBe(422);
-    expect((await browser.post("/api/auth/setup", { password: PASSWORD, token })).status).toBe(204);
-    expect((await browser.post("/api/auth/setup", { password: "mot-mat-khau-khac", token })).status).toBe(400);
-    expect((await browser.post("/api/auth/login", { email: "a@ou.edu.vn", password: PASSWORD })).status).toBe(200);
+    expect((await browser.setup(token, "a@ou.edu.vn", PASSWORD)).status).toBe(204);
+    expect((await browser.setup(token, "a@ou.edu.vn", "mot-mat-khau-khac")).status).toBe(400);
+    expect((await browser.login("a@ou.edu.vn", PASSWORD)).status).toBe(200);
+  });
+
+  it("tells the holder of a live link whose password it sets, and nobody else", async () => {
+    const token = await issue();
+    const browser = h.client();
+    expect(await (await browser.post("/api/auth/setup/account", { token })).json()).toEqual({ email: "a@ou.edu.vn" });
+    expect((await browser.post("/api/auth/setup/account", { token: "khong-co" })).status).toBe(400);
+    expect((await browser.post("/api/auth/setup/account", {})).status).toBe(400);
+
+    await browser.setup(token, "a@ou.edu.vn", PASSWORD);
+    expect((await browser.post("/api/auth/setup/account", { token })).status).toBe(400);
+  });
+
+  it("stores neither the password nor what the browser sent", async () => {
+    const token = await issue();
+    await h.client().setup(token, "a@ou.edu.vn", PASSWORD);
+    const row = await h.db.prepare("SELECT password_hash AS hash FROM accounts").first<{ hash: string }>();
+
+    expect(row?.hash.startsWith("stretched-hmac-sha256$")).toBe(true);
+    expect(row?.hash).not.toContain(PASSWORD);
+    expect(row?.hash).not.toContain(await passwordKey("a@ou.edu.vn", PASSWORD));
   });
 
   it("expires after seven days", async () => {
     const token = await issue();
     h.advance(7 * DAY);
-    expect((await h.client().post("/api/auth/setup", { password: PASSWORD, token })).status).toBe(400);
+    expect((await h.client().setup(token, "a@ou.edu.vn", PASSWORD)).status).toBe(400);
   });
 
   it("refuses a token nobody issued", async () => {
-    expect((await h.client().post("/api/auth/setup", { password: PASSWORD, token: "khong-co" })).status).toBe(400);
-    expect((await h.client().post("/api/auth/setup", { password: PASSWORD })).status).toBe(400);
+    expect((await h.client().setup("khong-co", "a@ou.edu.vn", PASSWORD)).status).toBe(400);
+    expect(
+      (await h.client().post("/api/auth/setup", { passwordKey: await passwordKey("a@ou.edu.vn", PASSWORD) })).status
+    ).toBe(400);
   });
 });
 
@@ -84,8 +111,8 @@ describe("signing in", () => {
     await h.signedInAdmin("a@ou.edu.vn", PASSWORD);
     const browser = h.client();
 
-    const wrong = await browser.post("/api/auth/login", { email: "a@ou.edu.vn", password: "sai-mat-khau-roi" });
-    const unknown = await browser.post("/api/auth/login", { email: "khong-ai@ou.edu.vn", password: PASSWORD });
+    const wrong = await browser.login("a@ou.edu.vn", "sai-mat-khau-roi");
+    const unknown = await browser.login("khong-ai@ou.edu.vn", PASSWORD);
 
     expect([wrong.status, await wrong.text()]).toEqual([unknown.status, await unknown.text()]);
     expect(wrong.status).toBe(401);
@@ -95,7 +122,7 @@ describe("signing in", () => {
     const admin = await h.signedInAdmin("a@ou.edu.vn", PASSWORD);
     expect((await admin.get("/api/auth/me")).status).toBe(200);
 
-    const login = await h.client().post("/api/auth/login", { email: "a@ou.edu.vn", password: PASSWORD });
+    const login = await h.client().login("a@ou.edu.vn", PASSWORD);
     const cookie = login.headers.getSetCookie()[0] ?? "";
     expect(cookie).toContain("HttpOnly");
     expect(cookie).toContain("Secure");
@@ -121,10 +148,10 @@ describe("signing in", () => {
     }
 
     // Locked means locked: the right password does not get through either.
-    expect((await attacker.post("/api/auth/login", { email: "a@ou.edu.vn", password: PASSWORD })).status).toBe(429);
+    expect((await attacker.login("a@ou.edu.vn", PASSWORD)).status).toBe(429);
 
     h.advance(15 * MINUTE);
-    expect((await attacker.post("/api/auth/login", { email: "a@ou.edu.vn", password: PASSWORD })).status).toBe(200);
+    expect((await attacker.login("a@ou.edu.vn", PASSWORD)).status).toBe(200);
   });
 
   it("forgets earlier wrong passwords once the right one is given", async () => {
@@ -132,9 +159,9 @@ describe("signing in", () => {
     const browser = h.client();
     for (let round = 0; round < 3; round += 1) {
       for (let i = 0; i < 4; i += 1) {
-        await browser.post("/api/auth/login", { email: "a@ou.edu.vn", password: "sai-mat-khau-roi" });
+        await browser.login("a@ou.edu.vn", "sai-mat-khau-roi");
       }
-      expect((await browser.post("/api/auth/login", { email: "a@ou.edu.vn", password: PASSWORD })).status).toBe(200);
+      expect((await browser.login("a@ou.edu.vn", PASSWORD)).status).toBe(200);
     }
   });
 

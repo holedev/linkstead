@@ -20,8 +20,8 @@ const join = async (
   const added = await admin.post(`/api/units/${unitId}/members`, { email, role });
   const { setupUrl } = (await added.json()) as { setupUrl: string };
   const browser = h.client();
-  await browser.post("/api/auth/setup", { password: PASSWORD, token: tokenOf(setupUrl) });
-  await browser.post("/api/auth/login", { email, password: PASSWORD });
+  await browser.setup(tokenOf(setupUrl), email, PASSWORD);
+  await browser.login(email, PASSWORD);
   return browser;
 };
 
@@ -35,8 +35,8 @@ describe("adding a Thành viên", () => {
     expect(body).toMatchObject({ email: "dong.nghiep@ou.edu.vn", role: "member" });
 
     const member = h.client();
-    await member.post("/api/auth/setup", { password: PASSWORD, token: tokenOf(body.setupUrl) });
-    const login = await member.post("/api/auth/login", { email: "dong.nghiep@ou.edu.vn", password: PASSWORD });
+    await member.setup(tokenOf(body.setupUrl), "dong.nghiep@ou.edu.vn", PASSWORD);
+    const login = await member.login("dong.nghiep@ou.edu.vn", PASSWORD);
     expect(((await login.json()) as { units: unknown[] }).units).toEqual([
       { role: "member", unitId: 1, unitName: "Tạp chí Khoa học" }
     ]);
@@ -90,12 +90,10 @@ describe("adding a Thành viên", () => {
 
     const reissued = await admin.post("/api/units/1/members/password-setup", { email: "quen@ou.edu.vn" });
     const { setupUrl } = (await reissued.json()) as { setupUrl: string };
-    await h.client().post("/api/auth/setup", { password: "mat-khau-moi-tinh", token: tokenOf(setupUrl) });
+    await h.client().setup(tokenOf(setupUrl), "quen@ou.edu.vn", "mat-khau-moi-tinh");
 
     expect((await member.get("/api/auth/me")).status).toBe(401);
-    expect((await h.client().post("/api/auth/login", { email: "quen@ou.edu.vn", password: PASSWORD })).status).toBe(
-      401
-    );
+    expect((await h.client().login("quen@ou.edu.vn", PASSWORD)).status).toBe(401);
     expect((await admin.post("/api/units/2/members/password-setup", { email: "quen@ou.edu.vn" })).status).toBe(404);
   });
 });

@@ -16,8 +16,8 @@ type Browser = ReturnType<typeof h.client>;
 /** Uses a one-time link and signs in. */
 const signIn = async (email: string, setupUrl: string) => {
   const browser = h.client();
-  await browser.post("/api/auth/setup", { password: PASSWORD, token: tokenOf(setupUrl) });
-  await browser.post("/api/auth/login", { email, password: PASSWORD });
+  await browser.setup(tokenOf(setupUrl), email, PASSWORD);
+  await browser.login(email, PASSWORD);
   return browser;
 };
 

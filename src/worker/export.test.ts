@@ -19,8 +19,8 @@ const member = async (admin: Browser, unitId: number, email: string) => {
   const added = await admin.post(`/api/units/${unitId}/members`, { email });
   const browser = h.client();
   const { setupUrl } = (await added.json()) as { setupUrl: string };
-  await browser.post("/api/auth/setup", { password: "mat-khau-du-dai", token: tokenOf(setupUrl) });
-  await browser.post("/api/auth/login", { email, password: "mat-khau-du-dai" });
+  await browser.setup(tokenOf(setupUrl), email, "mat-khau-du-dai");
+  await browser.login(email, "mat-khau-du-dai");
   return browser;
 };
 
@@ -132,7 +132,7 @@ describe("the whole installation", () => {
 
     // The same password signs in, the same key works, the Link opens and remembers its past.
     const admin = h.client();
-    const login = await admin.post("/api/auth/login", { email: "admin@ou.edu.vn", password: PASSWORD });
+    const login = await admin.login("admin@ou.edu.vn", PASSWORD);
     expect(((await login.json()) as { units: { unitName: string }[] }).units.map((unit) => unit.unitName)).toEqual([
       "Tạp chí Khoa học",
       "Nhà xuất bản"

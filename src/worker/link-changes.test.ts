@@ -26,8 +26,8 @@ const member = async (admin: Browser, unitId: number, email: string) => {
   const added = await admin.post(`/api/units/${unitId}/members`, { email });
   const browser = h.client();
   const { setupUrl } = (await added.json()) as { setupUrl: string };
-  await browser.post("/api/auth/setup", { password: PASSWORD, token: tokenOf(setupUrl) });
-  await browser.post("/api/auth/login", { email, password: PASSWORD });
+  await browser.setup(tokenOf(setupUrl), email, PASSWORD);
+  await browser.login(email, PASSWORD);
   return browser;
 };
 

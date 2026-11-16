@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
 import { isUniversityEmail, normalizeEmail } from "../../domain/email";
-import { checkNewPassword, hashPassword, verifyPassword } from "../../domain/password";
+import { isStretched, sealPassword, verifyPassword } from "../../domain/password";
 import { hashSecret, newSecret } from "../../domain/secret";
 import { SESSION_COOKIE } from "../actor";
 import type { AppContext, AppDeps, AppEnv } from "../context";
@@ -16,11 +16,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const BEARER = /^Bearer\s+(\S+)$/i;
 
 /**
- * Verified when the email is unknown or has no password yet, so that answering takes as long as
- * it does for a real account and the timing does not say which addresses exist. A constant and
- * not a value computed at start-up: a Worker must not await in one request a promise another made.
+ * Verified when the email is unknown or has no password yet, so that answering does the same work
+ * as it does for a real account and the timing does not say which addresses exist.
  */
-const DUMMY_HASH = "pbkdf2-sha256$100000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+const DUMMY_HASH = "stretched-hmac-sha256$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
 /**
  * The one-time link an insider passes on by hand - the system sends no mail (ADR-0003). It points
@@ -90,23 +89,37 @@ const registerAuthRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(), 
     return c.json({ email, setupUrl: await issueSetupLink(store, account.id, new URL(c.req.url).origin, now()) }, 201);
   });
 
-  /** Uses a one-time link: sets the password and ends every session the account had. */
+  /**
+   * Whose password a one-time link sets. The browser needs the email before it can stretch the
+   * new password (`domain/password.ts`), and whoever holds the link is the person it was made for.
+   */
+  app.post("/api/auth/setup/account", async (c) => {
+    const token = text((await readJson(c))?.token);
+    const setup = token ? await store.findPasswordSetup(await hashSecret(token)) : null;
+    const account =
+      setup && !setup.usedAt && setup.expiresAt > now() ? await store.findAccountById(setup.accountId) : null;
+    return account ? c.json({ email: account.email }) : c.json({ error: "invalid-token" }, 400);
+  });
+
+  /**
+   * Uses a one-time link: sets the password and ends every session the account had. `passwordKey`
+   * is the password as the browser stretched it - the server never sees the password itself.
+   */
   app.post("/api/auth/setup", async (c) => {
     const body = await readJson(c);
     const token = text(body?.token);
-    const password = typeof body?.password === "string" ? body.password : "";
+    const passwordKey = text(body?.passwordKey);
 
     const tokenHash = await hashSecret(token);
     const setup = token ? await store.findPasswordSetup(tokenHash) : null;
     if (!setup || setup.usedAt || setup.expiresAt <= now()) {
       return c.json({ error: "invalid-token" }, 400);
     }
-    const problem = checkNewPassword(password);
-    if (problem) {
-      return c.json({ error: problem }, 422);
+    if (!isStretched(passwordKey)) {
+      return c.json({ error: "bad-password-key" }, 422);
     }
 
-    await store.setPassword(setup.accountId, await hashPassword(password));
+    await store.setPassword(setup.accountId, await sealPassword(passwordKey));
     await store.markPasswordSetupUsed(tokenHash, now());
     await store.deleteSessionsOfAccount(setup.accountId);
     return c.body(null, 204);
@@ -115,14 +128,14 @@ const registerAuthRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(), 
   app.post("/api/auth/login", async (c) => {
     const body = await readJson(c);
     const email = normalizeEmail(text(body?.email));
-    const password = typeof body?.password === "string" ? body.password : "";
+    const passwordKey = text(body?.passwordKey);
     const account = await store.findAccountByEmail(email);
 
     if (account?.lockedUntil && account.lockedUntil > now()) {
       return c.json({ error: "locked" }, 429);
     }
 
-    const matches = await verifyPassword(password, account?.passwordHash ?? DUMMY_HASH);
+    const matches = await verifyPassword(passwordKey, account?.passwordHash ?? DUMMY_HASH);
     if (!(account?.passwordHash && matches)) {
       if (account) {
         const failures = await store.addLoginFailure(account.id);

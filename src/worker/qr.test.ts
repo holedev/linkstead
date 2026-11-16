@@ -29,8 +29,8 @@ const member = async (admin: Browser, unitId: number, email: string) => {
   const added = await admin.post(`/api/units/${unitId}/members`, { email });
   const browser = h.client();
   const { setupUrl } = (await added.json()) as { setupUrl: string };
-  await browser.post("/api/auth/setup", { password: "mat-khau-du-dai", token: tokenOf(setupUrl) });
-  await browser.post("/api/auth/login", { email, password: "mat-khau-du-dai" });
+  await browser.setup(tokenOf(setupUrl), email, "mat-khau-du-dai");
+  await browser.login(email, "mat-khau-du-dai");
   return browser;
 };
 
@@ -191,7 +191,7 @@ describe("the logo on a QR", () => {
     expect(h.logoFiles.size).toBe(3);
 
     const again = h.client();
-    await again.post("/api/auth/login", { email: "admin@ou.edu.vn", password: "mat-khau-quan-tri" });
+    await again.login("admin@ou.edu.vn", "mat-khau-quan-tri");
     expect([await qrOf(again), await qrOf(again, "cua-nxb")]).toEqual(before);
     expect(before[0]).toContain(dataOf(OWN));
   });

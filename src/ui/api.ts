@@ -1,3 +1,5 @@
+import { stretchPassword } from "../domain/password";
+
 /** The one place the UI talks to the server. Every screen goes through `api`. */
 
 type Role = "manager" | "member";
@@ -140,7 +142,9 @@ const api = {
   keys: (unitId: number) => call<{ keys: ApiKey[] }>("GET", `/api/units/${unitId}/keys`),
   linkQr: (code: string) => svg(`/api/links/${code}/qr`),
   links: (unitId: number) => call<{ links: Link[] }>("GET", `/api/links?unitId=${unitId}`),
-  login: (email: string, password: string) => call<Me>("POST", "/api/auth/login", { email, password }),
+  /** The password is stretched here, in the browser; the server is sent the result and never the password. */
+  login: async (email: string, password: string) =>
+    call<Me>("POST", "/api/auth/login", { email, passwordKey: await stretchPassword(password, email) }),
   logout: () => call<void>("POST", "/api/auth/logout"),
   me: () => call<Me>("GET", "/api/auth/me"),
   members: (unitId: number) => call<{ members: Member[] }>("GET", `/api/units/${unitId}/members`),
@@ -154,7 +158,9 @@ const api = {
     call<{ logoChoice: LogoChoice }>("PUT", `/api/links/${code}/qr-logo`, { choice }),
   setMemberRole: (unitId: number, email: string, role: Role) =>
     call<void>("PUT", `/api/units/${unitId}/members/${encodeURIComponent(email)}`, { role }),
-  setPassword: (token: string, password: string) => call<void>("POST", "/api/auth/setup", { password, token }),
+  setPassword: async (token: string, email: string, password: string) =>
+    call<void>("POST", "/api/auth/setup", { passwordKey: await stretchPassword(password, email), token }),
+  setupAccount: (token: string) => call<{ email: string }>("POST", "/api/auth/setup/account", { token }),
   unitLogo: (unitId: number) => call<{ own: boolean; university: boolean }>("GET", `/api/units/${unitId}/qr-logo`),
   unitLogoPreview: (unitId: number) => svg(`/api/units/${unitId}/qr-preview`),
   updateLinkDetails: (code: string, name: string, note: string) =>
