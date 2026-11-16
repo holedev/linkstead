@@ -145,8 +145,8 @@ deploy; những người sau do người đã ở trong hệ thống thêm vào.
    pnpm exec wrangler secret delete BOOTSTRAP_TOKEN
    ```
 
-Bước 2 chỉ chạy được khi chưa có Quản trị hệ thống nào. Người này tự động là Quản lý của đơn vị có
-sẵn (Tạp chí Khoa học & Nhà xuất bản). Thêm đơn vị, thành viên và Quản trị hệ thống khác đều làm
+Bước 2 chỉ chạy được khi chưa có Quản trị hệ thống nào. Người này tự động là Quản lý của hai đơn vị
+có sẵn (Tạp chí Khoa học, Nhà xuất bản). Thêm đơn vị, thành viên và Quản trị hệ thống khác đều làm
 trong giao diện.
 
 ## Dùng API

@@ -221,8 +221,6 @@ type Store = {
   listUnitOverviews: () => Promise<UnitOverview[]>;
   /** Null when the name is taken - also by a Đơn vị that was dissolved. */
   createUnit: (name: string) => Promise<{ id: number; name: string } | null>;
-  /** Renames a Đơn vị; its Links and their addresses are untouched. `taken` when another has the name. */
-  renameUnit: (unitId: number, name: string) => Promise<"done" | "taken" | "unknown">;
   /**
    * Dissolves a Đơn vị: its members leave and its Khóa API stop working. False, and nothing
    * changes, while it still owns a Link.

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { bearer, FIRST_UNIT, startHarness, tokenOf } from "./test-harness";
+import { bearer, startHarness, tokenOf } from "./test-harness";
 
 let h: Awaited<ReturnType<typeof startHarness>>;
 beforeAll(async () => {
@@ -49,7 +49,7 @@ describe("Đơn vị, as a Quản trị hệ thống", () => {
     const admin = await h.signedInAdmin();
     const attempt = async (body: object) => (await (await admin.post("/api/admin/units", body)).json()) as object;
 
-    expect(await attempt({ managerEmail: "a@ou.edu.vn", name: "Khoa Kế toán" })).toEqual({ error: "unit-name-taken" });
+    expect(await attempt({ managerEmail: "a@ou.edu.vn", name: "Nhà xuất bản" })).toEqual({ error: "unit-name-taken" });
     expect(await attempt({ managerEmail: "a@gmail.com", name: "Khoa Luật" })).toEqual({
       error: "not-university-email"
     });
@@ -62,31 +62,10 @@ describe("Đơn vị, as a Quản trị hệ thống", () => {
 
     expect(await (await admin.get("/api/admin/units")).json()).toEqual({
       units: [
-        { id: 1, linkCount: 0, managers: ["admin@ou.edu.vn"], name: "Tạp chí Khoa học & Nhà xuất bản" },
-        { id: 2, linkCount: 1, managers: ["admin@ou.edu.vn"], name: "Khoa Kế toán" }
+        { id: 1, linkCount: 0, managers: ["admin@ou.edu.vn"], name: "Tạp chí Khoa học" },
+        { id: 2, linkCount: 1, managers: ["admin@ou.edu.vn"], name: "Nhà xuất bản" }
       ]
     });
-  });
-
-  it("renames a Đơn vị without touching its Links, and not to a name another has", async () => {
-    const admin = await h.signedInAdmin();
-    await admin.post("/api/links", { code: "mot-link", name: "Một", target: TARGET, unitId: 2 });
-
-    const renamed = await admin.put("/api/admin/units/2", { name: " Khoa Kế toán - Kiểm toán " });
-    expect(await renamed.json()).toEqual({ id: 2, name: "Khoa Kế toán - Kiểm toán" });
-    const me = (await (await admin.get("/api/auth/me")).json()) as { units: { unitName: string }[] };
-    expect(me.units.map((unit) => unit.unitName)).toEqual([FIRST_UNIT, "Khoa Kế toán - Kiểm toán"]);
-    expect(await codesOf(admin, 2)).toEqual(["mot-link"]);
-    expect((await h.client().get("/mot-link")).status).toBe(302);
-
-    const clash = await admin.put("/api/admin/units/2", { name: FIRST_UNIT });
-    expect(clash.status).toBe(409);
-    expect(await clash.json()).toEqual({ error: "unit-name-taken" });
-    expect((await admin.put("/api/admin/units/2", { name: " " })).status).toBe(422);
-    expect((await admin.put("/api/admin/units/9", { name: "Khoa Mới" })).status).toBe(404);
-
-    const manager = await member(admin, 2, "quan-ly@ou.edu.vn", "manager");
-    expect((await manager.put("/api/admin/units/2", { name: "Tự đổi" })).status).toBe(403);
   });
 
   it("will not dissolve a Đơn vị that still owns a Link", async () => {
@@ -278,7 +257,7 @@ describe("a Link of any Đơn vị", () => {
       code: "cfp-2027",
       history: [],
       unitId: 2,
-      unitName: "Khoa Kế toán"
+      unitName: "Nhà xuất bản"
     });
     expect((await admin.get("/api/admin/links/khong-co")).status).toBe(404);
   });
@@ -291,7 +270,7 @@ describe("a Link of any Đơn vị", () => {
     await h.client().get("/cfp-2027");
 
     const moved = await admin.post("/api/admin/links/cfp-2027/move", { unitId: 2 });
-    expect(await moved.json()).toMatchObject({ code: "cfp-2027", unitId: 2, unitName: "Khoa Kế toán", visits: 1 });
+    expect(await moved.json()).toMatchObject({ code: "cfp-2027", unitId: 2, unitName: "Nhà xuất bản", visits: 1 });
 
     expect((await h.client().get("/cfp-2027")).headers.get("location")).toBe(TARGET);
     expect(await codesOf(editor, 1)).toEqual([]);
@@ -303,8 +282,8 @@ describe("a Link of any Đơn vị", () => {
           at: "2027-03-01T03:00:00.000Z",
           by: { email: "admin@ou.edu.vn", kind: "account" },
           kind: "unit",
-          newUnitName: "Khoa Kế toán",
-          oldUnitName: "Tạp chí Khoa học & Nhà xuất bản"
+          newUnitName: "Nhà xuất bản",
+          oldUnitName: "Tạp chí Khoa học"
         }
       ]
     });
@@ -330,7 +309,7 @@ describe("a Link of any Đơn vị", () => {
     expect((await admin.delete("/api/admin/units/2")).status).toBe(204);
     expect((await h.client().get("/cfp-2027")).status).toBe(302);
     expect(await (await admin.get("/api/links/cfp-2027/history")).json()).toMatchObject({
-      history: [{ newUnitName: "Tạp chí Khoa học & Nhà xuất bản", oldUnitName: "Khoa Kế toán" }]
+      history: [{ newUnitName: "Tạp chí Khoa học", oldUnitName: "Nhà xuất bản" }]
     });
   });
 });

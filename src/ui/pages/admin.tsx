@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { Navigate, Outlet } from "react-router";
-import { Badge, Button, Card, ConfirmDialog, DownloadLink, ErrorText, Field, Modal, SecretBox } from "@/components/app";
+import { Badge, Button, Card, ConfirmDialog, DownloadLink, ErrorText, Field, SecretBox } from "@/components/app";
 import { api, type Link, type UnitOverview } from "../api";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
@@ -30,48 +30,6 @@ const useAction = () => {
 
 type CreatedUnit = { name: string; managerEmail: string; setupUrl: string | null };
 
-/** Renames a Đơn vị. Its Links, their addresses and what is printed do not change. */
-const RenameUnitForm = ({
-  unit,
-  onRenamed,
-  onDone
-}: {
-  unit: UnitOverview;
-  onRenamed: () => void;
-  onDone: () => void;
-}) => {
-  const { busy, error, run } = useAction();
-  const [name, setName] = useState(unit.name);
-
-  const save = async (event: FormEvent) => {
-    event.preventDefault();
-    const renamed = await run(async () => {
-      await api.adminRenameUnit(unit.id, name);
-    });
-    if (renamed) {
-      onRenamed();
-      onDone();
-    }
-  };
-
-  return (
-    <form className='space-y-4' onSubmit={save}>
-      <Field hint='Link, địa chỉ link và QR đã in của đơn vị giữ nguyên.' label='Tên đơn vị'>
-        {(props) => (
-          <input {...props} maxLength={100} onChange={(event) => setName(event.target.value)} required value={name} />
-        )}
-      </Field>
-      <ErrorText>{error}</ErrorText>
-      <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-        <Button onClick={onDone}>Hủy</Button>
-        <Button disabled={busy} type='submit' variant='primary'>
-          {busy ? "Đang lưu..." : "Lưu"}
-        </Button>
-      </div>
-    </form>
-  );
-};
-
 const UnitsCard = ({
   units,
   error,
@@ -87,8 +45,6 @@ const UnitsCard = ({
   const [created, setCreated] = useState<CreatedUnit | null>(null);
   const [dissolveId, setDissolveId] = useState<number | null>(null);
   const dissolving = units?.find((unit) => unit.id === dissolveId) ?? null;
-  const [renameId, setRenameId] = useState<number | null>(null);
-  const renaming = units?.find((unit) => unit.id === renameId) ?? null;
 
   const create = (event: FormEvent) => {
     event.preventDefault();
@@ -170,21 +126,15 @@ const UnitsCard = ({
                 {unit.linkCount} link - Quản lý: <span className='break-all'>{unit.managers.join(", ")}</span>
               </p>
             </div>
-            {unit.linkCount > 0 && (
+            {unit.linkCount === 0 ? (
+              <Button disabled={busy} onClick={() => setDissolveId(unit.id)} variant='danger'>
+                Giải thể
+              </Button>
+            ) : (
               <p className='text-muted-foreground text-xs sm:max-w-48 sm:text-right'>
                 Còn link nên chưa giải thể được. Chuyển hết link đi trước.
               </p>
             )}
-            <div className='flex flex-wrap gap-2'>
-              <Button disabled={busy} onClick={() => setRenameId(unit.id)}>
-                Đổi tên
-              </Button>
-              {unit.linkCount === 0 && (
-                <Button disabled={busy} onClick={() => setDissolveId(unit.id)} variant='danger'>
-                  Giải thể
-                </Button>
-              )}
-            </div>
           </li>
         ))}
       </ul>
@@ -200,10 +150,6 @@ const UnitsCard = ({
         Mọi thành viên sẽ rời đơn vị và mọi khóa API của đơn vị ngừng hoạt động ngay. Việc này không hoàn tác được, và
         tên "{dissolving?.name}" không dùng lại được cho đơn vị mới.
       </ConfirmDialog>
-
-      <Modal onClose={() => setRenameId(null)} open={renaming !== null} title='Đổi tên đơn vị'>
-        {renaming && <RenameUnitForm onDone={() => setRenameId(null)} onRenamed={onChanged} unit={renaming} />}
-      </Modal>
     </Card>
   );
 };

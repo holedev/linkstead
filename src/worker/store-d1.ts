@@ -587,23 +587,6 @@ const createD1Store = (database: D1Database): Store => {
       return removed.length > 0;
     },
 
-    renameUnit: async (unitId, name) => {
-      // `OR IGNORE` turns a clash with the unique name into "nothing changed", told apart below.
-      const renamed = await database
-        .prepare("UPDATE OR IGNORE units SET name = ?1 WHERE id = ?2 AND dissolved_at IS NULL")
-        .bind(name, unitId)
-        .run();
-      if (renamed.meta.changes > 0) {
-        return "done";
-      }
-      const row = await db
-        .select({ id: units.id })
-        .from(units)
-        .where(and(eq(units.id, unitId), isNull(units.dissolvedAt)))
-        .get();
-      return row ? "taken" : "unknown";
-    },
-
     revokeApiKey: async (keyId, unitId, at) => {
       const revoked = await db
         .update(apiKeys)

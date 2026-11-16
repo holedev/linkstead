@@ -43,8 +43,8 @@ These were decided before the first line of code. Each is a rule, not a default.
 
 **People**
 
-- A Link belongs to a Đơn vị, never to a person. The first Đơn vị is Tạp chí Khoa học & Nhà xuất
-  bản - one office, not two; others are added later.
+- A Link belongs to a Đơn vị, never to a person. The first two Đơn vị are Tạp chí Khoa học and Nhà
+  xuất bản; others are added later.
 - An Account is an `@ou.edu.vn` email. It may be in several Đơn vị; in none, it can create nothing.
 - A Đơn vị always has at least one Quản lý đơn vị.
 - A Quản trị hệ thống may switch off any Link and move a Link between Đơn vị. A Link they switched
