@@ -141,7 +141,18 @@ const PreviewPanel = ({
         )}
       </Field>
       <p className='text-muted-foreground text-xs'>
-        Zalo và Facebook lưu bản xem trước một thời gian, nên link đã dán trước đó có thể chưa đổi ngay.
+        Zalo và Facebook tự lưu bản xem trước của mỗi link một thời gian, nên dán lại link cũ có thể vẫn ra bản cũ. Với
+        Facebook, mở công cụ{" "}
+        <a
+          className='underline'
+          href={`https://developers.facebook.com/tools/debug/?q=${encodeURIComponent(link.url)}`}
+          rel='noreferrer'
+          target='_blank'
+        >
+          Sharing Debugger
+        </a>{" "}
+        và bấm "Scrape Again". Với Zalo, có thể dán link kèm <code>?v=2</code> ở cuối (link vẫn mở đúng) để Zalo đọc
+        lại.
       </p>
       <ErrorText>{error}</ErrorText>
       <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>

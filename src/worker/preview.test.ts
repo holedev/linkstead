@@ -43,12 +43,53 @@ describe("a Link pasted into a chat or a post", () => {
     expect(await visits()).toBe(0);
   });
 
+  it("follows the new Đích as soon as it is changed", async () => {
+    const admin = await withLink();
+    const NEW = "https://journalofscience.ou.edu.vn/so-moi";
+    h.pages.set(TARGET, TARGET_PAGE);
+    h.pages.set(
+      NEW,
+      '<meta property="og:title" content="Số mới"><meta property="og:image" content="https://a.vn/moi.jpg">'
+    );
+    expect(await (await h.client().get("/cfp-2027", { headers: ZALO })).text()).toContain(
+      'content="Kêu gọi bài viết 2027"'
+    );
+
+    await admin.put("/api/links/cfp-2027/target", { target: NEW });
+    const page = await (await h.client().get("/cfp-2027", { headers: ZALO })).text();
+    expect(page).toContain('<meta property="og:title" content="Số mới">');
+    expect(page).toContain('<meta property="og:image" content="https://a.vn/moi.jpg">');
+    expect(page).not.toContain("Kêu gọi bài viết 2027");
+  });
+
+  it("drops a preview set by hand when the Đích changes, if asked to", async () => {
+    const admin = await withLink();
+    const NEW = "https://journalofscience.ou.edu.vn/so-moi";
+    h.pages.set(NEW, '<meta property="og:title" content="Số mới">');
+    await admin.put("/api/links/cfp-2027/preview", { description: "Cho trang cũ", title: "Tiêu đề cũ" });
+
+    // Not asked: the preview set by hand stays.
+    await admin.put("/api/links/cfp-2027/target", { target: NEW });
+    expect(await (await h.client().get("/cfp-2027", { headers: ZALO })).text()).toContain('content="Tiêu đề cũ"');
+
+    const changed = await admin.put("/api/links/cfp-2027/target", { resetPreview: true, target: TARGET });
+    expect(await changed.json()).toMatchObject({ preview: { description: "", image: "", title: "" }, target: TARGET });
+    h.pages.set(TARGET, TARGET_PAGE);
+    const page = await (await h.client().get("/cfp-2027", { headers: ZALO })).text();
+    expect(page).toContain('<meta property="og:title" content="Kêu gọi bài viết 2027">');
+    expect(page).not.toContain("Tiêu đề cũ");
+  });
+
   it("still redirects a person, temporarily", async () => {
     await withLink();
     h.pages.set(TARGET, TARGET_PAGE);
     const response = await h.client().get("/cfp-2027");
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe(TARGET);
+    // A query added to make a chat app read the Link afresh changes nothing about where it leads.
+    const busted = await h.client().get("/cfp-2027?v=2");
+    expect(busted.status).toBe(302);
+    expect(busted.headers.get("location")).toBe(TARGET);
   });
 
   it("uses what the Link sets itself, part by part, over the Đích's", async () => {

@@ -143,8 +143,8 @@ const api = {
   adminUnits: () => call<{ units: UnitOverview[] }>("GET", "/api/admin/units"),
   adminUnreserve: (code: string) => call<void>("DELETE", `/api/admin/reserved-codes/${code}`),
   adminUploadLogo: (file: File) => upload("/api/admin/qr-logo", file),
-  changeTarget: (code: string, target: string, expectedTarget: string) =>
-    call<Link>("PUT", `/api/links/${code}/target`, { expectedTarget, target }),
+  changeTarget: (code: string, target: string, expectedTarget: string, resetPreview = false) =>
+    call<Link>("PUT", `/api/links/${code}/target`, { expectedTarget, resetPreview, target }),
   createKey: (unitId: number, name: string) =>
     call<{ id: number; key: string; name: string }>("POST", `/api/units/${unitId}/keys`, { name }),
   createLink: (input: NewLinkInput) => call<Link>("POST", "/api/links", input),

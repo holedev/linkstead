@@ -201,6 +201,7 @@ const registerLinkRoutes = (
   /**
    * Changes a Link's Đích and records who did. `expectedTarget` is the Đích the caller was shown
    * when confirming; if it has changed since, nothing is written and the answer says what it is now.
+   * `resetPreview: true` also drops the share preview set by hand, which described the old Đích.
    */
   app.put("/api/links/:code/target", async (c) => {
     const reach = await reachLink(c, store);
@@ -225,6 +226,13 @@ const registerLinkRoutes = (
     if (!changed) {
       const current = await store.findLink(link.code);
       return c.json({ error: "target-changed", target: current?.target ?? link.target }, 409);
+    }
+    // A preview set by hand described the old Đích. Asked to, it goes, and the new Đích's own
+    // title, description and image show instead.
+    if (body?.resetPreview === true) {
+      const cleared = { previewDescription: "", previewImage: "", previewTitle: "" };
+      await store.updateLinkPreview(link.id, cleared);
+      return c.json(present({ ...link, ...cleared, target }, url.origin));
     }
     return c.json(present({ ...link, target }, url.origin));
   });

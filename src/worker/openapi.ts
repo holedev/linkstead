@@ -219,6 +219,11 @@ const openApiDocument = (origin: string) => ({
           content: json({
             properties: {
               expectedTarget: { format: "uri", type: "string" },
+              resetPreview: {
+                description:
+                  "`true` để bỏ tiêu đề, mô tả, ảnh xem trước đã tự đặt cho đích cũ; khi dán link sẽ hiện của trang đích mới.",
+                type: "boolean"
+              },
               target: { example: "https://journalofscience.ou.edu.vn/cfp-2027", format: "uri", type: "string" }
             },
             required: ["target"],

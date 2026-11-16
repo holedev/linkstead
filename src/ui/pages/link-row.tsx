@@ -261,6 +261,9 @@ const TargetForm = ({
 }) => {
   const [draft, setDraft] = useState("");
   const [reviewing, setReviewing] = useState(false);
+  // A preview set by hand describes the old Đích; dropping it is the usual wish, so it is the default.
+  const hasOwnPreview = Boolean(link.preview.title || link.preview.description || link.preview.image);
+  const [resetPreview, setResetPreview] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const next = draft.trim();
@@ -276,7 +279,7 @@ const TargetForm = ({
     setBusy(true);
     setError("");
     try {
-      onChanged(await api.changeTarget(link.code, next, link.target));
+      onChanged(await api.changeTarget(link.code, next, link.target, hasOwnPreview && resetPreview));
       onDone();
     } catch (failure) {
       setError(messageOf(failure));
@@ -299,6 +302,21 @@ const TargetForm = ({
             <dd className='break-all font-medium'>{next}</dd>
           </div>
         </dl>
+        {hasOwnPreview && (
+          <label className='flex items-start gap-2 rounded-lg border p-3'>
+            <input
+              checked={resetPreview}
+              className='mt-1'
+              onChange={(event) => setResetPreview(event.target.checked)}
+              type='checkbox'
+            />
+            <span>
+              Bỏ phần xem trước đã tự đặt
+              {link.preview.title && <> ("{link.preview.title}")</>}, dùng tiêu đề, mô tả và ảnh của trang đích mới khi
+              dán link vào Zalo, Facebook.
+            </span>
+          </label>
+        )}
         <p className='text-muted-foreground'>Thay đổi được ghi vào lịch sử của link cùng email của bạn.</p>
         <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <Button disabled={busy} onClick={() => setReviewing(false)}>
