@@ -141,7 +141,10 @@ The API's `passwordKey` is that value, never the password.
 - `src/worker/test-harness.ts` - runs the app against a real local D1 with the real migrations, so
   the tests exercise the SQL the Worker runs.
 - `src/ui/` - the admin UI: React, built by Vite into `dist/client/app` and served by the Worker
-  under `/app`. Vietnamese only. `api.ts` is the one place it talks to the server, and
+  under `/app`. Vietnamese only. Built on shadcn/ui: `components/ui/` and `hooks/` are shadcn's own
+  files, unlinted and left as shipped (`components.json` lets `shadcn add` bring in more);
+  `components/app.tsx` is our layer on top, `components/app-sidebar.tsx` the sidebar with the
+  Đơn vị switcher. `@/` is `src/ui/`. `api.ts` is the one place it talks to the server, and
   `messages.ts` the one place a server reason becomes a sentence. It has its own `tsconfig.json`
   because it is browser code and the Worker is not.
 - `src/db/schema.ts` - the whole model of the first version.

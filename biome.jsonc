@@ -7,7 +7,16 @@
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**/*.ts", "**/*.tsx", "!**/*.d.ts", "!migrations"]
+    // `src/ui/components/ui` and `src/ui/hooks` are shadcn's own files, kept as shadcn ships them so
+    // they can be updated from it; our rules are for the code we write.
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "!**/*.d.ts",
+      "!migrations",
+      "!src/ui/components/ui",
+      "!src/ui/hooks"
+    ]
   },
   "assist": {
     "enabled": true,

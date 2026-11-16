@@ -1,6 +1,6 @@
 import { useState } from "react";
+import { ErrorText } from "@/components/app";
 import { api, type Link, type LogoChoice } from "../api";
-import { ErrorText } from "../components";
 import { messageOf } from "../messages";
 import { LogoUpload, QrPicture, useQr } from "../qr";
 
@@ -40,7 +40,7 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
     });
 
   return (
-    <div className='space-y-3 rounded-md border border-line bg-page p-3'>
+    <div className='space-y-3 rounded-md border border-border bg-muted/50 p-3'>
       <h4 className='font-medium text-sm'>QR</h4>
       <p className='rounded-md bg-amber-100 px-3 py-2 text-amber-900 text-sm'>
         <strong>Chưa in QR này.</strong> Hệ thống đang chạy thử trên tên miền tạm; QR mang tên miền tạm sẽ ngừng hoạt
@@ -49,7 +49,7 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
       <div className='flex flex-col gap-4 sm:flex-row'>
         <QrPicture name={`qr-${link.code}`} source={source} />
         <div className='min-w-0 flex-1 space-y-3'>
-          <p className='text-muted text-sm'>
+          <p className='text-muted-foreground text-sm'>
             QR chứa địa chỉ {link.url}, không chứa đích - nên đổi đích sau khi in vẫn dùng được QR này.
           </p>
           <fieldset className='space-y-1' disabled={busy}>
@@ -78,7 +78,7 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
             label={link.logoChoice === "custom" ? "Đổi logo riêng" : "Tải lên logo riêng"}
             onFile={upload}
           />
-          <p className='text-muted text-xs'>
+          <p className='text-muted-foreground text-xs'>
             Ảnh PNG hoặc JPEG, tối đa 256 KB. Hệ thống tự đặt logo ở giữa, trên nền trắng, với kích thước an toàn cho
             việc quét.
           </p>

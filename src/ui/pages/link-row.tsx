@@ -1,7 +1,16 @@
 import { type FormEvent, useEffect, useState } from "react";
+import {
+  Badge,
+  Button,
+  ConfirmDialog,
+  CopyButton,
+  ErrorText,
+  Field,
+  formatDate,
+  formatDateTime
+} from "@/components/app";
 import { checkTarget } from "../../domain/target";
 import { api, type HistoryEntry, type Link, type Visits } from "../api";
-import { Badge, Button, ConfirmDialog, CopyButton, ErrorText, Field, formatDate, formatDateTime } from "../components";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { QrPanel } from "./qr-panel";
@@ -57,7 +66,7 @@ const EntryText = ({ entry }: { entry: HistoryEntry }) => {
   if (entry.kind === "target") {
     return (
       <p className='break-all'>
-        Đổi đích từ <span className='text-muted line-through'>{entry.oldTarget}</span> sang{" "}
+        Đổi đích từ <span className='text-muted-foreground line-through'>{entry.oldTarget}</span> sang{" "}
         <span className='font-medium'>{entry.newTarget}</span>
       </p>
     );
@@ -75,12 +84,12 @@ const EntryText = ({ entry }: { entry: HistoryEntry }) => {
 /** A Link's changes, newest first: when, who, what. */
 const HistoryList = ({ entries, createdAt }: { entries: HistoryEntry[]; createdAt: string }) =>
   entries.length === 0 ? (
-    <p className='mt-2 text-muted text-sm'>Chưa có thay đổi nào từ khi tạo ngày {formatDate(createdAt)}.</p>
+    <p className='mt-2 text-muted-foreground text-sm'>Chưa có thay đổi nào từ khi tạo ngày {formatDate(createdAt)}.</p>
   ) : (
     <ol className='mt-2 space-y-3'>
       {entries.map((entry) => (
         <li className='text-sm' key={entryKey(entry)}>
-          <p className='text-muted text-xs'>
+          <p className='text-muted-foreground text-xs'>
             {formatDateTime(entry.at)} - {authorOf(entry.by)}
           </p>
           <EntryText entry={entry} />
@@ -95,10 +104,10 @@ const HistoryPanel = ({ link }: { link: Link }) => {
   );
 
   return (
-    <div className='rounded-md border border-line bg-page p-3'>
+    <div className='rounded-md border border-border bg-muted/50 p-3'>
       <h4 className='font-medium text-sm'>Lịch sử thay đổi</h4>
       <ErrorText>{error}</ErrorText>
-      {!(data || error) && <p className='mt-2 text-muted text-sm'>Đang tải...</p>}
+      {!(data || error) && <p className='mt-2 text-muted-foreground text-sm'>Đang tải...</p>}
       {data && <HistoryList createdAt={link.createdAt} entries={data} />}
     </div>
   );
@@ -110,21 +119,21 @@ const VisitsPanel = ({ link }: { link: Link }) => {
   const peak = Math.max(1, ...recent.map((day) => day.count));
 
   return (
-    <div className='rounded-md border border-line bg-page p-3'>
+    <div className='rounded-md border border-border bg-muted/50 p-3'>
       <h4 className='font-medium text-sm'>Lượt mở</h4>
-      <p className='mt-1 text-muted text-xs'>
+      <p className='mt-1 text-muted-foreground text-xs'>
         Con số ước tính: mỗi lần mở link được đếm một lượt, không phải số người. Lượt mở do Zalo, Facebook tự tạo để
         hiện bản xem trước được bỏ qua khi nhận ra được.
       </p>
       <ErrorText>{error}</ErrorText>
-      {!(data || error) && <p className='mt-2 text-muted text-sm'>Đang tải...</p>}
+      {!(data || error) && <p className='mt-2 text-muted-foreground text-sm'>Đang tải...</p>}
       {data && (
         <p className='mt-2 text-sm'>
           Tổng cộng khoảng <strong>{number.format(data.total)}</strong> lượt mở.
         </p>
       )}
       {data && data.days.length > RECENT_DAYS && (
-        <p className='mt-1 text-muted text-xs'>Dưới đây là {RECENT_DAYS} ngày gần nhất có lượt mở.</p>
+        <p className='mt-1 text-muted-foreground text-xs'>Dưới đây là {RECENT_DAYS} ngày gần nhất có lượt mở.</p>
       )}
       {recent.length > 0 && (
         <table className='mt-2 w-full text-sm'>
@@ -137,12 +146,12 @@ const VisitsPanel = ({ link }: { link: Link }) => {
           <tbody>
             {recent.map((day) => (
               <tr key={day.day}>
-                <td className='w-24 py-0.5 pr-2 text-muted tabular-nums'>{formatDay(day.day)}</td>
+                <td className='w-24 py-0.5 pr-2 text-muted-foreground tabular-nums'>{formatDay(day.day)}</td>
                 <td className='py-0.5'>
                   <div className='flex items-center gap-2'>
                     <div
                       aria-hidden='true'
-                      className='h-2 min-w-0.5 rounded-sm bg-brand'
+                      className='h-2 min-w-0.5 rounded-sm bg-primary'
                       style={{ width: `${(day.count / peak) * 70}%` }}
                     />
                     <span className='tabular-nums'>{number.format(day.count)}</span>
@@ -189,7 +198,7 @@ const DetailsForm = ({
   };
 
   return (
-    <form className='space-y-3 rounded-md border border-line bg-page p-3' onSubmit={save}>
+    <form className='space-y-3 rounded-md border border-border bg-muted/50 p-3' onSubmit={save}>
       <Field hint='Chỉ người trong đơn vị thấy. Mã link và địa chỉ link không đổi.' label='Tên link'>
         {(props) => (
           <input {...props} maxLength={200} onChange={(event) => setName(event.target.value)} required value={name} />
@@ -290,21 +299,21 @@ const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
         <StatusBadge link={link} />
       </div>
       <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
-        <code className='min-w-0 flex-1 break-all font-mono text-brand text-sm'>{link.url}</code>
+        <code className='min-w-0 flex-1 break-all font-mono text-primary text-sm'>{link.url}</code>
         <CopyButton value={link.url} />
       </div>
-      <p className='break-all text-muted text-sm'>
+      <p className='break-all text-muted-foreground text-sm'>
         Đích:{" "}
         <a className='underline' href={link.target} rel='noreferrer' target='_blank'>
           {link.target}
         </a>
       </p>
-      {link.note && <p className='break-words text-muted text-sm'>Ghi chú: {link.note}</p>}
-      <p className='text-muted text-xs'>
+      {link.note && <p className='break-words text-muted-foreground text-sm'>Ghi chú: {link.note}</p>}
+      <p className='text-muted-foreground text-xs'>
         Tạo ngày {formatDate(link.createdAt)} - khoảng {number.format(link.visits)} lượt mở
       </p>
       {!link.enabled && (
-        <p className='text-muted text-sm'>
+        <p className='text-muted-foreground text-sm'>
           Người mở link này đang thấy trang thông báo link đã bị tắt.
           {lockedBySystem && " Link do Quản trị hệ thống tắt nên chỉ Quản trị hệ thống bật lại được."}
         </p>
@@ -339,7 +348,7 @@ const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
       </div>
 
       {panel === "target" && (
-        <form className='space-y-3 rounded-md border border-line bg-page p-3' onSubmit={reviewTarget}>
+        <form className='space-y-3 rounded-md border border-border bg-muted/50 p-3' onSubmit={reviewTarget}>
           <Field hint='Mã link và QR đã in giữ nguyên; chỉ nơi người mở được chuyển tới thay đổi.' label='Đích mới'>
             {(props) => (
               <input
@@ -376,12 +385,12 @@ const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
         <p>Người mở {link.url} sẽ được chuyển tới đích mới ngay sau khi đổi.</p>
         <dl className='mt-3 space-y-2'>
           <div>
-            <dt className='font-medium text-ink'>Đích hiện tại</dt>
+            <dt className='font-medium text-foreground'>Đích hiện tại</dt>
             <dd className='break-all'>{link.target}</dd>
           </div>
           <div>
-            <dt className='font-medium text-ink'>Đích mới</dt>
-            <dd className='break-all text-ink'>{draft.trim()}</dd>
+            <dt className='font-medium text-foreground'>Đích mới</dt>
+            <dd className='break-all text-foreground'>{draft.trim()}</dd>
           </div>
         </dl>
         <p className='mt-3'>Thay đổi được ghi vào lịch sử của link cùng email của bạn.</p>

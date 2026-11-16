@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
+import { Button, Card, DownloadLink, ErrorText, Field, SecretBox } from "@/components/app";
 import { api, type Link } from "../api";
-import { Button, Card, DownloadLink, ErrorText, Field, SecretBox } from "../components";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
@@ -104,25 +104,25 @@ const LinksPage = () => {
     <>
       <CreateLink key={unitId} onCreated={(link) => setData((links) => [link, ...(links ?? [])])} unitId={unitId} />
       <Card flush>
-        <h2 className='border-line border-b p-4 font-semibold text-lg'>
+        <h2 className='border-border border-b p-4 font-semibold text-lg'>
           Link của {unit?.unitName}
-          {data && <span className='ml-2 font-normal text-muted text-sm'>({data.length})</span>}
+          {data && <span className='ml-2 font-normal text-muted-foreground text-sm'>({data.length})</span>}
         </h2>
         {error && (
           <div className='p-4'>
             <ErrorText>{error}</ErrorText>
           </div>
         )}
-        {!(data || error) && <p className='p-4 text-muted'>Đang tải...</p>}
-        {data?.length === 0 && <p className='p-4 text-muted'>Đơn vị chưa có link nào.</p>}
+        {!(data || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
+        {data?.length === 0 && <p className='p-4 text-muted-foreground'>Đơn vị chưa có link nào.</p>}
         {data && data.length > 0 && (
-          <div className='flex flex-wrap items-center gap-2 border-line border-b p-4'>
+          <div className='flex flex-wrap items-center gap-2 border-border border-b p-4'>
             <DownloadLink href={`/api/units/${unitId}/links.csv`}>Tải danh sách link (CSV)</DownloadLink>
             <DownloadLink href={`/api/units/${unitId}/visits.csv`}>Tải lượt mở theo ngày (CSV)</DownloadLink>
           </div>
         )}
         {data && data.length > 0 && (
-          <ul className='divide-y divide-line'>
+          <ul className='divide-y divide-border'>
             {data.map((link) => (
               <LinkRow
                 key={link.code}

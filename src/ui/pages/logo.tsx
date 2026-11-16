@@ -1,5 +1,5 @@
+import { ErrorText } from "@/components/app";
 import { api } from "../api";
-import { ErrorText } from "../components";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
 import { LogoCard } from "./logo-card";
@@ -11,7 +11,7 @@ const LogoPage = () => {
   const { data, error, reload } = useLoaded(unitId, (id) => api.unitLogo(id));
 
   if (!data) {
-    return error ? <ErrorText>{error}</ErrorText> : <p className='text-muted'>Đang tải...</p>;
+    return error ? <ErrorText>{error}</ErrorText> : <p className='text-muted-foreground'>Đang tải...</p>;
   }
   return (
     <LogoCard

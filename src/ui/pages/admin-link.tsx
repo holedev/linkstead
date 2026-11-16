@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
+import { Badge, Button, Card, ConfirmDialog, ErrorText, Field, formatDate } from "@/components/app";
 import { api, type FoundLink, type UnitOverview } from "../api";
-import { Badge, Button, Card, ConfirmDialog, ErrorText, Field, formatDate } from "../components";
 import { messageOf } from "../messages";
 import { HistoryList } from "./link-row";
 
@@ -56,7 +56,7 @@ const AdminLinkLookup = ({ units, onMoved }: { units: UnitOverview[]; onMoved: (
   return (
     <Card>
       <h2 className='font-semibold text-lg'>Tra cứu link</h2>
-      <p className='mt-1 text-muted text-sm'>
+      <p className='mt-1 text-muted-foreground text-sm'>
         Tìm link của bất kỳ đơn vị nào theo mã link, để tắt, bật hoặc chuyển sang đơn vị khác.
       </p>
       <form className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto] sm:items-end' onSubmit={find}>
@@ -82,7 +82,7 @@ const AdminLinkLookup = ({ units, onMoved }: { units: UnitOverview[]; onMoved: (
       </div>
 
       {link && (
-        <div className='mt-4 space-y-3 rounded-md border border-line p-3'>
+        <div className='mt-4 space-y-3 rounded-md border border-border p-3'>
           <div className='flex flex-wrap items-center gap-2'>
             <h3 className='min-w-0 flex-1 break-words font-medium'>{link.name}</h3>
             {link.enabled && <Badge tone='ok'>Đang bật</Badge>}
@@ -94,15 +94,15 @@ const AdminLinkLookup = ({ units, onMoved }: { units: UnitOverview[]; onMoved: (
           </div>
           <dl className='space-y-1 text-sm'>
             <div>
-              <dt className='inline text-muted'>Đơn vị: </dt>
+              <dt className='inline text-muted-foreground'>Đơn vị: </dt>
               <dd className='inline font-medium'>{link.unitName}</dd>
             </div>
             <div>
-              <dt className='inline text-muted'>Link: </dt>
-              <dd className='inline break-all font-mono text-brand'>{link.url}</dd>
+              <dt className='inline text-muted-foreground'>Link: </dt>
+              <dd className='inline break-all font-mono text-primary'>{link.url}</dd>
             </div>
             <div>
-              <dt className='inline text-muted'>Đích: </dt>
+              <dt className='inline text-muted-foreground'>Đích: </dt>
               <dd className='inline break-all'>
                 <a className='underline' href={link.target} rel='noreferrer' target='_blank'>
                   {link.target}
@@ -110,7 +110,7 @@ const AdminLinkLookup = ({ units, onMoved }: { units: UnitOverview[]; onMoved: (
               </dd>
             </div>
           </dl>
-          <p className='text-muted text-xs'>
+          <p className='text-muted-foreground text-xs'>
             Tạo ngày {formatDate(link.createdAt)} - khoảng {number.format(link.visits)} lượt mở
           </p>
 
@@ -147,7 +147,7 @@ const AdminLinkLookup = ({ units, onMoved }: { units: UnitOverview[]; onMoved: (
             </div>
           )}
 
-          <div className='rounded-md border border-line bg-page p-3'>
+          <div className='rounded-md border border-border bg-muted/50 p-3'>
             <h4 className='font-medium text-sm'>Lịch sử thay đổi</h4>
             <HistoryList createdAt={link.createdAt} entries={link.history} />
           </div>

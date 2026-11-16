@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from "react";
-import { Button, Card, ErrorText } from "../components";
+import { Button, Card, ErrorText } from "@/components/app";
 import { messageOf } from "../messages";
 import { LogoUpload, QrPicture, useQr } from "../qr";
 
@@ -50,7 +50,7 @@ const LogoCard = ({
       <div className='mt-4 flex flex-col gap-4 sm:flex-row'>
         <QrPicture name='qr-vi-du' source={source} />
         <div className='min-w-0 flex-1 space-y-3'>
-          <div className='space-y-2 text-muted text-sm'>{children}</div>
+          <div className='space-y-2 text-muted-foreground text-sm'>{children}</div>
           <div className='flex flex-wrap gap-2'>
             <LogoUpload
               disabled={busy}
@@ -63,7 +63,7 @@ const LogoCard = ({
               </Button>
             )}
           </div>
-          <p className='text-muted text-xs'>
+          <p className='text-muted-foreground text-xs'>
             Ảnh PNG hoặc JPEG, tối đa 256 KB. QR bên cạnh là mẫu để xem logo, không phải link thật.
           </p>
           <ErrorText>{actionError || error}</ErrorText>

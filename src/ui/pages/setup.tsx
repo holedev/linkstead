@@ -1,8 +1,8 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
+import { Button, Card, ErrorText, Field } from "@/components/app";
 import { checkNewPassword } from "../../domain/password";
 import { api } from "../api";
-import { Button, Card, ErrorText, Field } from "../components";
 import { messageOf } from "../messages";
 
 /**
@@ -54,12 +54,12 @@ const SetupPage = () => {
 
   return (
     <main className='mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4 py-10'>
-      <h1 className='font-semibold text-2xl text-brand'>Đặt mật khẩu</h1>
+      <h1 className='font-semibold text-2xl text-primary'>Đặt mật khẩu</h1>
       <Card>
         {done ? (
           <div className='space-y-4'>
             <p>Đã đặt mật khẩu. Đường dẫn vừa dùng không còn hiệu lực.</p>
-            <Link className='font-medium text-brand underline' to='/login'>
+            <Link className='font-medium text-primary underline' to='/login'>
               Đến trang đăng nhập
             </Link>
           </div>

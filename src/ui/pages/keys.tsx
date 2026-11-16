@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
+import { Badge, Button, Card, ConfirmDialog, ErrorText, Field, formatDate, SecretBox } from "@/components/app";
 import { api } from "../api";
-import { Badge, Button, Card, ConfirmDialog, ErrorText, Field, formatDate, SecretBox } from "../components";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
@@ -52,7 +52,7 @@ const KeysPage = () => {
     <>
       <Card>
         <h2 className='font-semibold text-lg'>Cấp khóa API cho {unit?.unitName}</h2>
-        <p className='mt-1 text-muted text-sm'>
+        <p className='mt-1 text-muted-foreground text-sm'>
           Khóa cho phép một ứng dụng tạo link, đổi đích, tắt, bật và xem link của đơn vị này, không phải của đơn vị
           khác.
         </p>
@@ -88,20 +88,20 @@ const KeysPage = () => {
       </Card>
 
       <Card flush>
-        <h2 className='border-line border-b p-4 font-semibold text-lg'>Khóa API</h2>
+        <h2 className='border-border border-b p-4 font-semibold text-lg'>Khóa API</h2>
         {error && (
           <div className='p-4'>
             <ErrorText>{error}</ErrorText>
           </div>
         )}
-        {!(data || error) && <p className='p-4 text-muted'>Đang tải...</p>}
-        {data?.length === 0 && <p className='p-4 text-muted'>Đơn vị chưa có khóa nào.</p>}
-        <ul className='divide-y divide-line'>
+        {!(data || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
+        {data?.length === 0 && <p className='p-4 text-muted-foreground'>Đơn vị chưa có khóa nào.</p>}
+        <ul className='divide-y divide-border'>
           {data?.map((key) => (
             <li className='flex flex-col gap-2 p-4 sm:flex-row sm:items-center' key={key.id}>
               <div className='min-w-0 flex-1'>
                 <p className='break-words font-medium'>{key.name}</p>
-                <p className='text-muted text-xs'>
+                <p className='text-muted-foreground text-xs'>
                   Cấp ngày {formatDate(key.createdAt)}
                   {key.revokedAt && ` - thu hồi ngày ${formatDate(key.revokedAt)}`}
                 </p>

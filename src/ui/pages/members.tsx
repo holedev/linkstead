@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
+import { Badge, Button, Card, ConfirmDialog, ErrorText, Field, SecretBox } from "@/components/app";
 import { api, type Role } from "../api";
-import { Badge, Button, Card, ConfirmDialog, ErrorText, Field, SecretBox } from "../components";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
@@ -110,14 +110,14 @@ const MembersPage = () => {
       </Card>
 
       <Card flush>
-        <h2 className='border-line border-b p-4 font-semibold text-lg'>Thành viên</h2>
+        <h2 className='border-border border-b p-4 font-semibold text-lg'>Thành viên</h2>
         {error && (
           <div className='p-4'>
             <ErrorText>{error}</ErrorText>
           </div>
         )}
-        {!(data || error) && <p className='p-4 text-muted'>Đang tải...</p>}
-        <ul className='divide-y divide-line'>
+        {!(data || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
+        <ul className='divide-y divide-border'>
           {data?.map((member) => (
             <li className='flex flex-col gap-3 p-4' key={member.email}>
               <div className='min-w-0 flex-1'>

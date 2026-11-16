@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from "react";
-import { Navigate } from "react-router";
+import { Navigate, Outlet } from "react-router";
+import { Badge, Button, Card, ConfirmDialog, DownloadLink, ErrorText, Field, SecretBox } from "@/components/app";
 import { api, type Link, type UnitOverview } from "../api";
-import { Badge, Button, Card, ConfirmDialog, DownloadLink, ErrorText, Field, SecretBox } from "../components";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
@@ -69,7 +69,7 @@ const UnitsCard = ({
 
   return (
     <Card flush>
-      <div className='border-line border-b p-4 sm:p-5'>
+      <div className='border-border border-b p-4 sm:p-5'>
         <h2 className='font-semibold text-lg'>Đơn vị</h2>
         <form className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end' onSubmit={create}>
           <Field label='Tên đơn vị mới'>
@@ -116,13 +116,13 @@ const UnitsCard = ({
         )}
       </div>
 
-      {!(units || error) && <p className='p-4 text-muted'>Đang tải...</p>}
-      <ul className='divide-y divide-line'>
+      {!(units || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
+      <ul className='divide-y divide-border'>
         {units?.map((unit) => (
           <li className='flex flex-col gap-2 p-4 sm:flex-row sm:items-center' key={unit.id}>
             <div className='min-w-0 flex-1'>
               <p className='break-words font-medium'>{unit.name}</p>
-              <p className='text-muted text-sm'>
+              <p className='text-muted-foreground text-sm'>
                 {unit.linkCount} link - Quản lý: <span className='break-all'>{unit.managers.join(", ")}</span>
               </p>
             </div>
@@ -131,7 +131,7 @@ const UnitsCard = ({
                 Giải thể
               </Button>
             ) : (
-              <p className='text-muted text-xs sm:max-w-48 sm:text-right'>
+              <p className='text-muted-foreground text-xs sm:max-w-48 sm:text-right'>
                 Còn link nên chưa giải thể được. Chuyển hết link đi trước.
               </p>
             )}
@@ -189,9 +189,9 @@ const AdminsCard = () => {
 
   return (
     <Card flush>
-      <div className='border-line border-b p-4 sm:p-5'>
+      <div className='border-border border-b p-4 sm:p-5'>
         <h2 className='font-semibold text-lg'>Quản trị hệ thống</h2>
-        <p className='mt-1 text-muted text-sm'>
+        <p className='mt-1 text-muted-foreground text-sm'>
           Người có vai trò này làm được mọi việc trên trang này với mọi đơn vị. Vai trò này không đưa họ vào đơn vị nào.
         </p>
         <form className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto] sm:items-end' onSubmit={grant}>
@@ -226,14 +226,14 @@ const AdminsCard = () => {
           </div>
         )}
       </div>
-      {!(data || error) && <p className='p-4 text-muted'>Đang tải...</p>}
-      <ul className='divide-y divide-line'>
+      {!(data || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
+      <ul className='divide-y divide-border'>
         {data?.map((admin) => (
           <li className='flex flex-col gap-2 p-4 sm:flex-row sm:items-center' key={admin.email}>
             <div className='min-w-0 flex-1'>
               <p className='break-all font-medium'>
                 {admin.email}
-                {admin.email === me?.email && <span className='font-normal text-muted'> (bạn)</span>}
+                {admin.email === me?.email && <span className='font-normal text-muted-foreground'> (bạn)</span>}
               </p>
               {!admin.hasPassword && (
                 <div className='mt-1'>
@@ -246,7 +246,7 @@ const AdminsCard = () => {
                 Thu hồi vai trò
               </Button>
             ) : (
-              <p className='text-muted text-xs sm:max-w-48 sm:text-right'>
+              <p className='text-muted-foreground text-xs sm:max-w-48 sm:text-right'>
                 Quản trị hệ thống duy nhất nên không thu hồi được.
               </p>
             )}
@@ -289,11 +289,11 @@ const ReservedCodesCard = () => {
 
   return (
     <Card flush>
-      <div className='border-line border-b p-4 sm:p-5'>
+      <div className='border-border border-b p-4 sm:p-5'>
         <h2 className='font-semibold text-lg'>Mã dành riêng</h2>
-        <p className='mt-1 text-muted text-sm'>
+        <p className='mt-1 text-muted-foreground text-sm'>
           Mã không ai tự lấy được - tên khoa, tên chương trình của trường. Chỉ Quản trị hệ thống cấp, bằng mục "Tạo link
-          cho đơn vị" bên dưới.
+          cho đơn vị" ở trang "Link của mọi đơn vị".
         </p>
         <form className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end' onSubmit={add}>
           <Field label='Mã'>
@@ -329,14 +329,14 @@ const ReservedCodesCard = () => {
           <ErrorText>{actionError || error}</ErrorText>
         </div>
       </div>
-      {!(data || error) && <p className='p-4 text-muted'>Đang tải...</p>}
-      {data?.length === 0 && <p className='p-4 text-muted'>Chưa có mã dành riêng nào.</p>}
-      <ul className='divide-y divide-line'>
+      {!(data || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
+      {data?.length === 0 && <p className='p-4 text-muted-foreground'>Chưa có mã dành riêng nào.</p>}
+      <ul className='divide-y divide-border'>
         {data?.map((reserved) => (
           <li className='flex flex-col gap-2 p-4 sm:flex-row sm:items-center' key={reserved.code}>
             <div className='min-w-0 flex-1'>
               <p className='break-all font-mono'>{reserved.code}</p>
-              {reserved.note && <p className='break-words text-muted text-sm'>{reserved.note}</p>}
+              {reserved.note && <p className='break-words text-muted-foreground text-sm'>{reserved.note}</p>}
             </div>
             <Button
               disabled={busy}
@@ -378,7 +378,7 @@ const HandOutCard = ({ units, onCreated }: { units: UnitOverview[]; onCreated: (
   return (
     <Card>
       <h2 className='font-semibold text-lg'>Tạo link cho đơn vị</h2>
-      <p className='mt-1 text-muted text-sm'>
+      <p className='mt-1 text-muted-foreground text-sm'>
         Link thuộc về đơn vị được chọn ngay từ đầu. Ở đây dùng được cả mã dành riêng; mã vẫn không đổi được sau khi tạo.
       </p>
       <form className='mt-4 space-y-4' onSubmit={submit}>
@@ -478,37 +478,54 @@ const UniversityLogoCard = () => {
   );
 };
 
-/** What only a Quản trị hệ thống does. The server refuses everyone else whatever this screen shows. */
-const AdminPage = () => {
-  const { me, refresh } = useSession();
-  const { data: units, error, reload } = useLoaded(0, () => api.adminUnits().then((answer) => answer.units));
-  if (!me?.isSystemAdmin) {
-    return <Navigate replace to='/' />;
-  }
+/** Every Đơn vị, for the screens that offer a choice of them. */
+const useUnits = () => useLoaded(0, () => api.adminUnits().then((answer) => answer.units));
+
+/** The gate in front of every system-wide screen. The server refuses everyone else regardless. */
+const SystemAdminOnly = () => {
+  const { me } = useSession();
+  return me?.isSystemAdmin ? <Outlet /> : <Navigate replace to='/' />;
+};
+
+/** Finds a Link of any Đơn vị, and creates one for any Đơn vị - with a Mã dành riêng if need be. */
+const AdminLinksPage = () => {
+  const { data: units, reload } = useUnits();
+  return (
+    <>
+      <AdminLinkLookup onMoved={reload} units={units ?? []} />
+      <HandOutCard onCreated={reload} units={units ?? []} />
+    </>
+  );
+};
+
+const AdminUnitsPage = () => {
+  const { refresh } = useSession();
+  const { data: units, error, reload } = useUnits();
   // A Đơn vị created or dissolved changes the administrator's own list of units too.
   const unitsChanged = () => {
     reload();
     refresh();
   };
-
-  return (
-    <>
-      <AdminLinkLookup onMoved={reload} units={units ?? []} />
-      <UnitsCard error={error} onChanged={unitsChanged} units={units} />
-      <AdminsCard />
-      <ReservedCodesCard />
-      <UniversityLogoCard />
-      <HandOutCard onCreated={reload} units={units ?? []} />
-      <Card>
-        <h2 className='font-semibold text-lg'>Xuất toàn bộ dữ liệu</h2>
-        <p className='mt-1 mb-4 text-muted text-sm'>
-          Một tệp chứa mọi tài khoản, đơn vị, link, lịch sử và lượt mở, để chuyển sang một bản cài đặt khác. Tệp có chứa
-          mật khẩu và khóa API ở dạng đã băm - hãy cất giữ như dữ liệu mật và không gửi qua kênh không an toàn.
-        </p>
-        <DownloadLink href='/api/admin/export'>Tải tệp xuất (JSON)</DownloadLink>
-      </Card>
-    </>
-  );
+  return <UnitsCard error={error} onChanged={unitsChanged} units={units} />;
 };
 
-export { AdminPage };
+const AdminExportPage = () => (
+  <Card>
+    <h2 className='font-semibold text-lg'>Xuất toàn bộ dữ liệu</h2>
+    <p className='mt-1 mb-4 text-muted-foreground text-sm'>
+      Một tệp chứa mọi tài khoản, đơn vị, link, lịch sử, lượt mở và logo, để chuyển sang một bản cài đặt khác. Tệp có
+      chứa mật khẩu và khóa API ở dạng đã băm - hãy cất giữ như dữ liệu mật và không gửi qua kênh không an toàn.
+    </p>
+    <DownloadLink href='/api/admin/export'>Tải tệp xuất (JSON)</DownloadLink>
+  </Card>
+);
+
+export {
+  AdminExportPage,
+  AdminLinksPage,
+  AdminsCard as AdminAdminsPage,
+  AdminUnitsPage,
+  ReservedCodesCard as AdminCodesPage,
+  SystemAdminOnly,
+  UniversityLogoCard as AdminLogoPage
+};

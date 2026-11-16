@@ -1,89 +1,50 @@
-import { NavLink, Outlet, useLocation } from "react-router";
-import { Button } from "./components";
+import { Outlet, useLocation } from "react-router";
+import { AppSidebar, screenName } from "@/components/app-sidebar";
+import { Separator } from "@/components/ui/separator";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useSession } from "./session";
 
-const TAB = "inline-flex min-h-11 items-center border-b-2 px-3 font-medium text-sm";
-const tabClass = ({ isActive }: { isActive: boolean }) =>
-  `${TAB} ${isActive ? "border-brand text-brand" : "border-transparent text-muted hover:text-ink"}`;
-
-/** The frame every signed-in screen sits in: which Đơn vị, which section, who, and the way out. */
+/**
+ * The frame every signed-in screen sits in: the sidebar says which Đơn vị and which section, the
+ * header where you are, and the notice that this is still the trial.
+ */
 const Layout = () => {
-  const { me, unit, selectUnit, signOut } = useSession();
-  const units = me?.units ?? [];
-  // Members and keys are a Quản lý đơn vị's to manage; the server refuses anyone else regardless.
-  // The administration screens are about every Đơn vị, so they show without one selected.
-  const onAdmin = useLocation().pathname.startsWith("/admin");
-  const manages = unit?.role === "manager" || (me?.isSystemAdmin ?? false);
+  const { unit } = useSession();
+  const { pathname } = useLocation();
+  // The system-wide screens are about every Đơn vị, so they show without one selected.
+  const onSystemScreen = pathname.startsWith("/admin");
+  const scope = onSystemScreen ? "Toàn hệ thống" : unit?.unitName;
 
   return (
-    <div className='min-h-dvh'>
-      <p className='bg-amber-100 px-4 py-2 text-center text-amber-900 text-sm'>
-        Bản thử nghiệm trên tên miền tạm. <strong>Chưa in QR hay tài liệu nào từ các link này</strong> - chúng sẽ ngừng
-        hoạt động khi đổi sang tên miền chính thức.
-      </p>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset className='min-w-0'>
+        <header className='sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur'>
+          <SidebarTrigger aria-label='Mở hoặc thu gọn thanh bên' className='-ml-1 size-9' />
+          <Separator className='mr-2 data-[orientation=vertical]:h-4' orientation='vertical' />
+          <nav aria-label='Vị trí' className='flex min-w-0 items-center gap-2 text-sm'>
+            {scope && <span className='hidden truncate text-muted-foreground sm:inline'>{scope}</span>}
+            {scope && <span className='hidden text-muted-foreground sm:inline'>/</span>}
+            <span className='truncate font-medium'>{screenName(pathname)}</span>
+          </nav>
+        </header>
 
-      <header className='border-line border-b bg-surface'>
-        <div className='mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3'>
-          <span className='font-semibold text-brand text-lg'>OU Link</span>
+        <p className='border-amber-200 border-b bg-amber-50 px-4 py-2 text-amber-900 text-sm'>
+          Bản thử nghiệm trên tên miền tạm. <strong>Chưa in QR hay tài liệu nào từ các link này</strong> - chúng sẽ
+          ngừng hoạt động khi đổi sang tên miền chính thức.
+        </p>
 
-          {units.length > 0 && (
-            <label className='flex min-w-0 flex-1 items-center gap-2 text-sm sm:flex-none'>
-              <span className='text-muted'>Đơn vị</span>
-              <select
-                className='min-h-11 min-w-0 flex-1 rounded-md border border-line bg-surface px-2 sm:w-56 sm:flex-none'
-                onChange={(event) => selectUnit(Number(event.target.value))}
-                value={unit?.unitId ?? ""}
-              >
-                {units.map((option) => (
-                  <option key={option.unitId} value={option.unitId}>
-                    {option.unitName}
-                  </option>
-                ))}
-              </select>
-            </label>
+        <main className='mx-auto w-full max-w-4xl flex-1 space-y-4 p-4 md:p-6'>
+          {unit || onSystemScreen ? (
+            <Outlet />
+          ) : (
+            <p className='rounded-xl border bg-card p-5 text-muted-foreground'>
+              Tài khoản của bạn chưa thuộc đơn vị nào nên chưa tạo được link. Hãy nhờ Quản lý đơn vị thêm bạn vào.
+            </p>
           )}
-
-          <div className='flex w-full items-center justify-between gap-3 sm:ml-auto sm:w-auto'>
-            <span className='min-w-0 truncate text-muted text-sm'>{me?.email}</span>
-            <Button onClick={signOut}>Đăng xuất</Button>
-          </div>
-        </div>
-
-        <nav aria-label='Mục' className='mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4'>
-          <NavLink className={tabClass} end to='/'>
-            Link
-          </NavLink>
-          {manages && unit && (
-            <>
-              <NavLink className={tabClass} to='/members'>
-                Thành viên
-              </NavLink>
-              <NavLink className={tabClass} to='/keys'>
-                Khóa API
-              </NavLink>
-              <NavLink className={tabClass} to='/logo'>
-                Logo QR
-              </NavLink>
-            </>
-          )}
-          {me?.isSystemAdmin && (
-            <NavLink className={tabClass} to='/admin'>
-              Quản trị hệ thống
-            </NavLink>
-          )}
-        </nav>
-      </header>
-
-      <main className='mx-auto max-w-5xl space-y-4 px-4 py-6'>
-        {unit || onAdmin ? (
-          <Outlet />
-        ) : (
-          <p className='rounded-lg border border-line bg-surface p-5 text-muted'>
-            Tài khoản của bạn chưa thuộc đơn vị nào nên chưa tạo được link. Hãy nhờ Quản lý đơn vị thêm bạn vào.
-          </p>
-        )}
-      </main>
-    </div>
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 };
 

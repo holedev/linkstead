@@ -10,6 +10,8 @@ export default defineConfig({
   base: "/app/",
   build: { emptyOutDir: true, outDir: "../../dist/client/app" },
   plugins: [react(), tailwindcss()],
+  // `@/` is `src/ui/`, the alias the shadcn components are written against.
+  resolve: { alias: { "@": import.meta.dirname } },
   root: import.meta.dirname,
   // `pnpm dev:ui` beside `pnpm dev`: the pages come from Vite, the API from the local Worker.
   server: { proxy: { "/api": "http://127.0.0.1:8787" } }

@@ -2,7 +2,15 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { Layout } from "./layout";
-import { AdminPage } from "./pages/admin";
+import {
+  AdminAdminsPage,
+  AdminCodesPage,
+  AdminExportPage,
+  AdminLinksPage,
+  AdminLogoPage,
+  AdminUnitsPage,
+  SystemAdminOnly
+} from "./pages/admin";
 import { KeysPage } from "./pages/keys";
 import { LinksPage } from "./pages/links";
 import { LoginPage } from "./pages/login";
@@ -16,7 +24,7 @@ import "./styles.css";
 const SignedIn = () => {
   const { me } = useSession();
   if (me === undefined) {
-    return <p className='p-6 text-muted'>Đang tải...</p>;
+    return <p className='p-6 text-muted-foreground'>Đang tải...</p>;
   }
   return me ? <Layout /> : <Navigate replace to='/login' />;
 };
@@ -35,7 +43,15 @@ if (root) {
               <Route element={<MembersPage />} path='/members' />
               <Route element={<KeysPage />} path='/keys' />
               <Route element={<LogoPage />} path='/logo' />
-              <Route element={<AdminPage />} path='/admin' />
+              <Route element={<SystemAdminOnly />} path='/admin'>
+                <Route element={<Navigate replace to='/admin/links' />} index />
+                <Route element={<AdminLinksPage />} path='links' />
+                <Route element={<AdminUnitsPage />} path='units' />
+                <Route element={<AdminAdminsPage />} path='admins' />
+                <Route element={<AdminCodesPage />} path='codes' />
+                <Route element={<AdminLogoPage />} path='logo' />
+                <Route element={<AdminExportPage />} path='export' />
+              </Route>
             </Route>
             <Route element={<Navigate replace to='/' />} path='*' />
           </Routes>

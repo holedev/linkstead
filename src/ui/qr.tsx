@@ -1,5 +1,5 @@
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
-import { Button } from "./components";
+import { Button } from "@/components/app";
 import { messageOf } from "./messages";
 
 const PNG_MIN_PIXELS = 1024;
@@ -81,13 +81,13 @@ const savePng = (svgUrl: string, filename: string): Promise<void> =>
 const QrPicture = ({ source, name }: { source: { text: string; url: string } | null; name: string }) => {
   const [failed, setFailed] = useState(false);
   if (!source) {
-    return <div className='size-44 shrink-0 rounded-md border border-line bg-surface' />;
+    return <div className='size-44 shrink-0 rounded-md border border-border bg-card' />;
   }
   return (
     <div className='flex shrink-0 flex-col gap-2'>
       <img
         alt='QR'
-        className='size-44 rounded-md border border-line bg-white'
+        className='size-44 rounded-md border border-border bg-white'
         height={176}
         src={source.url}
         width={176}
@@ -106,7 +106,7 @@ const QrPicture = ({ source, name }: { source: { text: string; url: string } | n
           Tải PNG
         </Button>
       </div>
-      {failed && <p className='text-danger text-xs'>Trình duyệt không tạo được PNG. Hãy tải SVG.</p>}
+      {failed && <p className='text-destructive text-xs'>Trình duyệt không tạo được PNG. Hãy tải SVG.</p>}
     </div>
   );
 };

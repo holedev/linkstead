@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { Navigate } from "react-router";
+import { Button, Card, ErrorText, Field } from "@/components/app";
 import { api } from "../api";
-import { Button, Card, ErrorText, Field } from "../components";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 
@@ -32,8 +32,8 @@ const LoginPage = () => {
   return (
     <main className='mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4 py-10'>
       <div>
-        <h1 className='font-semibold text-2xl text-brand'>OU Link</h1>
-        <p className='text-muted text-sm'>Link và mã QR của Trường Đại học Mở Thành phố Hồ Chí Minh</p>
+        <h1 className='font-semibold text-2xl text-primary'>OU Link</h1>
+        <p className='text-muted-foreground text-sm'>Link và mã QR của Trường Đại học Mở Thành phố Hồ Chí Minh</p>
       </div>
       <Card>
         <form className='space-y-4' onSubmit={submit}>
@@ -68,7 +68,7 @@ const LoginPage = () => {
           </Button>
         </form>
       </Card>
-      <p className='text-muted text-sm'>
+      <p className='text-muted-foreground text-sm'>
         Chưa có tài khoản hoặc quên mật khẩu? Hãy nhờ Quản lý đơn vị của bạn cấp đường dẫn đặt mật khẩu.
       </p>
     </main>
