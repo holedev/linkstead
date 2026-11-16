@@ -82,6 +82,21 @@ The trial runs on a temporary domain. **No QR is printed until the official doma
 
 The admin UI is Vietnamese only.
 
+## Commands
+
+- `pnpm dev` - the Worker on a local D1 (`wrangler dev`)
+- `pnpm db:generate` - a migration from `src/db/schema.ts`; `pnpm db:migrate:local` applies them locally
+- `pnpm test` / `pnpm check-types` / `pnpm lint:check`
+
+## Layout
+
+- `src/domain/` - the rules, pure and tested: what a Mã link may be, what a Đích may be, what
+  counts as a Lượt mở. No I/O.
+- `src/worker/app.tsx` - the request handling, written against the `Store` in `store.ts` and
+  nothing Cloudflare-specific. `store-d1.ts` and `index.ts` are the only files that know about
+  Workers; that seam is ADR-0001.
+- `src/db/schema.ts` - the whole model of the first version.
+
 ## Conventions
 
 The same as `hcmcoujs-turborepo`, whose maintainer is the same person:

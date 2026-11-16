@@ -1,0 +1,4 @@
+# esbuild and workerd download their platform binary at install; wrangler and vitest need both.
+allowBuilds:
+  esbuild: true
+  workerd: true

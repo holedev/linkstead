@@ -1,0 +1,47 @@
+{
+  "name": "ou-link",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "commitlint": "commitlint --edit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply ou-link --local",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "lint:check": "biome check .",
+    "lint:fix": "ultracite fix",
+    "prepare": "husky",
+    "test": "vitest run"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,jsonc,css,md}": [
+      "ultracite fix"
+    ]
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.18"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.8",
+    "@cloudflare/workers-types": "^5.20261115.1",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "@commitlint/types": "^21.2.3",
+    "drizzle-kit": "^0.31.11",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "typescript": "^7.0.2",
+    "ultracite": "7.10.4",
+    "vitest": "^5.1.0",
+    "wrangler": "^4.162.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.20.0"
+    }
+  }
+}
