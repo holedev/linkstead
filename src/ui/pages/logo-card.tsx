@@ -64,7 +64,8 @@ const LogoCard = ({
             )}
           </div>
           <p className='text-muted-foreground text-xs'>
-            Ảnh PNG hoặc JPEG, tối đa 256 KB. QR bên cạnh là mẫu để xem logo, không phải link thật.
+            Ảnh PNG hoặc JPEG. Viền trắng hoặc trong suốt quanh logo được tự cắt bỏ để logo lấp đầy khung. QR bên cạnh
+            là mẫu để xem logo, không phải link thật.
           </p>
           <ErrorText>{actionError || error}</ErrorText>
         </div>

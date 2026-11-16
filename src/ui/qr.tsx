@@ -1,5 +1,6 @@
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/app";
+import { contentBox } from "../domain/logo-trim";
 import { messageOf } from "./messages";
 
 const PNG_MIN_PIXELS = 1024;
@@ -121,6 +122,68 @@ const QrPicture = ({
   );
 };
 
+/** Plenty for a logo shown at a fifth of a QR; anything larger only makes the file heavier. */
+const LOGO_MAX_SIDE = 512;
+/** The server's limit (`domain/logo.ts`). */
+const LOGO_MAX_BYTES = 256 * 1024;
+
+const toBlob = (canvas: HTMLCanvasElement, type: string, quality?: number) =>
+  new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
+
+const EXTENSION = /\.\w+$/u;
+
+/**
+ * The logo without the white or transparent margin round it, so it fills the QR's logo box
+ * instead of sitting small in its middle. The box itself does not change. Anything that cannot be
+ * read here is sent as it is, for the server to judge.
+ */
+const trimLogo = async (file: File): Promise<File> => {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const source = document.createElement("canvas");
+    source.width = bitmap.width;
+    source.height = bitmap.height;
+    const sourceContext = source.getContext("2d");
+    if (!sourceContext) {
+      return file;
+    }
+    sourceContext.drawImage(bitmap, 0, 0);
+    const whole = { height: bitmap.height, width: bitmap.width, x: 0, y: 0 };
+    const box = contentBox(
+      sourceContext.getImageData(0, 0, bitmap.width, bitmap.height).data,
+      bitmap.width,
+      bitmap.height
+    );
+    // No margin to cut: only a file too big to send, or too large to need, is redrawn smaller.
+    if (!box && file.size <= LOGO_MAX_BYTES && Math.max(bitmap.width, bitmap.height) <= LOGO_MAX_SIDE) {
+      return file;
+    }
+    const keep = box ?? whole;
+    const scale = Math.min(1, LOGO_MAX_SIDE / Math.max(keep.width, keep.height));
+    const out = document.createElement("canvas");
+    out.width = Math.max(1, Math.round(keep.width * scale));
+    out.height = Math.max(1, Math.round(keep.height * scale));
+    const context = out.getContext("2d");
+    if (!context) {
+      return file;
+    }
+    context.imageSmoothingQuality = "high";
+    context.drawImage(source, keep.x, keep.y, keep.width, keep.height, 0, 0, out.width, out.height);
+    const png = await toBlob(out, "image/png");
+    if (png && png.size <= LOGO_MAX_BYTES) {
+      return new File([png], `${file.name.replace(EXTENSION, "")}.png`, { type: "image/png" });
+    }
+    // A photo-like logo can be heavy as PNG; on its white backing JPEG loses nothing that shows.
+    context.globalCompositeOperation = "destination-over";
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, out.width, out.height);
+    const jpeg = await toBlob(out, "image/jpeg", 0.9);
+    return jpeg ? new File([jpeg], `${file.name.replace(EXTENSION, "")}.jpg`, { type: "image/jpeg" }) : file;
+  } catch {
+    return file;
+  }
+};
+
 /** A button that opens the file chooser, limited to the two kinds of picture a logo may be. */
 const LogoUpload = ({
   label,
@@ -137,7 +200,7 @@ const LogoUpload = ({
     // Cleared so choosing the same file again still counts as a change.
     event.target.value = "";
     if (file) {
-      onFile(file);
+      trimLogo(file).then(onFile);
     }
   };
   return (

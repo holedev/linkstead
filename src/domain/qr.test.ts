@@ -11,6 +11,7 @@ const SVG = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><s
 
 const RECT = /M(\d+) (\d+)h(\d+)v1h-\d+z/g;
 const SCALE = 8;
+const MODULES = /<path fill="#[0-9a-f]+" d="([^"]*)"/;
 const VIEW_BOX = /viewBox="0 0 (\d+)/;
 const BACKGROUND = /^<svg[^>]*><rect width="\d+" height="\d+" fill="(#[0-9a-f]+)"\/>/;
 const FOREGROUND = /<path fill="(#[0-9a-f]+)"/;
@@ -113,6 +114,19 @@ describe("the looks of a QR", () => {
 describe("renderQrSvg", () => {
   it("carries exactly the text it was given", () => {
     expect(scan(renderQrSvg(LINK))).toBe(LINK);
+  });
+
+  it("carries the same code under any logo, so a QR printed with one logo outlives a change to another", () => {
+    const OTHER_PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6]);
+    const modules = (svg: string) => svg.match(MODULES)?.[1];
+    const withA = renderQrSvg(LINK, PNG);
+    const withB = renderQrSvg(LINK, OTHER_PNG);
+
+    expect(withA).not.toBe(withB);
+    expect(modules(withA)).toBe(modules(withB));
+    const box = logoBox(qrMatrix(LINK, true).size);
+    expect(scan(withA, { size: box.logo, start: box.logoStart })).toBe(LINK);
+    expect(scan(withB, { size: box.logo, start: box.logoStart })).toBe(LINK);
   });
 
   it("still reads with a logo over its centre", () => {

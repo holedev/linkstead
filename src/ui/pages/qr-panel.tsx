@@ -168,8 +168,8 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
             onFile={upload}
           />
           <p className='text-muted-foreground text-xs'>
-            Ảnh PNG hoặc JPEG, tối đa 256 KB. Hệ thống tự đặt logo ở giữa, trên nền trắng, với kích thước an toàn cho
-            việc quét.
+            Ảnh PNG hoặc JPEG. Viền trắng hoặc trong suốt quanh logo được tự cắt bỏ để logo lấp đầy khung. Khung logo ở
+            giữa, trên nền trắng, có kích thước cố định để QR luôn quét được.
           </p>
           <ErrorText>{actionError || error}</ErrorText>
         </div>
