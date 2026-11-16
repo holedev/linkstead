@@ -1,9 +1,10 @@
 import { type FormEvent, useState } from "react";
 import { api, type Link } from "../api";
-import { Badge, Button, Card, CopyButton, ErrorText, Field, formatDate, SecretBox } from "../components";
+import { Button, Card, ErrorText, Field, SecretBox } from "../components";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
+import { LinkRow } from "./link-row";
 
 const EMPTY = { code: "", name: "", note: "", target: "" };
 
@@ -94,27 +95,6 @@ const CreateLink = ({ unitId, onCreated }: { unitId: number; onCreated: (link: L
   );
 };
 
-const LinkRow = ({ link }: { link: Link }) => (
-  <li className='space-y-2 p-4'>
-    <div className='flex flex-wrap items-center gap-2'>
-      <h3 className='min-w-0 flex-1 break-words font-medium'>{link.name}</h3>
-      <Badge tone={link.enabled ? "ok" : "muted"}>{link.enabled ? "Đang bật" : "Đã tắt"}</Badge>
-    </div>
-    <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
-      <code className='min-w-0 flex-1 break-all font-mono text-brand text-sm'>{link.url}</code>
-      <CopyButton value={link.url} />
-    </div>
-    <p className='break-all text-muted text-sm'>
-      Đích:{" "}
-      <a className='underline' href={link.target} rel='noreferrer' target='_blank'>
-        {link.target}
-      </a>
-    </p>
-    {link.note && <p className='break-words text-muted text-sm'>Ghi chú: {link.note}</p>}
-    <p className='text-muted text-xs'>Tạo ngày {formatDate(link.createdAt)}</p>
-  </li>
-);
-
 const LinksPage = () => {
   const { unit } = useSession();
   const unitId = unit?.unitId ?? 0;
@@ -138,7 +118,13 @@ const LinksPage = () => {
         {data && data.length > 0 && (
           <ul className='divide-y divide-line'>
             {data.map((link) => (
-              <LinkRow key={link.code} link={link} />
+              <LinkRow
+                key={link.code}
+                link={link}
+                onChanged={(changed) =>
+                  setData((links) => (links ?? []).map((other) => (other.code === changed.code ? changed : other)))
+                }
+              />
             ))}
           </ul>
         )}

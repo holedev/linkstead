@@ -10,6 +10,7 @@ const BY_CODE: Record<string, string> = {
   "bad-note": "Ghi chú quá dài (tối đa 1000 ký tự).",
   "code-taken": "Mã này đã có link khác dùng. Mã đã dùng không bao giờ được cấp lại.",
   "cross-site": "Yêu cầu bị từ chối. Hãy tải lại trang và thử lại.",
+  "disabled-by-system": "Link này do Quản trị hệ thống tắt, chỉ Quản trị hệ thống bật lại được.",
   forbidden: "Bạn không có quyền làm việc này.",
   "invalid-credentials": "Email hoặc mật khẩu không đúng.",
   "invalid-token": "Đường dẫn không hợp lệ, đã được dùng hoặc đã hết hạn. Hãy xin đường dẫn mới từ Quản lý đơn vị.",
@@ -19,8 +20,10 @@ const BY_CODE: Record<string, string> = {
   "not-a-member": "Người này không phải thành viên của đơn vị.",
   "not-signed-in": "Phiên đăng nhập đã hết. Hãy đăng nhập lại.",
   "not-university-email": "Chỉ nhận email @ou.edu.vn.",
+  "target-changed": "Đích vừa được người khác đổi. Hãy xem lại đích hiện tại rồi thử lại.",
   "too-short": "Mật khẩu phải có ít nhất 12 ký tự.",
-  "unknown-key": "Không tìm thấy khóa này, hoặc khóa đã bị thu hồi."
+  "unknown-key": "Không tìm thấy khóa này, hoặc khóa đã bị thu hồi.",
+  "unknown-link": "Không tìm thấy link này."
 };
 
 const BY_PROBLEM: Record<string, string> = {
@@ -32,11 +35,16 @@ const BY_PROBLEM: Record<string, string> = {
   "bad-target:not-a-url": "Đích phải là một địa chỉ đầy đủ, bắt đầu bằng https://",
   "bad-target:not-https": "Đích phải là địa chỉ https.",
   "bad-target:points-at-self": "Đích không được trỏ về chính hệ thống này.",
-  "bad-target:too-long": "Địa chỉ đích quá dài."
+  "bad-target:too-long": "Địa chỉ đích quá dài.",
+  "bad-target:unchanged": "Đích mới trùng với đích hiện tại."
 };
 
+const isReason = (value: unknown): value is { code: string; problem?: string } =>
+  typeof value === "object" && value !== null && typeof (value as { code?: unknown }).code === "string";
+
 const messageOf = (error: unknown): string => {
-  if (error instanceof ApiFailure) {
+  // A plain `{ code, problem }` is a refusal the UI reached itself, with the server's own rule.
+  if (error instanceof ApiFailure || isReason(error)) {
     return BY_PROBLEM[`${error.code}:${error.problem}`] ?? BY_CODE[error.code] ?? `Có lỗi xảy ra (${error.code}).`;
   }
   return "Có lỗi xảy ra. Hãy thử lại.";

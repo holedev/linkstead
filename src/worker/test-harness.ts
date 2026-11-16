@@ -19,6 +19,7 @@ const PHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKi
 const TABLES = [
   "daily_visits",
   "target_changes",
+  "status_changes",
   "links",
   "api_keys",
   "memberships",
@@ -104,7 +105,8 @@ const startHarness = async () => {
     return {
       delete: (path: string, options?: RequestOptions) => request("DELETE", path, options),
       get: (path: string, options?: RequestOptions) => request("GET", path, options),
-      post: (path: string, body?: unknown, options?: RequestOptions) => request("POST", path, { ...options, body })
+      post: (path: string, body?: unknown, options?: RequestOptions) => request("POST", path, { ...options, body }),
+      put: (path: string, body?: unknown, options?: RequestOptions) => request("PUT", path, { ...options, body })
     };
   };
 

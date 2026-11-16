@@ -141,6 +141,26 @@ const targetChanges = sqliteTable(
   (table) => [index("target_changes_link_idx").on(table.linkId)]
 );
 
+/**
+ * Every time a Link was switched off or on, and who or which key did it. `bySystem` marks a
+ * switch-off made as Quản trị hệ thống - the kind only they undo.
+ */
+const statusChanges = sqliteTable(
+  "status_changes",
+  {
+    byAccountId: integer("by_account_id").references(() => accounts.id),
+    byApiKeyId: integer("by_api_key_id").references(() => apiKeys.id),
+    bySystem: integer("by_system", { mode: "boolean" }).notNull().default(false),
+    createdAt: createdAt(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    linkId: integer("link_id")
+      .notNull()
+      .references(() => links.id)
+  },
+  (table) => [index("status_changes_link_idx").on(table.linkId)]
+);
+
 /** Lượt mở, one row per Link per Vietnamese day. A count and nothing about who. */
 const dailyVisits = sqliteTable(
   "daily_visits",
@@ -164,6 +184,7 @@ export {
   passwordSetups,
   reservedCodes,
   sessions,
+  statusChanges,
   targetChanges,
   units
 };

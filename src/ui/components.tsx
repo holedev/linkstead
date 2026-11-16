@@ -112,6 +112,7 @@ const ConfirmDialog = ({
   children,
   confirmLabel,
   busy,
+  tone = "danger",
   onConfirm,
   onCancel
 }: {
@@ -120,6 +121,8 @@ const ConfirmDialog = ({
   children: ReactNode;
   confirmLabel: string;
   busy: boolean;
+  /** `danger` for what cannot be taken back; `primary` for a change that can be made again. */
+  tone?: "danger" | "primary";
   onConfirm: () => void;
   onCancel: () => void;
 }) => {
@@ -148,7 +151,7 @@ const ConfirmDialog = ({
       <div className='mt-2 text-muted text-sm'>{children}</div>
       <div className='mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
         <Button onClick={onCancel}>Hủy</Button>
-        <Button disabled={busy} onClick={onConfirm} variant='danger'>
+        <Button disabled={busy} onClick={onConfirm} variant={tone}>
           {confirmLabel}
         </Button>
       </div>
@@ -156,6 +159,9 @@ const ConfirmDialog = ({
   );
 };
 
+const formatDateTime = (iso: string): string =>
+  new Date(iso).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" });
+
 const formatDate = (iso: string): string => new Date(iso).toLocaleDateString("vi-VN");
 
-export { Badge, Button, Card, ConfirmDialog, CopyButton, ErrorText, Field, formatDate, SecretBox };
+export { Badge, Button, Card, ConfirmDialog, CopyButton, ErrorText, Field, formatDate, formatDateTime, SecretBox };

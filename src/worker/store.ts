@@ -22,8 +22,25 @@ type LinkRecord = {
   target: string;
   unitId: number;
   enabled: boolean;
+  /** Switched off by a Quản trị hệ thống: only they switch it back on. */
+  disabledBySystem: boolean;
+  /** Every Lượt mở the Link has had, all days together. */
+  visits: number;
   createdAt: Date;
 };
+
+/** Who made a change: a person or a Khóa API, never both. */
+type Author = { accountId: number | null; apiKeyId: number | null };
+
+type AuthorName = { kind: "account"; email: string } | { kind: "key"; name: string } | null;
+
+/** One line of a Link's history: its Đích was changed, or it was switched off or on. */
+type HistoryEntry = { at: Date; by: AuthorName } & (
+  | { kind: "target"; oldTarget: string; newTarget: string }
+  | { kind: "status"; enabled: boolean; bySystem: boolean }
+);
+
+type DayVisits = { day: string; count: number };
 
 type NewLink = {
   code: string;
@@ -62,6 +79,31 @@ type Store = {
   /** Null when the Mã link is already taken - by any Link, open or switched off. */
   createLink: (link: NewLink) => Promise<LinkRecord | null>;
   listLinksByUnit: (unitId: number) => Promise<LinkRecord[]>;
+  /** The whole Link behind a normalised Mã link, for whoever manages it. */
+  findLink: (code: string) => Promise<LinkRecord | null>;
+  /**
+   * Replaces the Đích and records the change, together or not at all. False when the Đích was no
+   * longer `oldTarget` - somebody else changed it first, and nothing is written.
+   */
+  changeTarget: (change: {
+    linkId: number;
+    oldTarget: string;
+    newTarget: string;
+    by: Author;
+    at: Date;
+  }) => Promise<boolean>;
+  /** Switches a Link off or on and records it. False when it was already in that state. */
+  setLinkStatus: (change: {
+    linkId: number;
+    enabled: boolean;
+    bySystem: boolean;
+    by: Author;
+    at: Date;
+  }) => Promise<boolean>;
+  /** Every change of Đích and every switch-off and -on, newest first. */
+  listHistory: (linkId: number) => Promise<HistoryEntry[]>;
+  /** Lượt mở per day, oldest first. Days with none have no row. */
+  listVisits: (linkId: number) => Promise<DayVisits[]>;
 
   // ── Accounts ──────────────────────────────────────────────────────────────
   findAccountByEmail: (email: string) => Promise<AccountRecord | null>;
@@ -105,4 +147,18 @@ type Store = {
   revokeApiKey: (keyId: number, unitId: number, at: Date) => Promise<boolean>;
 };
 
-export type { AccountRecord, ApiKeyRecord, LinkRecord, MemberRecord, Membership, NewLink, OpenableLink, Role, Store };
+export type {
+  AccountRecord,
+  ApiKeyRecord,
+  Author,
+  AuthorName,
+  DayVisits,
+  HistoryEntry,
+  LinkRecord,
+  MemberRecord,
+  Membership,
+  NewLink,
+  OpenableLink,
+  Role,
+  Store
+};

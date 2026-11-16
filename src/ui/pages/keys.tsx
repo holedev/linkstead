@@ -53,7 +53,8 @@ const KeysPage = () => {
       <Card>
         <h2 className='font-semibold text-lg'>Cấp khóa API cho {unit?.unitName}</h2>
         <p className='mt-1 text-muted text-sm'>
-          Khóa cho phép một ứng dụng tạo và xem link của đơn vị này, không phải của đơn vị khác.
+          Khóa cho phép một ứng dụng tạo link, đổi đích, tắt, bật và xem link của đơn vị này, không phải của đơn vị
+          khác.
         </p>
         <form className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto] sm:items-end' onSubmit={create}>
           <Field label='Tên khóa'>
