@@ -1,5 +1,6 @@
+import { ArrowLeftIcon, ChevronRightIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, Link as RouterLink, useParams } from "react-router";
 import { Badge, Button, Card, ConfirmDialog, DownloadLink, ErrorText, Field, SecretBox } from "@/components/app";
 import { api, type Link, type UnitOverview } from "../api";
 import { messageOf } from "../messages";
@@ -7,6 +8,7 @@ import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
 import { AdminLinkLookup } from "./admin-link";
 import { LogoCard } from "./logo-card";
+import { UnitMembers } from "./members";
 
 /** One busy flag and one error line for a card's writes. `run` answers whether the write went through. */
 const useAction = () => {
@@ -120,12 +122,18 @@ const UnitsCard = ({
       <ul className='divide-y divide-border'>
         {units?.map((unit) => (
           <li className='flex flex-col gap-2 p-4 sm:flex-row sm:items-center' key={unit.id}>
-            <div className='min-w-0 flex-1'>
-              <p className='break-words font-medium'>{unit.name}</p>
+            <RouterLink
+              className='group -m-2 min-w-0 flex-1 rounded-md p-2 outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50'
+              to={`/admin/units/${unit.id}`}
+            >
+              <p className='flex items-center gap-1 break-words font-medium group-hover:underline'>
+                {unit.name}
+                <ChevronRightIcon aria-hidden='true' className='size-4 shrink-0 text-muted-foreground' />
+              </p>
               <p className='text-muted-foreground text-sm'>
                 {unit.linkCount} link - Quản lý: <span className='break-all'>{unit.managers.join(", ")}</span>
               </p>
-            </div>
+            </RouterLink>
             {unit.linkCount === 0 ? (
               <Button disabled={busy} onClick={() => setDissolveId(unit.id)} variant='danger'>
                 Giải thể
@@ -509,6 +517,47 @@ const AdminUnitsPage = () => {
   return <UnitsCard error={error} onChanged={unitsChanged} units={units} />;
 };
 
+/**
+ * One Đơn vị seen from the whole system: who manages it, how many Links it owns, and every one of
+ * its members - to add, change the role of, or remove - whether or not the administrator belongs.
+ */
+const AdminUnitPage = () => {
+  const unitId = Number(useParams().unitId);
+  const { data: units, error, reload } = useUnits();
+  const unit = units?.find((candidate) => candidate.id === unitId) ?? null;
+
+  return (
+    <>
+      <RouterLink
+        className='inline-flex items-center gap-1 text-muted-foreground text-sm hover:text-foreground'
+        to='/admin/units'
+      >
+        <ArrowLeftIcon className='size-4' />
+        Tất cả đơn vị
+      </RouterLink>
+      <ErrorText>{error}</ErrorText>
+      {!(units || error) && <p className='text-muted-foreground'>Đang tải...</p>}
+      {units && !unit && (
+        <Card>
+          <p className='text-muted-foreground'>Không tìm thấy đơn vị này. Có thể đơn vị đã bị giải thể.</p>
+        </Card>
+      )}
+      {unit && (
+        <>
+          <div>
+            <h1 className='break-words font-semibold text-xl tracking-tight'>{unit.name}</h1>
+            <p className='text-muted-foreground text-sm'>
+              {unit.linkCount} link - Quản lý: <span className='break-all'>{unit.managers.join(", ")}</span>
+            </p>
+          </div>
+          {/* Keyed by the Đơn vị, so moving from one to another starts afresh. */}
+          <UnitMembers key={unit.id} onChanged={reload} unitId={unit.id} unitName={unit.name} />
+        </>
+      )}
+    </>
+  );
+};
+
 const AdminExportPage = () => (
   <Card>
     <h2 className='font-semibold text-lg'>Xuất toàn bộ dữ liệu</h2>
@@ -524,6 +573,7 @@ export {
   AdminExportPage,
   AdminLinksPage,
   AdminsCard as AdminAdminsPage,
+  AdminUnitPage,
   AdminUnitsPage,
   ReservedCodesCard as AdminCodesPage,
   SystemAdminOnly,

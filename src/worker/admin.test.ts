@@ -315,6 +315,31 @@ describe("a Link of any Đơn vị", () => {
 });
 
 describe("changing who belongs to a Đơn vị", () => {
+  it("is open to a Quản trị hệ thống for any Đơn vị, one they do not belong to included", async () => {
+    const admin = await h.signedInAdmin();
+    await admin.post("/api/admin/units", { managerEmail: "truong-khoa@ou.edu.vn", name: "Khoa Luật" });
+    const roles = async () =>
+      ((await (await admin.get("/api/units/3/members")).json()) as { members: { email: string; role: string }[] })
+        .members;
+    expect(await roles()).toMatchObject([{ email: "truong-khoa@ou.edu.vn", role: "manager" }]);
+
+    const added = await admin.post("/api/units/3/members", { email: "giang-vien@ou.edu.vn" });
+    expect(added.status).toBe(201);
+    expect(((await added.json()) as { setupUrl: string | null }).setupUrl).toContain("/app/setup?token=");
+    expect((await admin.put("/api/units/3/members/giang-vien@ou.edu.vn", { role: "manager" })).status).toBe(204);
+    expect((await admin.delete("/api/units/3/members/truong-khoa@ou.edu.vn")).status).toBe(204);
+    expect((await admin.post("/api/units/3/members/password-setup", { email: "giang-vien@ou.edu.vn" })).status).toBe(
+      201
+    );
+    // Still never without a Quản lý đơn vị, whoever asks.
+    expect((await admin.delete("/api/units/3/members/giang-vien@ou.edu.vn")).status).toBe(409);
+    expect(await roles()).toEqual([{ email: "giang-vien@ou.edu.vn", hasPassword: false, role: "manager" }]);
+
+    // Managing a Đơn vị's members does not make the administrator one of them.
+    const me = (await (await admin.get("/api/auth/me")).json()) as { units: { unitId: number }[] };
+    expect(me.units.map((unit) => unit.unitId)).not.toContain(3);
+  });
+
   it("removes a Thành viên, who keeps their Tài khoản but loses the Đơn vị's Links", async () => {
     const admin = await h.signedInAdmin();
     const editor = await member(admin, 1, "bien-tap@ou.edu.vn");

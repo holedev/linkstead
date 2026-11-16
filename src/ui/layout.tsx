@@ -34,7 +34,8 @@ const Layout = () => {
           ngừng hoạt động khi đổi sang tên miền chính thức.
         </p>
 
-        <main className='mx-auto w-full max-w-4xl flex-1 space-y-4 p-4 md:p-6'>
+        {/* A div: the inset around it is already the page's one <main>. */}
+        <div className='mx-auto w-full max-w-4xl flex-1 space-y-4 p-4 md:p-6'>
           {unit || onSystemScreen ? (
             <Outlet />
           ) : (
@@ -42,7 +43,7 @@ const Layout = () => {
               Tài khoản của bạn chưa thuộc đơn vị nào nên chưa tạo được link. Hãy nhờ Quản lý đơn vị thêm bạn vào.
             </p>
           )}
-        </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

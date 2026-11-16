@@ -8,6 +8,7 @@ import {
   AdminExportPage,
   AdminLinksPage,
   AdminLogoPage,
+  AdminUnitPage,
   AdminUnitsPage,
   SystemAdminOnly
 } from "./pages/admin";
@@ -47,6 +48,7 @@ if (root) {
                 <Route element={<Navigate replace to='/admin/links' />} index />
                 <Route element={<AdminLinksPage />} path='links' />
                 <Route element={<AdminUnitsPage />} path='units' />
+                <Route element={<AdminUnitPage />} path='units/:unitId' />
                 <Route element={<AdminAdminsPage />} path='admins' />
                 <Route element={<AdminCodesPage />} path='codes' />
                 <Route element={<AdminLogoPage />} path='logo' />

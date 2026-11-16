@@ -23,9 +23,13 @@ const IssuedLink = ({ issued }: { issued: Issued }) =>
     </p>
   );
 
-const MembersPage = () => {
-  const { unit, me, refresh } = useSession();
-  const unitId = unit?.unitId ?? 0;
+/**
+ * Who belongs to one Đơn vị, and the changes a Quản lý đơn vị - or a Quản trị hệ thống, for any
+ * Đơn vị - may make: add, change a role, remove, issue a one-time link. The server refuses whatever
+ * would leave the Đơn vị without a Quản lý đơn vị. `onChanged` hears about every change made.
+ */
+const UnitMembers = ({ unitId, unitName, onChanged }: { unitId: number; unitName: string; onChanged?: () => void }) => {
+  const { me, refresh } = useSession();
   const { data, error, reload } = useLoaded(unitId, (id) => api.members(id).then((answer) => answer.members));
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("member");
@@ -46,6 +50,7 @@ const MembersPage = () => {
     try {
       await work();
       reload();
+      onChanged?.();
       await refresh();
     } catch (failure) {
       setFormError(messageOf(failure));
@@ -59,6 +64,7 @@ const MembersPage = () => {
     try {
       setIssued(await work());
       reload();
+      onChanged?.();
     } catch (failure) {
       setFormError(messageOf(failure));
     }
@@ -77,7 +83,7 @@ const MembersPage = () => {
   return (
     <>
       <Card>
-        <h2 className='font-semibold text-lg'>Thêm thành viên vào {unit?.unitName}</h2>
+        <h2 className='font-semibold text-lg'>Thêm thành viên vào {unitName}</h2>
         <form className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_12rem_auto] sm:items-end' onSubmit={add}>
           <Field label='Email'>
             {(props) => (
@@ -110,7 +116,10 @@ const MembersPage = () => {
       </Card>
 
       <Card flush>
-        <h2 className='border-border border-b p-4 font-semibold text-lg'>Thành viên</h2>
+        <h2 className='border-border border-b p-4 font-semibold text-lg'>
+          Thành viên
+          {data && <span className='ml-2 font-normal text-muted-foreground text-sm'>({data.length})</span>}
+        </h2>
         {error && (
           <div className='p-4'>
             <ErrorText>{error}</ErrorText>
@@ -121,7 +130,10 @@ const MembersPage = () => {
           {data?.map((member) => (
             <li className='flex flex-col gap-3 p-4' key={member.email}>
               <div className='min-w-0 flex-1'>
-                <p className='break-all font-medium'>{member.email}</p>
+                <p className='break-all font-medium'>
+                  {member.email}
+                  {member.email === me?.email && <span className='font-normal text-muted-foreground'> (bạn)</span>}
+                </p>
                 <div className='mt-1 flex flex-wrap gap-2'>
                   <Badge tone='muted'>{member.role === "manager" ? "Quản lý đơn vị" : "Thành viên"}</Badge>
                   <Badge tone={member.hasPassword ? "ok" : "danger"}>
@@ -160,12 +172,18 @@ const MembersPage = () => {
         open={removing !== null}
         title='Xóa thành viên khỏi đơn vị'
       >
-        Xóa {removing?.email === me?.email ? "chính bạn" : removing?.email} khỏi {unit?.unitName}? Người này sẽ không
-        còn tạo hay sửa được link của đơn vị. Các link họ đã tạo vẫn thuộc đơn vị và tiếp tục hoạt động; tài khoản của
-        họ vẫn còn và có thể được thêm lại.
+        Xóa {removing?.email === me?.email ? "chính bạn" : removing?.email} khỏi {unitName}? Người này sẽ không còn tạo
+        hay sửa được link của đơn vị. Các link họ đã tạo vẫn thuộc đơn vị và tiếp tục hoạt động; tài khoản của họ vẫn
+        còn và có thể được thêm lại.
       </ConfirmDialog>
     </>
   );
 };
 
-export { MembersPage };
+/** The members of the Đơn vị chosen in the sidebar. */
+const MembersPage = () => {
+  const { unit } = useSession();
+  return unit ? <UnitMembers unitId={unit.unitId} unitName={unit.unitName} /> : null;
+};
+
+export { MembersPage, UnitMembers };
