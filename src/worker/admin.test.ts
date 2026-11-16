@@ -49,7 +49,7 @@ describe("Đơn vị, as a Quản trị hệ thống", () => {
     const admin = await h.signedInAdmin();
     const attempt = async (body: object) => (await (await admin.post("/api/admin/units", body)).json()) as object;
 
-    expect(await attempt({ managerEmail: "a@ou.edu.vn", name: "Nhà xuất bản" })).toEqual({ error: "unit-name-taken" });
+    expect(await attempt({ managerEmail: "a@ou.edu.vn", name: "Khoa Kế toán" })).toEqual({ error: "unit-name-taken" });
     expect(await attempt({ managerEmail: "a@gmail.com", name: "Khoa Luật" })).toEqual({
       error: "not-university-email"
     });
@@ -62,8 +62,8 @@ describe("Đơn vị, as a Quản trị hệ thống", () => {
 
     expect(await (await admin.get("/api/admin/units")).json()).toEqual({
       units: [
-        { id: 1, linkCount: 0, managers: ["admin@ou.edu.vn"], name: "Tạp chí Khoa học" },
-        { id: 2, linkCount: 1, managers: ["admin@ou.edu.vn"], name: "Nhà xuất bản" }
+        { id: 1, linkCount: 0, managers: ["admin@ou.edu.vn"], name: "Tạp chí Khoa học & Nhà xuất bản" },
+        { id: 2, linkCount: 1, managers: ["admin@ou.edu.vn"], name: "Khoa Kế toán" }
       ]
     });
   });
@@ -257,7 +257,7 @@ describe("a Link of any Đơn vị", () => {
       code: "cfp-2027",
       history: [],
       unitId: 2,
-      unitName: "Nhà xuất bản"
+      unitName: "Khoa Kế toán"
     });
     expect((await admin.get("/api/admin/links/khong-co")).status).toBe(404);
   });
@@ -270,7 +270,7 @@ describe("a Link of any Đơn vị", () => {
     await h.client().get("/cfp-2027");
 
     const moved = await admin.post("/api/admin/links/cfp-2027/move", { unitId: 2 });
-    expect(await moved.json()).toMatchObject({ code: "cfp-2027", unitId: 2, unitName: "Nhà xuất bản", visits: 1 });
+    expect(await moved.json()).toMatchObject({ code: "cfp-2027", unitId: 2, unitName: "Khoa Kế toán", visits: 1 });
 
     expect((await h.client().get("/cfp-2027")).headers.get("location")).toBe(TARGET);
     expect(await codesOf(editor, 1)).toEqual([]);
@@ -282,8 +282,8 @@ describe("a Link of any Đơn vị", () => {
           at: "2027-03-01T03:00:00.000Z",
           by: { email: "admin@ou.edu.vn", kind: "account" },
           kind: "unit",
-          newUnitName: "Nhà xuất bản",
-          oldUnitName: "Tạp chí Khoa học"
+          newUnitName: "Khoa Kế toán",
+          oldUnitName: "Tạp chí Khoa học & Nhà xuất bản"
         }
       ]
     });
@@ -309,7 +309,7 @@ describe("a Link of any Đơn vị", () => {
     expect((await admin.delete("/api/admin/units/2")).status).toBe(204);
     expect((await h.client().get("/cfp-2027")).status).toBe(302);
     expect(await (await admin.get("/api/links/cfp-2027/history")).json()).toMatchObject({
-      history: [{ newUnitName: "Tạp chí Khoa học", oldUnitName: "Nhà xuất bản" }]
+      history: [{ newUnitName: "Tạp chí Khoa học & Nhà xuất bản", oldUnitName: "Khoa Kế toán" }]
     });
   });
 });
