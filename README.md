@@ -162,7 +162,7 @@ bị từ chối khi vượt 120 lượt gọi mỗi phút.
 | Đổi đích | `PUT /api/links/:code/target` - `{ "target" }` |
 | Tắt, bật | `POST /api/links/:code/disable`, `POST /api/links/:code/enable` |
 | Đọc lượt mở theo ngày | `GET /api/links/:code/visits` |
-| Lấy QR (SVG) | `GET /api/links/:code/qr` |
+| Lấy QR (SVG) | `GET /api/links/:code/qr` - thêm `?style=` để đổi màu: `light-on-dark`, `blue-on-light`, `dark-on-clear`, `light-on-clear` |
 
 ```bash
 curl -X POST https://<địa-chỉ-worker>/api/links \

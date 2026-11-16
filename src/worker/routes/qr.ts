@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 import { checkLogo, MAX_LOGO_BYTES } from "../../domain/logo";
 import { renderQrSvg } from "../../domain/qr";
+import { DEFAULT_QR_STYLE, isQrStyle } from "../../domain/qr-style";
 import { newSecret } from "../../domain/secret";
 import type { AppContext, AppDeps, AppEnv } from "../context";
 import { readJson } from "../http";
@@ -79,15 +80,23 @@ const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
     }
   };
 
-  /** A Link's QR. It carries the Link's own address and never the Đích, so the Đích can change. */
+  /**
+   * A Link's QR. It carries the Link's own address and never the Đích, so the Đích can change.
+   * `?style=` picks one of the fixed looks in `domain/qr-style.ts`; none means black on white.
+   */
   app.get("/api/links/:code/qr", async (c) => {
     const reach = await reachLink(c, store);
     if (reach instanceof Response) {
       return reach;
     }
+    const style = c.req.query("style") ?? DEFAULT_QR_STYLE;
+    if (!isQrStyle(style)) {
+      return c.json({ error: "bad-style" }, 422);
+    }
     const { link } = reach;
-    const picture = renderQrSvg(`${origin(c)}/${link.code}`, await logoOfLink(store, logos, link));
-    return svg(c, picture, `qr-${link.code}.svg`);
+    const picture = renderQrSvg(`${origin(c)}/${link.code}`, await logoOfLink(store, logos, link), style);
+    const suffix = style === DEFAULT_QR_STYLE ? "" : `-${style}`;
+    return svg(c, picture, `qr-${link.code}${suffix}.svg`);
   });
 
   /**

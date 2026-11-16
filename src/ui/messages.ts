@@ -11,6 +11,7 @@ const BY_CODE: Record<string, string> = {
   "bad-name": "Hãy nhập tên (tối đa 200 ký tự).",
   "bad-note": "Ghi chú quá dài (tối đa 1000 ký tự).",
   "bad-password-key": "Trình duyệt không xử lý được mật khẩu. Hãy tải lại trang và thử lại.",
+  "bad-style": "Kiểu QR này không có. Hãy chọn một kiểu trong danh sách.",
   "code-taken": "Mã này đã có link khác dùng. Mã đã dùng không bao giờ được cấp lại.",
   "cross-site": "Yêu cầu bị từ chối. Hãy tải lại trang và thử lại.",
   "disabled-by-system": "Link này do Quản trị hệ thống tắt, chỉ Quản trị hệ thống bật lại được.",

@@ -107,7 +107,7 @@ by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts
 | `POST /api/links`, `GET /api/links` | a Thành viên, or a Khóa API | creates a Link, lists a Đơn vị's Links |
 | `PUT /api/links/:code/target` | a Thành viên, or a Khóa API | changes the Đích, logged |
 | `POST /api/links/:code/disable`, `.../enable` | a Thành viên, a Khóa API, or a Quản trị hệ thống | switches a Link off and on, logged |
-| `GET /api/links/:code/visits`, `GET /api/links/:code/qr` | a Thành viên, or a Khóa API | Lượt mở per day; the QR as SVG |
+| `GET /api/links/:code/visits`, `GET /api/links/:code/qr` | a Thành viên, or a Khóa API | Lượt mở per day; the QR as SVG, `?style=` one of the fixed looks in `domain/qr-style.ts` |
 | `GET /api/links/:code/history` | a Thành viên | every change of Đích, state and Đơn vị |
 | `PUT /api/links/:code/details`, `PUT /api/links/:code/qr-logo` | a Thành viên | rewords Tên link and note; the Link's logo choice |
 | `GET /api/units/:unitId/links.csv`, `.../visits.csv` | a Thành viên | the Đơn vị's CSV downloads |

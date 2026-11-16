@@ -75,6 +75,29 @@ describe("a Link's QR", () => {
   });
 });
 
+describe("the look of a Link's QR", () => {
+  it("is black on white unless another of the fixed looks is asked for, by a member or a key", async () => {
+    const admin = await withLink();
+    const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
+
+    expect(await qrOf(admin)).toContain('<path fill="#000"');
+    const inverted = await admin.get("/api/links/cfp-2027/qr?style=light-on-dark");
+    expect(inverted.headers.get("content-disposition")).toBe('inline; filename="qr-cfp-2027-light-on-dark.svg"');
+    const picture = await inverted.text();
+    expect(picture).toContain('fill="#000"/><path fill="#fff"');
+    const clear = await h.client().get("/api/links/cfp-2027/qr?style=dark-on-clear", { headers: bearer(key) });
+    expect(clear.status).toBe(200);
+    expect(await clear.text()).not.toContain("<rect width=");
+  });
+
+  it("refuses a look it does not know rather than guessing one", async () => {
+    const admin = await withLink();
+    const refused = await admin.get("/api/links/cfp-2027/qr?style=hot-pink");
+    expect(refused.status).toBe(422);
+    expect(await refused.json()).toEqual({ error: "bad-style" });
+  });
+});
+
 describe("the logo on a QR", () => {
   it("is chosen at three levels, the lower winning", async () => {
     const admin = await withLink();

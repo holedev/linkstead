@@ -1,4 +1,5 @@
 import { stretchPassword } from "../domain/password";
+import { DEFAULT_QR_STYLE, type QrStyle } from "../domain/qr-style";
 
 /** The one place the UI talks to the server. Every screen goes through `api`. */
 
@@ -140,7 +141,8 @@ const api = {
   enableLink: (code: string) => call<Link>("POST", `/api/links/${code}/enable`),
   history: (code: string) => call<{ history: HistoryEntry[] }>("GET", `/api/links/${code}/history`),
   keys: (unitId: number) => call<{ keys: ApiKey[] }>("GET", `/api/units/${unitId}/keys`),
-  linkQr: (code: string) => svg(`/api/links/${code}/qr`),
+  linkQr: (code: string, style: QrStyle = DEFAULT_QR_STYLE) =>
+    svg(`/api/links/${code}/qr${style === DEFAULT_QR_STYLE ? "" : `?style=${style}`}`),
   links: (unitId: number) => call<{ links: Link[] }>("GET", `/api/links?unitId=${unitId}`),
   /** The password is stretched here, in the browser; the server is sent the result and never the password. */
   login: async (email: string, password: string) =>

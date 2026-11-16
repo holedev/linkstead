@@ -78,7 +78,16 @@ const savePng = (svgUrl: string, filename: string): Promise<void> =>
   });
 
 /** The picture itself, with its two downloads. `name` is the file's name without an extension. */
-const QrPicture = ({ source, name }: { source: { text: string; url: string } | null; name: string }) => {
+const QrPicture = ({
+  source,
+  name,
+  backdrop = "#fff"
+}: {
+  source: { text: string; url: string } | null;
+  name: string;
+  /** What shows through a QR with no background of its own - a CSS background. */
+  backdrop?: string;
+}) => {
   const [failed, setFailed] = useState(false);
   if (!source) {
     return <div className='size-44 shrink-0 rounded-md border border-border bg-card' />;
@@ -87,9 +96,10 @@ const QrPicture = ({ source, name }: { source: { text: string; url: string } | n
     <div className='flex shrink-0 flex-col gap-2'>
       <img
         alt='QR'
-        className='size-44 rounded-md border border-border bg-white'
+        className='size-44 rounded-md border border-border'
         height={176}
         src={source.url}
+        style={{ background: backdrop }}
         width={176}
       />
       <div className='flex gap-2'>
