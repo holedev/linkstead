@@ -153,6 +153,8 @@ const api = {
   setPassword: (token: string, password: string) => call<void>("POST", "/api/auth/setup", { password, token }),
   unitLogo: (unitId: number) => call<{ own: boolean; university: boolean }>("GET", `/api/units/${unitId}/qr-logo`),
   unitLogoPreview: (unitId: number) => svg(`/api/units/${unitId}/qr-preview`),
+  updateLinkDetails: (code: string, name: string, note: string) =>
+    call<Link>("PUT", `/api/links/${code}/details`, { name, note }),
   uploadLinkLogo: (code: string, file: File) => upload(`/api/links/${code}/qr-logo`, file),
   uploadUnitLogo: (unitId: number, file: File) => upload(`/api/units/${unitId}/qr-logo`, file),
   visits: (code: string) => call<Visits>("GET", `/api/links/${code}/visits`)

@@ -628,6 +628,10 @@ const createD1Store = (database: D1Database): Store => {
         .where(and(eq(units.id, unitId), isNull(units.dissolvedAt)))
         .get();
       return row !== undefined;
+    },
+
+    updateLinkDetails: async (linkId, name, note) => {
+      await db.update(links).set({ name, note }).where(eq(links.id, linkId));
     }
   };
 };

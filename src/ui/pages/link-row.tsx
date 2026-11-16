@@ -157,7 +157,78 @@ const VisitsPanel = ({ link }: { link: Link }) => {
   );
 };
 
-type Panel = "target" | "history" | "visits" | "qr" | null;
+/**
+ * Rewords the Tên link and its note. Mounted when its panel opens, so it always starts from the
+ * Link as it is now. No confirmation: nothing a visitor sees changes, and it can be reworded again.
+ */
+const DetailsForm = ({
+  link,
+  onChanged,
+  onDone
+}: {
+  link: Link;
+  onChanged: (link: Link) => void;
+  onDone: () => void;
+}) => {
+  const [name, setName] = useState(link.name);
+  const [note, setNote] = useState(link.note);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      onChanged(await api.updateLinkDetails(link.code, name, note));
+      onDone();
+    } catch (failure) {
+      setError(messageOf(failure));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className='space-y-3 rounded-md border border-line bg-page p-3' onSubmit={save}>
+      <Field hint='Chỉ người trong đơn vị thấy. Mã link và địa chỉ link không đổi.' label='Tên link'>
+        {(props) => (
+          <input {...props} maxLength={200} onChange={(event) => setName(event.target.value)} required value={name} />
+        )}
+      </Field>
+      <Field label='Ghi chú (không bắt buộc)'>
+        {(props) => (
+          <textarea
+            {...props}
+            maxLength={1000}
+            onChange={(event) => setNote(event.target.value)}
+            rows={2}
+            value={note}
+          />
+        )}
+      </Field>
+      <ErrorText>{error}</ErrorText>
+      <div className='flex flex-wrap gap-2'>
+        <Button disabled={busy} type='submit' variant='primary'>
+          {busy ? "Đang lưu..." : "Lưu"}
+        </Button>
+        <Button onClick={onDone}>Hủy</Button>
+      </div>
+    </form>
+  );
+};
+
+const StatusBadge = ({ link }: { link: Link }) => {
+  if (link.enabled) {
+    return <Badge tone='ok'>Đang bật</Badge>;
+  }
+  return link.disabledBySystem ? (
+    <Badge tone='danger'>Quản trị hệ thống đã tắt</Badge>
+  ) : (
+    <Badge tone='muted'>Đã tắt</Badge>
+  );
+};
+
+type Panel = "target" | "details" | "history" | "visits" | "qr" | null;
 
 /**
  * One Link and everything a Thành viên may do to it. Changing the Đích and switching the Link off
@@ -216,12 +287,7 @@ const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
     <li className='space-y-3 p-4'>
       <div className='flex flex-wrap items-center gap-2'>
         <h3 className='min-w-0 flex-1 break-words font-medium'>{link.name}</h3>
-        {link.enabled && <Badge tone='ok'>Đang bật</Badge>}
-        {!link.enabled && (
-          <Badge tone={link.disabledBySystem ? "danger" : "muted"}>
-            {link.disabledBySystem ? "Quản trị hệ thống đã tắt" : "Đã tắt"}
-          </Badge>
-        )}
+        <StatusBadge link={link} />
       </div>
       <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
         <code className='min-w-0 flex-1 break-all font-mono text-brand text-sm'>{link.url}</code>
@@ -247,6 +313,9 @@ const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
       <div className='flex flex-wrap gap-2'>
         <Button aria-expanded={panel === "target"} onClick={() => toggle("target")}>
           Đổi đích
+        </Button>
+        <Button aria-expanded={panel === "details"} onClick={() => toggle("details")}>
+          Sửa tên, ghi chú
         </Button>
         <Button aria-expanded={panel === "history"} onClick={() => toggle("history")}>
           Lịch sử
@@ -289,6 +358,7 @@ const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
           </Button>
         </form>
       )}
+      {panel === "details" && <DetailsForm link={link} onChanged={onChanged} onDone={() => setPanel(null)} />}
       <ErrorText>{error}</ErrorText>
       {panel === "history" && <HistoryPanel link={link} />}
       {panel === "visits" && <VisitsPanel link={link} />}

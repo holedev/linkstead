@@ -109,6 +109,57 @@ describe("changing a Đích", () => {
   });
 });
 
+describe("rewording a Tên link", () => {
+  it("changes the name and the note, and nothing else about the Link", async () => {
+    const admin = await withLink();
+    const editor = await member(admin, 1, "bien-tap@ou.edu.vn");
+
+    const renamed = await editor.put("/api/links/CFP-2027/details", { name: " Poster, bản in A3 ", note: "Sảnh A" });
+    expect(renamed.status).toBe(200);
+    expect(await renamed.json()).toMatchObject({
+      code: "cfp-2027",
+      name: "Poster, bản in A3",
+      note: "Sảnh A",
+      target: OLD
+    });
+
+    // A request without a note keeps it; an empty one clears it.
+    await editor.put("/api/links/cfp-2027/details", { name: "Poster mới" });
+    const listed = async () =>
+      ((await (await editor.get("/api/links?unitId=1")).json()) as { links: object[] }).links[0];
+    expect(await listed()).toMatchObject({ code: "cfp-2027", name: "Poster mới", note: "Sảnh A" });
+    await editor.put("/api/links/cfp-2027/details", { name: "Poster mới", note: "" });
+    expect(await listed()).toMatchObject({ name: "Poster mới", note: "" });
+
+    expect((await h.client().get("/cfp-2027")).headers.get("location")).toBe(OLD);
+    expect(await historyOf(editor)).toEqual([]);
+  });
+
+  it("requires a name, and keeps both within their lengths", async () => {
+    const admin = await withLink();
+    const attempt = async (body: object) =>
+      (await (await admin.put("/api/links/cfp-2027/details", body)).json()) as object;
+
+    expect(await attempt({ name: "  " })).toEqual({ error: "bad-name" });
+    expect(await attempt({ name: "x".repeat(201) })).toEqual({ error: "bad-name" });
+    expect(await attempt({ name: "Poster", note: "x".repeat(1001) })).toEqual({ error: "bad-note" });
+  });
+
+  it("is for the Đơn vị's own members: not another's, not a Khóa API, not an outside administrator", async () => {
+    const admin = await withLink();
+    const publisher = await member(admin, 2, "nxb@ou.edu.vn");
+    const key = await keyOf(admin, 1, "CRM");
+    const body = { name: "Đổi tên" };
+
+    expect((await publisher.put("/api/links/cfp-2027/details", body)).status).toBe(403);
+    expect((await h.client().put("/api/links/cfp-2027/details", body, { headers: bearer(key) })).status).toBe(403);
+    expect((await h.client().put("/api/links/cfp-2027/details", body)).status).toBe(401);
+    await h.db.prepare("DELETE FROM memberships WHERE account_id = 1").run();
+    expect((await admin.put("/api/links/cfp-2027/details", body)).status).toBe(403);
+    expect((await admin.put("/api/links/khong-co/details", body)).status).toBe(404);
+  });
+});
+
 describe("switching a Link off and on", () => {
   it("lets a Thành viên switch their Đơn vị's Link off and back on, and records both", async () => {
     const admin = await withLink();

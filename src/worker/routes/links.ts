@@ -223,6 +223,30 @@ const registerLinkRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }
   });
 
   /**
+   * Rewords the Tên link and its note - what the Link is for, in its Đơn vị's own words. For
+   * people only: it is not one of the things the API does. The Mã link never changes.
+   */
+  app.put("/api/links/:code/details", async (c) => {
+    const reach = await reachLink(c, store, { peopleOnly: true });
+    if (reach instanceof Response) {
+      return reach;
+    }
+    const { link } = reach;
+    const body = await readJson(c);
+    const name = text(body?.name);
+    // A note left out of the request is kept; an empty one clears it.
+    const note = typeof body?.note === "string" ? body.note.trim() : link.note;
+    if (!name || name.length > MAX_NAME) {
+      return c.json({ error: "bad-name" }, 422);
+    }
+    if (note.length > MAX_NOTE) {
+      return c.json({ error: "bad-note" }, 422);
+    }
+    await store.updateLinkDetails(link.id, name, note);
+    return c.json(present({ ...link, name, note }, new URL(c.req.url).origin));
+  });
+
+  /**
    * Switches a Link off: it shows the notice from now on, and keeps its Mã link. Switched off by a
    * Quản trị hệ thống, it stays theirs to switch back on - also when it was already off.
    */

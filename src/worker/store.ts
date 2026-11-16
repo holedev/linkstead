@@ -138,6 +138,8 @@ type Store = {
     by: Author;
     at: Date;
   }) => Promise<boolean>;
+  /** Rewords the Tên link and its note. The Mã link and the Đích are not this method's to touch. */
+  updateLinkDetails: (linkId: number, name: string, note: string) => Promise<void>;
   /** The per-Link choice of logo for its QR. `logoKey` is set only with `custom`. */
   setLinkLogo: (linkId: number, choice: LogoChoice, logoKey: string | null) => Promise<void>;
   /** Every logo file a Đơn vị or a Link points at, for the export. */
