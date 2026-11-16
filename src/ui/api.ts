@@ -124,6 +124,8 @@ const api = {
   adminMoveLink: (code: string, unitId: number) =>
     call<Link & { unitName: string }>("POST", `/api/admin/links/${code}/move`, { unitId }),
   adminRemoveLogo: () => call<void>("DELETE", "/api/admin/qr-logo"),
+  adminRenameUnit: (unitId: number, name: string) =>
+    call<{ id: number; name: string }>("PUT", `/api/admin/units/${unitId}`, { name }),
   adminReserve: (code: string, note: string) =>
     call<{ code: string; note: string }>("POST", "/api/admin/reserved-codes", { code, note }),
   adminReservedCodes: () => call<{ codes: ReservedCode[] }>("GET", "/api/admin/reserved-codes"),

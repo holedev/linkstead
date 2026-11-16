@@ -134,8 +134,8 @@ describe("the whole installation", () => {
     const admin = h.client();
     const login = await admin.login("admin@ou.edu.vn", PASSWORD);
     expect(((await login.json()) as { units: { unitName: string }[] }).units.map((unit) => unit.unitName)).toEqual([
-      "Tạp chí Khoa học",
-      "Nhà xuất bản"
+      "Tạp chí Khoa học & Nhà xuất bản",
+      "Khoa Kế toán"
     ]);
     expect((await h.client().get("/api/links", { headers: bearer(key) })).status).toBe(200);
     expect((await h.client().get("/cfp-2027")).headers.get("location")).toBe(`${TARGET}-2027`);
@@ -143,7 +143,7 @@ describe("the whole installation", () => {
       history: [
         { enabled: true, kind: "status" },
         { bySystem: true, enabled: false, kind: "status" },
-        { kind: "unit", newUnitName: "Khoa Luật", oldUnitName: "Tạp chí Khoa học" },
+        { kind: "unit", newUnitName: "Khoa Luật", oldUnitName: "Tạp chí Khoa học & Nhà xuất bản" },
         { by: { kind: "key", name: "CRM" }, kind: "target" }
       ],
       unitName: "Khoa Luật",

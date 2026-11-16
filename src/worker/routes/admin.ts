@@ -113,6 +113,27 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() 
     return c.json({ id: unit.id, managerEmail, name: unit.name, setupUrl }, 201);
   });
 
+  /**
+   * Renames a Đơn vị - offices merge and are renamed. Nothing printed depends on the name: a Mã
+   * link carries no Đơn vị (ADR-0002).
+   */
+  app.put("/api/admin/units/:unitId", async (c) => {
+    const admin = systemAdmin(c);
+    if (admin instanceof Response) {
+      return admin;
+    }
+    const unitId = positiveInt(c.req.param("unitId"));
+    const name = text((await readJson(c))?.name);
+    if (!name || name.length > MAX_NAME) {
+      return c.json({ error: "bad-name" }, 422);
+    }
+    const outcome = unitId ? await store.renameUnit(unitId, name) : "unknown";
+    if (outcome === "unknown") {
+      return c.json({ error: "unknown-unit" }, 404);
+    }
+    return outcome === "done" ? c.json({ id: unitId, name }) : c.json({ error: "unit-name-taken" }, 409);
+  });
+
   /** Dissolves a Đơn vị that owns no Link. One that still does must give its Links away first. */
   app.delete("/api/admin/units/:unitId", async (c) => {
     const admin = systemAdmin(c);

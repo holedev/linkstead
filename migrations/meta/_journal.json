@@ -36,6 +36,13 @@
       "when": 1794802608600,
       "tag": "0004_units_moves_and_key_usage",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794814368226,
+      "tag": "0005_merge_first_units",
+      "breakpoints": true
     }
   ]
 }

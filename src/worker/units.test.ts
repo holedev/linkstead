@@ -38,7 +38,7 @@ describe("adding a Thành viên", () => {
     await member.setup(tokenOf(body.setupUrl), "dong.nghiep@ou.edu.vn", PASSWORD);
     const login = await member.login("dong.nghiep@ou.edu.vn", PASSWORD);
     expect(((await login.json()) as { units: unknown[] }).units).toEqual([
-      { role: "member", unitId: 1, unitName: "Tạp chí Khoa học" }
+      { role: "member", unitId: 1, unitName: "Tạp chí Khoa học & Nhà xuất bản" }
     ]);
   });
 

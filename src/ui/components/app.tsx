@@ -62,7 +62,8 @@ const Field = ({
   const id = useId();
   const hintId = `${id}-hint`;
   return (
-    <div className='grid gap-2'>
+    // A column, not a grid: beside a taller field a grid would stretch and push this control out of line.
+    <div className='flex flex-col gap-2'>
       <Label htmlFor={id}>{label}</Label>
       {children({ "aria-describedby": hint ? hintId : undefined, className: CONTROL, id })}
       {hint && (

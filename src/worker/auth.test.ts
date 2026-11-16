@@ -37,14 +37,14 @@ describe("the first Quản trị hệ thống", () => {
     expect(response.status).toBe(422);
   });
 
-  it("manages both Đơn vị the trial starts with", async () => {
+  it("manages every Đơn vị that exists when they are created", async () => {
     const admin = await h.signedInAdmin();
     const me = (await (await admin.get("/api/auth/me")).json()) as { isSystemAdmin: boolean; units: unknown[] };
 
     expect(me.isSystemAdmin).toBe(true);
     expect(me.units).toEqual([
-      { role: "manager", unitId: 1, unitName: "Tạp chí Khoa học" },
-      { role: "manager", unitId: 2, unitName: "Nhà xuất bản" }
+      { role: "manager", unitId: 1, unitName: "Tạp chí Khoa học & Nhà xuất bản" },
+      { role: "manager", unitId: 2, unitName: "Khoa Kế toán" }
     ]);
   });
 });
