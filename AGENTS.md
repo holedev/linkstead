@@ -100,18 +100,23 @@ by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts
 | Route | Who | Does |
 | --- | --- | --- |
 | `GET /:code` | anyone | opens a Link, or shows a notice page |
-| `POST /api/bootstrap` | holder of `BOOTSTRAP_TOKEN` | creates the first Quản trị hệ thống, once |
-| `POST /api/auth/setup` | holder of a one-time link | sets a password |
-| `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | a person | the session |
-| `POST /api/units/:unitId/members` | Quản lý đơn vị | adds a Thành viên, returns their one-time link |
-| `POST /api/units/:unitId/members/password-setup` | Quản lý đơn vị | a fresh one-time link |
-| `POST /api/units/:unitId/keys`, `DELETE /api/units/:unitId/keys/:keyId` | Quản lý đơn vị | issues and revokes a Khóa API |
-| `POST /api/links`, `GET /api/links` | a Thành viên, or a Khóa API | creates a Link, lists a Đơn vị's Links |
-| `GET /api/units/:unitId/members`, `GET /api/units/:unitId/keys` | Quản lý đơn vị | lists them - never a password hash, never a key |
 | `GET /app/*` | anyone | the UI |
+| `POST /api/bootstrap` | holder of `BOOTSTRAP_TOKEN` | creates the first Quản trị hệ thống, once |
+| `POST /api/auth/setup/account`, `POST /api/auth/setup` | holder of a one-time link | says whose link it is; sets a password |
+| `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | a person | the session |
+| `POST /api/links`, `GET /api/links` | a Thành viên, or a Khóa API | creates a Link, lists a Đơn vị's Links |
+| `PUT /api/links/:code/target` | a Thành viên, or a Khóa API | changes the Đích, logged |
+| `POST /api/links/:code/disable`, `.../enable` | a Thành viên, a Khóa API, or a Quản trị hệ thống | switches a Link off and on, logged |
+| `GET /api/links/:code/visits`, `GET /api/links/:code/qr` | a Thành viên, or a Khóa API | Lượt mở per day; the QR as SVG |
+| `GET /api/links/:code/history` | a Thành viên | every change of Đích, state and Đơn vị |
+| `PUT /api/links/:code/details`, `PUT /api/links/:code/qr-logo` | a Thành viên | rewords Tên link and note; the Link's logo choice |
+| `GET /api/units/:unitId/links.csv`, `.../visits.csv` | a Thành viên | the Đơn vị's CSV downloads |
+| `/api/units/:unitId/members...`, `.../keys...`, `.../qr-logo`, `.../qr-preview` | Quản lý đơn vị | members and their roles, Khóa API, the Đơn vị's logo |
+| `/api/admin/admins`, `/units`, `/reserved-codes`, `/links...`, `/qr-logo`, `/export` | Quản trị hệ thống | other administrators, Đơn vị, Mã dành riêng, any Link (find, move, hand out a reserved code), the university's logo, the whole export |
+| `POST /api/admin/import` | holder of `BOOTSTRAP_TOKEN` | takes an export into an unused installation (`docs/export-and-import.md`) |
 
-Not built yet: changing a Đích, switching a Link off and on, reading Lượt mở, QR and logos,
-exports, and the per-key rate limit - in the API and in the UI alike.
+A Khóa API is refused past 120 calls a minute. A Quản trị hệ thống outside a Đơn vị can switch its
+Links off and on and move them, but cannot change a Đích or read a history.
 
 **Starting a fresh deployment.** Set the secret, create the administrator, then remove the secret:
 
@@ -120,16 +125,17 @@ exports, and the per-key rate limit - in the API and in the UI alike.
    The answer carries the one-time link. It works only while no Quản trị hệ thống exists.
 3. `wrangler secret delete BOOTSTRAP_TOKEN`
 
-**Passwords cost CPU.** Hashing one takes more than the 10 ms a request gets on the Workers Free
-plan, so signing in and setting a password need Workers Paid. Opening a Link does not.
+**Passwords are stretched in the browser** (ADR-0003, `src/domain/password.ts`): the server is
+sent the stretched value and stores a salted HMAC of it, so signing in fits the Workers Free plan.
+The API's `passwordKey` is that value, never the password.
 
 ## Layout
 
 - `src/domain/` - the rules, pure and tested: what a Mã link may be, what a Đích may be, what
-  counts as a Lượt mở. No I/O.
+  counts as a Lượt mở, how a QR is drawn, what a logo may be, how a password is stretched. No I/O.
 - `src/worker/app.tsx` and `src/worker/routes/` - the request handling, written against the
   `Store` in `store.ts` and nothing Cloudflare-specific. `store-d1.ts` and `index.ts` are the only
-  files that know about Workers; that seam is ADR-0001.
+  files that know about Workers (D1, and R2 behind the `LogoFiles` seam); that seam is ADR-0001.
 - `src/worker/actor.ts` - works out who is asking. It refuses nothing but a cross-site write; each
   route decides what it needs.
 - `src/worker/test-harness.ts` - runs the app against a real local D1 with the real migrations, so
