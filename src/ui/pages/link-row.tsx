@@ -7,7 +7,8 @@ import {
   PencilIcon,
   PowerIcon,
   PowerOffIcon,
-  QrCodeIcon
+  QrCodeIcon,
+  Share2Icon
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import {
@@ -33,6 +34,7 @@ import { checkTarget } from "../../domain/target";
 import { api, type HistoryEntry, type Link, type Visits } from "../api";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
+import { PreviewPanel } from "./preview-panel";
 import { QrPanel } from "./qr-panel";
 
 const RECENT_DAYS = 30;
@@ -351,11 +353,12 @@ const StatusBadge = ({ link }: { link: Link }) => {
   );
 };
 
-type Task = "target" | "details" | "history" | "visits" | "qr" | "disable" | null;
+type Task = "target" | "details" | "preview" | "history" | "visits" | "qr" | "disable" | null;
 
 const TASK_TITLE = {
   details: "Sửa tên, ghi chú",
   history: "Lịch sử thay đổi",
+  preview: "Xem trước khi chia sẻ",
   qr: "QR và logo",
   target: "Đổi đích",
   visits: "Lượt mở"
@@ -399,6 +402,10 @@ const LinkActions = ({
       <DropdownMenuItem onSelect={() => onTask("qr")}>
         <QrCodeIcon />
         QR và logo
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onTask("preview")}>
+        <Share2Icon />
+        Xem trước khi chia sẻ
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={() => onTask("visits")}>
@@ -534,6 +541,7 @@ const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
         {task === "details" && <DetailsForm link={link} onChanged={onChanged} onDone={close} />}
         {task === "history" && <HistoryPanel link={link} />}
         {task === "visits" && <VisitsPanel link={link} />}
+        {task === "preview" && <PreviewPanel link={link} onChanged={onChanged} onDone={close} />}
         {task === "qr" && (
           <QrPanel
             link={link}

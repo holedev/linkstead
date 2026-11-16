@@ -22,13 +22,16 @@ type LogoFiles = {
   delete: (key: string) => Promise<void>;
 };
 
-type OpenableLink = {
+/** How a Link presents itself when pasted somewhere, as its Đơn vị set it. Empty means the Đích's. */
+type LinkPreview = { previewTitle: string; previewDescription: string; previewImage: string };
+
+type OpenableLink = LinkPreview & {
   id: number;
   target: string;
   enabled: boolean;
 };
 
-type LinkRecord = {
+type LinkRecord = LinkPreview & {
   id: number;
   code: string;
   name: string;
@@ -140,6 +143,8 @@ type Store = {
   }) => Promise<boolean>;
   /** Rewords the Tên link and its note. The Mã link and the Đích are not this method's to touch. */
   updateLinkDetails: (linkId: number, name: string, note: string) => Promise<void>;
+  /** Sets how the Link presents itself when pasted somewhere. Empty parts follow the Đích. */
+  updateLinkPreview: (linkId: number, preview: LinkPreview) => Promise<void>;
   /** The per-Link choice of logo for its QR. `logoKey` is set only with `custom`. */
   setLinkLogo: (linkId: number, choice: LogoChoice, logoKey: string | null) => Promise<void>;
   /** Every logo file a Đơn vị or a Link points at, for the export. */
@@ -265,6 +270,7 @@ export type {
   AuthorName,
   DayVisits,
   HistoryEntry,
+  LinkPreview,
   LinkRecord,
   LogoChoice,
   LogoFiles,

@@ -35,6 +35,9 @@ const NEW_LINK_COLUMNS = {
   logoKey: links.logoKey,
   name: links.name,
   note: links.note,
+  previewDescription: links.previewDescription,
+  previewImage: links.previewImage,
+  previewTitle: links.previewTitle,
   target: links.target,
   unitId: links.unitId
 };
@@ -267,7 +270,14 @@ const createD1Store = (database: D1Database): Store => {
 
     findLinkByCode: async (code) =>
       (await db
-        .select({ enabled: links.enabled, id: links.id, target: links.target })
+        .select({
+          enabled: links.enabled,
+          id: links.id,
+          previewDescription: links.previewDescription,
+          previewImage: links.previewImage,
+          previewTitle: links.previewTitle,
+          target: links.target
+        })
         .from(links)
         .where(eq(links.code, code))
         .get()) ?? null,
@@ -718,6 +728,10 @@ const createD1Store = (database: D1Database): Store => {
 
     updateLinkDetails: async (linkId, name, note) => {
       await db.update(links).set({ name, note }).where(eq(links.id, linkId));
+    },
+
+    updateLinkPreview: async (linkId, preview) => {
+      await db.update(links).set(preview).where(eq(links.id, linkId));
     }
   };
 };

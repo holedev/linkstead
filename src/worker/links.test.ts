@@ -173,11 +173,12 @@ describe("opening a Link", () => {
     ]);
   });
 
-  it("redirects a preview fetcher without counting it", async () => {
+  it("answers a preview fetcher with the preview page, and does not count it", async () => {
     await create();
     const response = await h.client().get("/cfp-2027", { headers: { "user-agent": "facebookexternalhit/1.1" } });
 
-    expect(response.status).toBe(302);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('<meta property="og:url"');
     expect(await visits()).toEqual([]);
   });
 

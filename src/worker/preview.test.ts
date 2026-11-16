@@ -1,0 +1,140 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { bearer, startHarness, tokenOf } from "./test-harness";
+
+let h: Awaited<ReturnType<typeof startHarness>>;
+beforeAll(async () => {
+  h = await startHarness();
+});
+afterAll(() => h.dispose());
+beforeEach(() => h.reset());
+
+const TARGET = "https://journalofscience.ou.edu.vn/cfp";
+const FACEBOOK = { "user-agent": "facebookexternalhit/1.1" };
+const ZALO = { "user-agent": "Zalo" };
+const TARGET_PAGE = `<html><head><title>CFP</title>
+  <meta property="og:title" content="Kêu gọi bài viết 2027">
+  <meta property="og:description" content="Hạn nộp 30/6/2027">
+  <meta property="og:image" content="https://journalofscience.ou.edu.vn/bia.jpg">
+</head></html>`;
+
+const withLink = async () => {
+  const admin = await h.signedInAdmin();
+  await admin.post("/api/links", { code: "cfp-2027", name: "Poster sảnh A, nội bộ", target: TARGET, unitId: 1 });
+  return admin;
+};
+
+const visits = async () => (await h.db.prepare("SELECT count(*) AS n FROM daily_visits").first<{ n: number }>())?.n;
+
+describe("a Link pasted into a chat or a post", () => {
+  it("shows the Đích's own title, description and image, and is not counted", async () => {
+    await withLink();
+    h.pages.set(TARGET, TARGET_PAGE);
+    const response = await h.client().get("/cfp-2027", { headers: FACEBOOK });
+    const page = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(page).toContain('<meta property="og:title" content="Kêu gọi bài viết 2027">');
+    expect(page).toContain('<meta property="og:description" content="Hạn nộp 30/6/2027">');
+    expect(page).toContain('<meta property="og:image" content="https://journalofscience.ou.edu.vn/bia.jpg">');
+    expect(page).toContain('<meta property="og:url" content="https://go.test/cfp-2027">');
+    // The Tên link is the Đơn vị's own note, never shown to the world.
+    expect(page).not.toContain("Poster sảnh A");
+    expect(await visits()).toBe(0);
+  });
+
+  it("still redirects a person, temporarily", async () => {
+    await withLink();
+    h.pages.set(TARGET, TARGET_PAGE);
+    const response = await h.client().get("/cfp-2027");
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(TARGET);
+  });
+
+  it("uses what the Link sets itself, part by part, over the Đích's", async () => {
+    const admin = await withLink();
+    h.pages.set(TARGET, TARGET_PAGE);
+    const set = await admin.put("/api/links/cfp-2027/preview", {
+      description: "",
+      image: "https://ou.edu.vn/poster.png",
+      title: "Hội thảo khoa học 2027"
+    });
+    expect(await set.json()).toMatchObject({
+      preview: { description: "", image: "https://ou.edu.vn/poster.png", title: "Hội thảo khoa học 2027" }
+    });
+
+    const page = await (await h.client().get("/cfp-2027", { headers: ZALO })).text();
+    expect(page).toContain('content="Hội thảo khoa học 2027"');
+    expect(page).toContain('<meta property="og:description" content="Hạn nộp 30/6/2027">');
+    expect(page).toContain('<meta property="og:image" content="https://ou.edu.vn/poster.png">');
+  });
+
+  it("falls back to the Đích's host when its page cannot be read and nothing was set", async () => {
+    await withLink();
+    const page = await (await h.client().get("/cfp-2027", { headers: FACEBOOK })).text();
+    expect(page).toContain('<meta property="og:title" content="journalofscience.ou.edu.vn">');
+  });
+
+  it("shows the notice, not a preview, for a Link bị tắt or one that does not exist", async () => {
+    const admin = await withLink();
+    await admin.post("/api/links/cfp-2027/disable");
+    expect((await h.client().get("/cfp-2027", { headers: FACEBOOK })).status).toBe(404);
+    expect((await h.client().get("/khong-co", { headers: FACEBOOK })).status).toBe(404);
+  });
+});
+
+describe("setting a Link's preview", () => {
+  it("shows a member what the Đích says and what the Link sets", async () => {
+    const admin = await withLink();
+    h.pages.set(TARGET, TARGET_PAGE);
+    expect(await (await admin.get("/api/links/cfp-2027/preview")).json()).toEqual({
+      fromTarget: {
+        description: "Hạn nộp 30/6/2027",
+        image: "https://journalofscience.ou.edu.vn/bia.jpg",
+        title: "Kêu gọi bài viết 2027"
+      },
+      own: { description: "", image: "", title: "" }
+    });
+  });
+
+  it("refuses an image that is not https, and text that is too long", async () => {
+    const admin = await withLink();
+    const attempt = async (body: object) =>
+      (await (await admin.put("/api/links/cfp-2027/preview", body)).json()) as object;
+    expect(await attempt({ image: "http://ou.edu.vn/a.png" })).toEqual({
+      error: "bad-preview",
+      problem: "image-not-https"
+    });
+    expect(await attempt({ title: "x".repeat(201) })).toEqual({ error: "bad-preview", problem: "title-too-long" });
+    expect(await attempt({ description: "x".repeat(501) })).toEqual({
+      error: "bad-preview",
+      problem: "description-too-long"
+    });
+  });
+
+  it("is for the Đơn vị's own members: not another's, not a Khóa API", async () => {
+    const admin = await withLink();
+    const added = await admin.post("/api/units/2/members", { email: "khac@ou.edu.vn" });
+    const other = h.client();
+    await other.setup(
+      tokenOf(((await added.json()) as { setupUrl: string }).setupUrl),
+      "khac@ou.edu.vn",
+      "mat-khau-du-dai"
+    );
+    await other.login("khac@ou.edu.vn", "mat-khau-du-dai");
+    const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
+
+    expect((await other.put("/api/links/cfp-2027/preview", { title: "x" })).status).toBe(403);
+    expect((await h.client().put("/api/links/cfp-2027/preview", { title: "x" }, { headers: bearer(key) })).status).toBe(
+      403
+    );
+    expect((await h.client().get("/api/links/cfp-2027/preview", { headers: bearer(key) })).status).toBe(403);
+  });
+});
+
+describe("robots", () => {
+  it("are kept out of the UI and the API, and the UI says so too", async () => {
+    expect(await (await h.client().get("/robots.txt")).text()).toBe("User-agent: *\nDisallow: /app\nDisallow: /api\n");
+    expect((await h.client().get("/app")).headers.get("x-robots-tag")).toBe("noindex");
+  });
+});

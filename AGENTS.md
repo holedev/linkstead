@@ -100,7 +100,8 @@ by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts
 
 | Route | Who | Does |
 | --- | --- | --- |
-| `GET /:code` | anyone | opens a Link, or shows a notice page |
+| `GET /:code` | anyone | opens a Link, or shows a notice page; a preview fetcher (Zalo, Facebook...) gets a page of Open Graph tags instead of the redirect (`domain/preview.ts`) |
+| `GET /robots.txt` | anyone | keeps crawlers out of `/app` and `/api` |
 | `GET /app/*` | anyone | the UI |
 | `POST /api/bootstrap` | holder of `BOOTSTRAP_TOKEN` | creates the first Quản trị hệ thống, once |
 | `POST /api/auth/setup/account`, `POST /api/auth/setup` | holder of a one-time link | says whose link it is; sets a password |
@@ -111,6 +112,7 @@ by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts
 | `GET /api/links/:code/visits`, `GET /api/links/:code/qr` | a Thành viên, or a Khóa API | Lượt mở per day; the QR as SVG, `?style=` one of the fixed looks in `domain/qr-style.ts` |
 | `GET /api/links/:code/history` | a Thành viên | every change of Đích, state and Đơn vị |
 | `PUT /api/links/:code/details`, `PUT /api/links/:code/qr-logo` | a Thành viên | rewords Tên link and note; the Link's logo choice |
+| `GET`, `PUT /api/links/:code/preview` | a Thành viên | the share preview: what the Đích says, and the Link's own title, description and image |
 | `GET /api/units/:unitId/links.csv`, `.../visits.csv` | a Thành viên | the Đơn vị's CSV downloads |
 | `/api/units/:unitId/members...`, `.../keys...`, `.../qr-logo`, `.../qr-preview` | Quản lý đơn vị | members and their roles, Khóa API, the Đơn vị's logo |
 | `/api/admin/admins`, `/units`, `/reserved-codes`, `/links...`, `/qr-logo`, `/export` | Quản trị hệ thống | other administrators, Đơn vị, Mã dành riêng, any Link (find, move, hand out a reserved code), the university's logo, the whole export |

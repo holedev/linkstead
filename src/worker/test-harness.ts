@@ -77,10 +77,16 @@ const startHarness = async () => {
   const deferred: Promise<unknown>[] = [];
   // Logo files in memory: the app only knows the `LogoFiles` seam, so this is as real as R2 to it.
   const logoFiles = new Map<string, Uint8Array>();
+  /** The pages the tests pretend are on the internet, by address. Anything else is unreachable. */
+  const pages = new Map<string, string>();
   const app = createApp({
     bootstrapToken: BOOTSTRAP_TOKEN,
     defer: (work) => {
       deferred.push(work);
+    },
+    fetchPage: (url) => {
+      const html = pages.get(url);
+      return Promise.resolve(html === undefined ? null : { html, url });
     },
     logos: {
       delete: async (key) => {
@@ -119,6 +125,7 @@ const startHarness = async () => {
     await run(`INSERT INTO units (name) VALUES ('${OTHER_UNIT}')`);
     clock.now = new Date("2027-03-01T03:00:00Z");
     logoFiles.clear();
+    pages.clear();
   };
 
   /** A caller that keeps its cookies between requests, like a browser - or sends none. */
@@ -178,6 +185,7 @@ const startHarness = async () => {
     db,
     dispose: proxy.dispose,
     logoFiles,
+    pages,
     reset,
     run,
     runMigration,

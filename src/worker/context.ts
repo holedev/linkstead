@@ -17,6 +17,11 @@ type AppDeps = {
    */
   defer: (work: Promise<unknown>) => void;
   now?: () => Date;
+  /**
+   * Reads a Đích's page for the preview a chat app shows (`fetch-page.ts`). Replaceable so tests
+   * need not reach the internet; unset means the real one.
+   */
+  fetchPage?: (url: string) => Promise<{ html: string; url: string } | null>;
   /** Where logo files are kept. Unset where no file storage is attached: QR then carry no logo. */
   logos?: LogoFiles;
   /**

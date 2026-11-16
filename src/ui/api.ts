@@ -16,6 +16,8 @@ type Link = {
   enabled: boolean;
   disabledBySystem: boolean;
   logoChoice: LogoChoice;
+  /** How it looks when pasted somewhere, as its Đơn vị set it. Empty parts take the Đích's. */
+  preview: Preview;
   visits: number;
   createdAt: string;
 };
@@ -30,6 +32,7 @@ type ReservedCode = { code: string; note: string; createdAt: string };
 /** A Link as a Quản trị hệ thống finds it: with the Đơn vị that owns it and its history. */
 type FoundLink = Link & { unitName: string; history: HistoryEntry[] };
 type NewLinkInput = { unitId: number; name: string; target: string; code: string; note: string };
+type Preview = { title: string; description: string; image: string };
 type Visits = { total: number; days: { day: string; count: number }[] };
 type LogoChoice = "inherit" | "none" | "custom";
 type Member = { email: string; role: Role; hasPassword: boolean };
@@ -147,6 +150,8 @@ const api = {
   enableLink: (code: string) => call<Link>("POST", `/api/links/${code}/enable`),
   history: (code: string) => call<{ history: HistoryEntry[] }>("GET", `/api/links/${code}/history`),
   keys: (unitId: number) => call<{ keys: ApiKey[] }>("GET", `/api/units/${unitId}/keys`),
+  linkPreview: (code: string) =>
+    call<{ own: Preview; fromTarget: Preview | null }>("GET", `/api/links/${code}/preview`),
   linkQr: (code: string, style: QrStyle = DEFAULT_QR_STYLE) =>
     svg(`/api/links/${code}/qr${style === DEFAULT_QR_STYLE ? "" : `?style=${style}`}`),
   links: (unitId: number) => call<{ links: Link[] }>("GET", `/api/links?unitId=${unitId}`),
@@ -164,6 +169,7 @@ const api = {
   revokeKey: (unitId: number, keyId: number) => call<void>("DELETE", `/api/units/${unitId}/keys/${keyId}`),
   setLinkLogoChoice: (code: string, choice: "inherit" | "none") =>
     call<{ logoChoice: LogoChoice }>("PUT", `/api/links/${code}/qr-logo`, { choice }),
+  setLinkPreview: (code: string, preview: Preview) => call<Link>("PUT", `/api/links/${code}/preview`, preview),
   setMemberRole: (unitId: number, email: string, role: Role) =>
     call<void>("PUT", `/api/units/${unitId}/members/${encodeURIComponent(email)}`, { role }),
   setPassword: async (token: string, email: string, password: string) =>
@@ -188,6 +194,7 @@ export {
   type LogoChoice,
   type Me,
   type Member,
+  type Preview,
   type ReservedCode,
   type Role,
   type UnitMembership,

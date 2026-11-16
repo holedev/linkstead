@@ -1,8 +1,10 @@
 import { Hono } from "hono";
 import { isWellFormedCode, normalizeCode, SYSTEM_RESERVED_CODES } from "../domain/link-code";
+import { isPreviewFetcher, mergePreview, readPreview, renderPreviewPage } from "../domain/preview";
 import { isMachineAgent, visitDay } from "../domain/visit";
 import { resolveActor } from "./actor";
 import type { AppDeps, AppEnv } from "./context";
+import { fetchPage as fetchRealPage } from "./fetch-page";
 import { Notice } from "./notice";
 import { registerAdminRoutes } from "./routes/admin";
 import { registerAuthRoutes } from "./routes/auth";
@@ -11,12 +13,18 @@ import { registerLinkRoutes } from "./routes/links";
 import { registerQrRoutes } from "./routes/qr";
 import { registerUnitRoutes } from "./routes/units";
 
+/** How the system names itself in a preview. */
+const SITE_NAME = "OU Link - Trường Đại học Mở Thành phố Hồ Chí Minh";
+
+/** Search engines may follow a Link to its Đích, but have no business in the UI or the API. */
+const ROBOTS = "User-agent: *\nDisallow: /app\nDisallow: /api\n";
+
 /**
  * The request handling, free of anything Workers-specific (ADR-0001): it is handed a `Store` and
  * a `defer`, and `index.ts` is the only place those come from Cloudflare.
  */
 const createApp = (deps: AppDeps) => {
-  const { store, defer, now = () => new Date() } = deps;
+  const { store, defer, now = () => new Date(), fetchPage = fetchRealPage } = deps;
   const app = new Hono<AppEnv>();
 
   app.use("/api/*", resolveActor(deps));
@@ -29,6 +37,8 @@ const createApp = (deps: AppDeps) => {
   registerQrRoutes(app, deps);
   // An unknown API path answers as an API, not with the visitor's notice page.
   app.all("/api/*", (c) => c.json({ error: "not-found" }, 404));
+
+  app.get("/robots.txt", (c) => c.text(ROBOTS));
 
   // The UI. It answers before the Link route does; `app` is a reserved code for that reason.
   app.on(["GET", "HEAD"], ["/app", "/app/*"], async (c) => {
@@ -43,6 +53,7 @@ const createApp = (deps: AppDeps) => {
     response.headers.set("Referrer-Policy", "no-referrer");
     response.headers.set("X-Frame-Options", "DENY");
     response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-Robots-Tag", "noindex");
     return response;
   });
 
@@ -63,14 +74,26 @@ const createApp = (deps: AppDeps) => {
       return c.html(<Notice kind='disabled' />, 404);
     }
 
-    if (!isMachineAgent(c.req.header("user-agent"))) {
+    const userAgent = c.req.header("user-agent");
+    c.header("Cache-Control", "no-store");
+
+    // A chat app or social site building a preview gets the tags, not a redirect: not every one
+    // follows a redirect to read the Đích's. It is never counted as a Lượt mở.
+    if (isPreviewFetcher(userAgent)) {
+      const own = { description: link.previewDescription, image: link.previewImage, title: link.previewTitle };
+      const page = own.title && own.description && own.image ? null : await fetchPage(link.target);
+      const preview = mergePreview(own, page ? readPreview(page.html, page.url) : null);
+      const linkUrl = `${new URL(c.req.url).origin}/${code}`;
+      return c.html(renderPreviewPage({ linkUrl, preview, siteName: SITE_NAME, target: link.target }));
+    }
+
+    if (!isMachineAgent(userAgent)) {
       // A failed count must never cost the visitor their redirect.
       defer(store.recordVisit(link.id, visitDay(now())).catch(() => undefined));
     }
 
     // Temporary on purpose, and never stored: a permanent redirect is remembered by the browser,
     // which would keep sending people to the old Đích after it has been changed.
-    c.header("Cache-Control", "no-store");
     return c.redirect(link.target, 302);
   });
 

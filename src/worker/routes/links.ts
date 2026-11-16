@@ -1,7 +1,9 @@
 import type { Hono } from "hono";
 import { checkChosenCode, generateCode, isWellFormedCode, normalizeCode } from "../../domain/link-code";
+import { MAX_PREVIEW_DESCRIPTION, MAX_PREVIEW_TITLE, readPreview } from "../../domain/preview";
 import { checkTarget } from "../../domain/target";
 import type { AppContext, AppDeps, AppEnv } from "../context";
+import { fetchPage as fetchRealPage } from "../fetch-page";
 import { positiveInt, readJson, text } from "../http";
 import type { Author, HistoryEntry, LinkRecord, NewLink, Store } from "../store";
 
@@ -42,6 +44,7 @@ const present = (link: LinkRecord, origin: string) => ({
   logoChoice: link.logoChoice,
   name: link.name,
   note: link.note,
+  preview: { description: link.previewDescription, image: link.previewImage, title: link.previewTitle },
   target: link.target,
   unitId: link.unitId,
   url: `${origin}/${link.code}`,
@@ -169,7 +172,10 @@ const createLink = async (
   return link ? c.json(present(link, url.origin), 201) : c.json({ error: "code-taken" }, 409);
 };
 
-const registerLinkRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }: AppDeps) => {
+const registerLinkRoutes = (
+  app: Hono<AppEnv>,
+  { store, now = () => new Date(), fetchPage = fetchRealPage }: AppDeps
+) => {
   /** Creates a Link. With no `code`, the system picks one. */
   app.post("/api/links", async (c) => {
     const body = await readJson(c);
@@ -244,6 +250,48 @@ const registerLinkRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }
     }
     await store.updateLinkDetails(link.id, name, note);
     return c.json(present({ ...link, name, note }, new URL(c.req.url).origin));
+  });
+
+  /**
+   * How the Link looks when pasted into a chat or a post: what it sets itself, and what its Đích's
+   * page says, which fills whatever it leaves empty. For people: not one of the API's six things.
+   */
+  app.get("/api/links/:code/preview", async (c) => {
+    const reach = await reachLink(c, store, { peopleOnly: true });
+    if (reach instanceof Response) {
+      return reach;
+    }
+    const { link } = reach;
+    const page = await fetchPage(link.target);
+    return c.json({
+      fromTarget: page ? readPreview(page.html, page.url) : null,
+      own: { description: link.previewDescription, image: link.previewImage, title: link.previewTitle }
+    });
+  });
+
+  /** Sets the Link's own preview. An empty part goes back to the Đích's. */
+  app.put("/api/links/:code/preview", async (c) => {
+    const reach = await reachLink(c, store, { peopleOnly: true });
+    if (reach instanceof Response) {
+      return reach;
+    }
+    const { link } = reach;
+    const body = await readJson(c);
+    const previewTitle = text(body?.title);
+    const previewDescription = text(body?.description);
+    const previewImage = text(body?.image);
+    if (previewTitle.length > MAX_PREVIEW_TITLE) {
+      return c.json({ error: "bad-preview", problem: "title-too-long" }, 422);
+    }
+    if (previewDescription.length > MAX_PREVIEW_DESCRIPTION) {
+      return c.json({ error: "bad-preview", problem: "description-too-long" }, 422);
+    }
+    if (previewImage && !(URL.canParse(previewImage) && new URL(previewImage).protocol === "https:")) {
+      return c.json({ error: "bad-preview", problem: "image-not-https" }, 422);
+    }
+    const preview = { previewDescription, previewImage, previewTitle };
+    await store.updateLinkPreview(link.id, preview);
+    return c.json(present({ ...link, ...preview }, new URL(c.req.url).origin));
   });
 
   /**

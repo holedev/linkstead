@@ -120,6 +120,13 @@ const links = sqliteTable(
     /** Tên link. */
     name: text("name").notNull(),
     note: text("note").notNull().default(""),
+    /**
+     * How the Link looks when pasted into a chat or a post, where its Đơn vị wants that set by hand.
+     * Empty takes the Đích's own (`domain/preview.ts`). Public, unlike the Tên link and the note.
+     */
+    previewDescription: text("preview_description").notNull().default(""),
+    previewImage: text("preview_image").notNull().default(""),
+    previewTitle: text("preview_title").notNull().default(""),
     /** Đích - the only column here that is expected to change. */
     target: text("target").notNull(),
     unitId: integer("unit_id")
