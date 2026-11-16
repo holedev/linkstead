@@ -64,6 +64,40 @@ const registerUnitRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }
     return c.json({ email, role, setupUrl }, 201);
   });
 
+  /**
+   * Changes a member's role or removes them from the Đơn vị. Either is refused when it would leave
+   * the Đơn vị without a Quản lý đơn vị. The Tài khoản itself stays - it may belong elsewhere.
+   */
+  const changeMembership = async (c: AppContext, role: "manager" | "member" | null) => {
+    const unit = await managedUnit(c, store);
+    if (unit instanceof Response) {
+      return unit;
+    }
+    const account = await store.findAccountByEmail(normalizeEmail(c.req.param("email") ?? ""));
+    const outcome = account
+      ? await (role
+          ? store.setMembershipRole(account.id, unit.unitId, role)
+          : store.removeMembership(account.id, unit.unitId))
+      : "not-a-member";
+    if (outcome === "not-a-member") {
+      return c.json({ error: "not-a-member" }, 404);
+    }
+    if (outcome === "last-manager") {
+      return c.json({ error: "last-manager" }, 409);
+    }
+    return c.body(null, 204);
+  };
+
+  app.put("/api/units/:unitId/members/:email", async (c) => {
+    const role = (await readJson(c))?.role;
+    if (role !== "manager" && role !== "member") {
+      return c.json({ error: "bad-role" }, 422);
+    }
+    return changeMembership(c, role);
+  });
+
+  app.delete("/api/units/:unitId/members/:email", (c) => changeMembership(c, null));
+
   /** A new one-time link for a member who forgot their password, or never used the first one. */
   app.post("/api/units/:unitId/members/password-setup", async (c) => {
     const unit = await managedUnit(c, store);

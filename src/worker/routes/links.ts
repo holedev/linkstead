@@ -136,6 +136,38 @@ const createWithGeneratedCode = async (store: Store, fields: LinkFields): Promis
   return null;
 };
 
+/**
+ * Creates a Link for a creator already known to be allowed. `handOut` is a Quản trị hệ thống
+ * giving out a Mã dành riêng: the administrators' list is skipped, the system's own paths never.
+ */
+const createLink = async (
+  c: AppContext,
+  store: Store,
+  creator: Creator,
+  body: Record<string, unknown> | null,
+  handOut = false
+) => {
+  const url = new URL(c.req.url);
+  const fields = readFields(body, creator, url.hostname);
+  if ("error" in fields) {
+    return c.json(fields, 422);
+  }
+
+  const chosen = normalizeCode(text(body?.code));
+  if (!chosen) {
+    const generated = await createWithGeneratedCode(store, fields);
+    return generated ? c.json(present(generated, url.origin), 201) : c.json({ error: "no-code-available" }, 503);
+  }
+
+  const reserved = !handOut && (await store.isReservedCode(chosen)) ? new Set([chosen]) : undefined;
+  const problem = checkChosenCode(chosen, reserved);
+  if (problem) {
+    return c.json({ error: "bad-code", problem }, 422);
+  }
+  const link = await store.createLink({ ...fields, code: chosen });
+  return link ? c.json(present(link, url.origin), 201) : c.json({ error: "code-taken" }, 409);
+};
+
 const registerLinkRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }: AppDeps) => {
   /** Creates a Link. With no `code`, the system picks one. */
   app.post("/api/links", async (c) => {
@@ -144,25 +176,7 @@ const registerLinkRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }
     if (creator instanceof Response) {
       return creator;
     }
-    const url = new URL(c.req.url);
-    const fields = readFields(body, creator, url.hostname);
-    if ("error" in fields) {
-      return c.json(fields, 422);
-    }
-
-    const chosen = normalizeCode(text(body?.code));
-    if (!chosen) {
-      const generated = await createWithGeneratedCode(store, fields);
-      return generated ? c.json(present(generated, url.origin), 201) : c.json({ error: "no-code-available" }, 503);
-    }
-
-    const reserved = (await store.isReservedCode(chosen)) ? new Set([chosen]) : undefined;
-    const problem = checkChosenCode(chosen, reserved);
-    if (problem) {
-      return c.json({ error: "bad-code", problem }, 422);
-    }
-    const link = await store.createLink({ ...fields, code: chosen });
-    return link ? c.json(present(link, url.origin), 201) : c.json({ error: "code-taken" }, 409);
+    return createLink(c, store, creator, body);
   });
 
   /** The Links of one Đơn vị, newest first. */
@@ -256,4 +270,4 @@ const registerLinkRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }
   });
 };
 
-export { registerLinkRoutes };
+export { createLink, present, presentEntry, registerLinkRoutes };

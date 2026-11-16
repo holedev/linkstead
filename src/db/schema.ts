@@ -52,6 +52,11 @@ const sessions = sqliteTable(
 /** Đơn vị. */
 const units = sqliteTable("units", {
   createdAt: createdAt(),
+  /**
+   * Set when a Quản trị hệ thống dissolved the Đơn vị - possible only once it owns no Link. The
+   * row stays: Links that moved away and their history still name it.
+   */
+  dissolvedAt: integer("dissolved_at", { mode: "timestamp_ms" }),
   id: integer("id").primaryKey({ autoIncrement: true }),
   /** The Đơn vị's own default logo, as a storage key. Null means the university's. */
   logoKey: text("logo_key"),
@@ -141,6 +146,42 @@ const targetChanges = sqliteTable(
   (table) => [index("target_changes_link_idx").on(table.linkId)]
 );
 
+/** Every move of a Link from one Đơn vị to another. Its address does not change (ADR-0002). */
+const unitChanges = sqliteTable(
+  "unit_changes",
+  {
+    byAccountId: integer("by_account_id").references(() => accounts.id),
+    createdAt: createdAt(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    linkId: integer("link_id")
+      .notNull()
+      .references(() => links.id),
+    newUnitId: integer("new_unit_id")
+      .notNull()
+      .references(() => units.id),
+    oldUnitId: integer("old_unit_id")
+      .notNull()
+      .references(() => units.id)
+  },
+  (table) => [index("unit_changes_link_idx").on(table.linkId)]
+);
+
+/**
+ * How many calls a Khóa API made in one minute, for the rate limit. `minute` counts minutes since
+ * 1970; rows of earlier minutes are removed as the key is used.
+ */
+const apiKeyUsage = sqliteTable(
+  "api_key_usage",
+  {
+    apiKeyId: integer("api_key_id")
+      .notNull()
+      .references(() => apiKeys.id),
+    count: integer("count").notNull().default(0),
+    minute: integer("minute").notNull()
+  },
+  (table) => [primaryKey({ columns: [table.apiKeyId, table.minute] })]
+);
+
 /**
  * Every time a Link was switched off or on, and who or which key did it. `bySystem` marks a
  * switch-off made as Quản trị hệ thống - the kind only they undo.
@@ -178,6 +219,7 @@ const dailyVisits = sqliteTable(
 export {
   accounts,
   apiKeys,
+  apiKeyUsage,
   dailyVisits,
   links,
   memberships,
@@ -186,5 +228,6 @@ export {
   sessions,
   statusChanges,
   targetChanges,
+  unitChanges,
   units
 };

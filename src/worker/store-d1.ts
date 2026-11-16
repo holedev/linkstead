@@ -1,5 +1,6 @@
 import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
+import { alias } from "drizzle-orm/sqlite-core";
 import {
   accounts,
   apiKeys,
@@ -11,9 +12,10 @@ import {
   sessions,
   statusChanges,
   targetChanges,
+  unitChanges,
   units
 } from "../db/schema";
-import type { AuthorName, HistoryEntry, Store } from "./store";
+import type { AuthorName, HistoryEntry, MembershipOutcome, Store } from "./store";
 
 const ACCOUNT_COLUMNS = {
   email: accounts.email,
@@ -37,8 +39,15 @@ const NEW_LINK_COLUMNS = {
 
 const LINK_COLUMNS = {
   ...NEW_LINK_COLUMNS,
-  visits: sql<number>`coalesce((select sum(${dailyVisits.count}) from ${dailyVisits} where ${dailyVisits.linkId} = ${links.id}), 0)`
+  // Table names written out: inside a subquery a bare `id` would be read as the inner table's.
+  visits: sql<number>`coalesce((select sum(daily_visits.count) from daily_visits where daily_visits.link_id = links.id), 0)`
 };
+
+const oldUnits = alias(units, "old_units");
+const newUnits = alias(units, "new_units");
+
+/** True when that Đơn vị would still have a Quản lý đơn vị without this membership as one. */
+const KEEPS_A_MANAGER = `(role != 'manager' OR (SELECT count(*) FROM memberships WHERE unit_id = ?2 AND role = 'manager') > 1)`;
 
 const authorName = (row: { email: string | null; keyName: string | null }): AuthorName => {
   if (row.email) {
@@ -50,6 +59,19 @@ const authorName = (row: { email: string | null; keyName: string | null }): Auth
 /** The Cloudflare D1 implementation of `Store`. The only file here that knows about D1. */
 const createD1Store = (database: D1Database): Store => {
   const db = drizzle(database);
+
+  /** Why a guarded change to a membership touched no row. */
+  const membershipOutcome = async (changes: number, accountId: number, unitId: number): Promise<MembershipOutcome> => {
+    if (changes > 0) {
+      return "done";
+    }
+    const row = await db
+      .select({ role: memberships.role })
+      .from(memberships)
+      .where(and(eq(memberships.accountId, accountId), eq(memberships.unitId, unitId)))
+      .get();
+    return row ? "last-manager" : "not-a-member";
+  };
 
   return {
     addLoginFailure: async (accountId) => {
@@ -67,6 +89,15 @@ const createD1Store = (database: D1Database): Store => {
         .values({ accountId, role, unitId })
         .onConflictDoNothing()
         .returning({ accountId: memberships.accountId });
+      return inserted.length > 0;
+    },
+
+    addReservedCode: async (code, note) => {
+      const inserted = await db
+        .insert(reservedCodes)
+        .values({ code, note })
+        .onConflictDoNothing()
+        .returning({ code: reservedCodes.code });
       return inserted.length > 0;
     },
 
@@ -89,6 +120,19 @@ const createD1Store = (database: D1Database): Store => {
 
     clearLoginFailures: async (accountId) => {
       await db.update(accounts).set({ failedLogins: 0, lockedUntil: null }).where(eq(accounts.id, accountId));
+    },
+
+    countApiCall: async (apiKeyId, minute) => {
+      const [, counted] = await database.batch([
+        database.prepare("DELETE FROM api_key_usage WHERE api_key_id = ?1 AND minute < ?2").bind(apiKeyId, minute),
+        database
+          .prepare(
+            `INSERT INTO api_key_usage (api_key_id, minute, count) VALUES (?1, ?2, 1)
+             ON CONFLICT (api_key_id, minute) DO UPDATE SET count = count + 1 RETURNING count`
+          )
+          .bind(apiKeyId, minute)
+      ]);
+      return (counted?.results[0] as { count: number } | undefined)?.count ?? 0;
     },
 
     countSystemAdmins: async () => {
@@ -131,12 +175,45 @@ const createD1Store = (database: D1Database): Store => {
       await db.insert(sessions).values({ accountId, expiresAt, tokenHash });
     },
 
+    createUnit: async (name) => {
+      const inserted = await db
+        .insert(units)
+        .values({ name })
+        .onConflictDoNothing()
+        .returning({ id: units.id, name: units.name });
+      return inserted[0] ?? null;
+    },
+
     deleteSession: async (tokenHash) => {
       await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
     },
 
     deleteSessionsOfAccount: async (accountId) => {
       await db.delete(sessions).where(eq(sessions.accountId, accountId));
+    },
+
+    dissolveUnit: async (unitId, at) => {
+      // One transaction. The first statement decides; the other two act only if it did.
+      const [dissolved] = await database.batch([
+        database
+          .prepare(
+            `UPDATE units SET dissolved_at = ?1 WHERE id = ?2 AND dissolved_at IS NULL
+             AND NOT EXISTS (SELECT 1 FROM links WHERE unit_id = ?2)`
+          )
+          .bind(at.getTime(), unitId),
+        database
+          .prepare(
+            "DELETE FROM memberships WHERE unit_id = ?1 AND EXISTS (SELECT 1 FROM units WHERE id = ?1 AND dissolved_at = ?2)"
+          )
+          .bind(unitId, at.getTime()),
+        database
+          .prepare(
+            `UPDATE api_keys SET revoked_at = ?2 WHERE unit_id = ?1 AND revoked_at IS NULL
+             AND EXISTS (SELECT 1 FROM units WHERE id = ?1 AND dissolved_at = ?2)`
+          )
+          .bind(unitId, at.getTime())
+      ]);
+      return (dissolved?.meta.changes ?? 0) > 0;
     },
 
     findAccountByEmail: async (email) =>
@@ -188,6 +265,13 @@ const createD1Store = (database: D1Database): Store => {
         .where(eq(sessions.tokenHash, tokenHash))
         .get()) ?? null,
 
+    findUnit: async (unitId) =>
+      (await db
+        .select({ id: units.id, name: units.name })
+        .from(units)
+        .where(and(eq(units.id, unitId), isNull(units.dissolvedAt)))
+        .get()) ?? null,
+
     isReservedCode: async (code) => {
       const row = await db
         .select({ code: reservedCodes.code })
@@ -234,7 +318,28 @@ const createD1Store = (database: D1Database): Store => {
         .where(eq(statusChanges.linkId, linkId))
         .orderBy(desc(statusChanges.id))
         .all();
+      const moves = await db
+        .select({
+          at: unitChanges.createdAt,
+          email: accounts.email,
+          newUnitName: newUnits.name,
+          oldUnitName: oldUnits.name
+        })
+        .from(unitChanges)
+        .innerJoin(oldUnits, eq(oldUnits.id, unitChanges.oldUnitId))
+        .innerJoin(newUnits, eq(newUnits.id, unitChanges.newUnitId))
+        .leftJoin(accounts, eq(accounts.id, unitChanges.byAccountId))
+        .where(eq(unitChanges.linkId, linkId))
+        .orderBy(desc(unitChanges.id))
+        .all();
       const entries: HistoryEntry[] = [
+        ...moves.map((row) => ({
+          at: row.at,
+          by: authorName({ email: row.email, keyName: null }),
+          kind: "unit" as const,
+          newUnitName: row.newUnitName,
+          oldUnitName: row.oldUnitName
+        })),
         ...targets.map((row) => ({
           at: row.at,
           by: authorName(row),
@@ -278,7 +383,44 @@ const createD1Store = (database: D1Database): Store => {
         .orderBy(units.id)
         .all(),
 
-    listUnits: () => db.select({ id: units.id, name: units.name }).from(units).orderBy(units.id).all(),
+    listReservedCodes: () =>
+      db
+        .select({ code: reservedCodes.code, createdAt: reservedCodes.createdAt, note: reservedCodes.note })
+        .from(reservedCodes)
+        .orderBy(reservedCodes.code)
+        .all(),
+
+    listUnitOverviews: async () => {
+      const rows = await db
+        .select({
+          id: units.id,
+          linkCount: sql<number>`(select count(*) from links where links.unit_id = units.id)`,
+          name: units.name
+        })
+        .from(units)
+        .where(isNull(units.dissolvedAt))
+        .orderBy(units.id)
+        .all();
+      const managers = await db
+        .select({ email: accounts.email, unitId: memberships.unitId })
+        .from(memberships)
+        .innerJoin(accounts, eq(accounts.id, memberships.accountId))
+        .where(eq(memberships.role, "manager"))
+        .orderBy(accounts.email)
+        .all();
+      return rows.map((row) => ({
+        ...row,
+        managers: managers.filter((manager) => manager.unitId === row.id).map((manager) => manager.email)
+      }));
+    },
+
+    listUnits: () =>
+      db
+        .select({ id: units.id, name: units.name })
+        .from(units)
+        .where(isNull(units.dissolvedAt))
+        .orderBy(units.id)
+        .all(),
 
     listVisits: (linkId) =>
       db
@@ -296,6 +438,21 @@ const createD1Store = (database: D1Database): Store => {
       await db.update(passwordSetups).set({ usedAt: at }).where(eq(passwordSetups.tokenHash, tokenHash));
     },
 
+    moveLink: async ({ linkId, fromUnitId, toUnitId, byAccountId, at }) => {
+      const [, moved] = await database.batch([
+        database
+          .prepare(
+            `INSERT INTO unit_changes (link_id, old_unit_id, new_unit_id, by_account_id, created_at)
+             SELECT id, unit_id, ?1, ?2, ?3 FROM links WHERE id = ?4 AND unit_id = ?5`
+          )
+          .bind(toUnitId, byAccountId, at.getTime(), linkId, fromUnitId),
+        database
+          .prepare("UPDATE links SET unit_id = ?1 WHERE id = ?2 AND unit_id = ?3")
+          .bind(toUnitId, linkId, fromUnitId)
+      ]);
+      return (moved?.meta.changes ?? 0) > 0;
+    },
+
     recordVisit: async (linkId, day) => {
       await db
         .insert(dailyVisits)
@@ -304,6 +461,19 @@ const createD1Store = (database: D1Database): Store => {
           set: { count: sql`${dailyVisits.count} + 1` },
           target: [dailyVisits.linkId, dailyVisits.day]
         });
+    },
+
+    removeMembership: async (accountId, unitId) => {
+      const removed = await database
+        .prepare(`DELETE FROM memberships WHERE account_id = ?1 AND unit_id = ?2 AND ${KEEPS_A_MANAGER}`)
+        .bind(accountId, unitId)
+        .run();
+      return membershipOutcome(removed.meta.changes, accountId, unitId);
+    },
+
+    removeReservedCode: async (code) => {
+      const removed = await db.delete(reservedCodes).where(eq(reservedCodes.code, code)).returning();
+      return removed.length > 0;
     },
 
     revokeApiKey: async (keyId, unitId, at) => {
@@ -335,6 +505,15 @@ const createD1Store = (database: D1Database): Store => {
       return (updated?.meta.changes ?? 0) > 0;
     },
 
+    setMembershipRole: async (accountId, unitId, role) => {
+      const guard = role === "manager" ? "1" : KEEPS_A_MANAGER;
+      const updated = await database
+        .prepare(`UPDATE memberships SET role = ?3 WHERE account_id = ?1 AND unit_id = ?2 AND ${guard}`)
+        .bind(accountId, unitId, role)
+        .run();
+      return membershipOutcome(updated.meta.changes, accountId, unitId);
+    },
+
     setPassword: async (accountId, passwordHash) => {
       await db
         .update(accounts)
@@ -343,7 +522,11 @@ const createD1Store = (database: D1Database): Store => {
     },
 
     unitExists: async (unitId) => {
-      const row = await db.select({ id: units.id }).from(units).where(eq(units.id, unitId)).get();
+      const row = await db
+        .select({ id: units.id })
+        .from(units)
+        .where(and(eq(units.id, unitId), isNull(units.dissolvedAt)))
+        .get();
       return row !== undefined;
     }
   };

@@ -37,8 +37,16 @@ type AuthorName = { kind: "account"; email: string } | { kind: "key"; name: stri
 /** One line of a Link's history: its Đích was changed, or it was switched off or on. */
 type HistoryEntry = { at: Date; by: AuthorName } & (
   | { kind: "target"; oldTarget: string; newTarget: string }
+  | { kind: "unit"; oldUnitName: string; newUnitName: string }
   | { kind: "status"; enabled: boolean; bySystem: boolean }
 );
+
+/** What became of a change to a membership. A Đơn vị never loses its last Quản lý đơn vị. */
+type MembershipOutcome = "done" | "last-manager" | "not-a-member";
+
+type UnitOverview = { id: number; name: string; linkCount: number; managers: string[] };
+
+type ReservedCode = { code: string; note: string; createdAt: Date };
 
 type DayVisits = { day: string; count: number };
 
@@ -105,6 +113,24 @@ type Store = {
   /** Lượt mở per day, oldest first. Days with none have no row. */
   listVisits: (linkId: number) => Promise<DayVisits[]>;
 
+  /**
+   * Gives a Link to another Đơn vị and records it; its address does not change. False when the
+   * Link was no longer in `fromUnitId`.
+   */
+  moveLink: (move: {
+    linkId: number;
+    fromUnitId: number;
+    toUnitId: number;
+    byAccountId: number;
+    at: Date;
+  }) => Promise<boolean>;
+
+  // ── Mã dành riêng ─────────────────────────────────────────────────────────
+  listReservedCodes: () => Promise<ReservedCode[]>;
+  /** False when the code is already held back. */
+  addReservedCode: (code: string, note: string) => Promise<boolean>;
+  removeReservedCode: (code: string) => Promise<boolean>;
+
   // ── Accounts ──────────────────────────────────────────────────────────────
   findAccountByEmail: (email: string) => Promise<AccountRecord | null>;
   findAccountById: (id: number) => Promise<AccountRecord | null>;
@@ -129,13 +155,26 @@ type Store = {
   deleteSessionsOfAccount: (accountId: number) => Promise<void>;
 
   // ── Đơn vị and their members ──────────────────────────────────────────────
+  /** Every Đơn vị that has not been dissolved. */
   listUnits: () => Promise<{ id: number; name: string }[]>;
   unitExists: (unitId: number) => Promise<boolean>;
+  findUnit: (unitId: number) => Promise<{ id: number; name: string } | null>;
+  /** Every live Đơn vị with how many Links it owns and who manages it. */
+  listUnitOverviews: () => Promise<UnitOverview[]>;
+  /** Null when the name is taken - also by a Đơn vị that was dissolved. */
+  createUnit: (name: string) => Promise<{ id: number; name: string } | null>;
+  /**
+   * Dissolves a Đơn vị: its members leave and its Khóa API stop working. False, and nothing
+   * changes, while it still owns a Link.
+   */
+  dissolveUnit: (unitId: number, at: Date) => Promise<boolean>;
   listMemberships: (accountId: number) => Promise<Membership[]>;
   findRole: (accountId: number, unitId: number) => Promise<Role | null>;
   listMembers: (unitId: number) => Promise<MemberRecord[]>;
   /** False when the account already belongs to that Đơn vị. */
   addMembership: (accountId: number, unitId: number, role: Role) => Promise<boolean>;
+  removeMembership: (accountId: number, unitId: number) => Promise<MembershipOutcome>;
+  setMembershipRole: (accountId: number, unitId: number, role: Role) => Promise<MembershipOutcome>;
 
   // ── Khóa API ──────────────────────────────────────────────────────────────
   createApiKey: (key: { unitId: number; name: string; keyHash: string; createdByAccountId: number }) => Promise<number>;
@@ -145,6 +184,8 @@ type Store = {
   findActiveApiKey: (keyHash: string) => Promise<{ id: number; unitId: number } | null>;
   /** False when that Đơn vị has no such live key. */
   revokeApiKey: (keyId: number, unitId: number, at: Date) => Promise<boolean>;
+  /** Counts one call by a key in a minute (minutes since 1970) and returns that minute's total. */
+  countApiCall: (apiKeyId: number, minute: number) => Promise<number>;
 };
 
 export type {
@@ -157,8 +198,11 @@ export type {
   LinkRecord,
   MemberRecord,
   Membership,
+  MembershipOutcome,
   NewLink,
   OpenableLink,
+  ReservedCode,
   Role,
-  Store
+  Store,
+  UnitOverview
 };

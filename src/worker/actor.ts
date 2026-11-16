@@ -1,26 +1,45 @@
 import { getCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import { hashSecret } from "../domain/secret";
-import type { Actor, AppDeps, AppEnv } from "./context";
+import type { Actor, AppContext, AppDeps, AppEnv } from "./context";
 
 const SESSION_COOKIE = "oul_session";
 const API_KEY_PREFIX = "oul_";
 const BEARER = /^Bearer\s+(\S+)$/i;
+/** Calls one Khóa API may make in a minute. Generous for an application, tight for a leaked key. */
+const KEY_CALLS_PER_MINUTE = 120;
+const MINUTE_MS = 60_000;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
  * Works out who is asking and leaves it on the context; it refuses nothing itself except a
  * cross-site write. Whether a route needs an actor, and which kind, is the route's to say.
  */
-const resolveActor = ({ store, now = () => new Date() }: AppDeps) =>
-  createMiddleware<AppEnv>(async (c, next) => {
+const resolveActor = ({ store, now = () => new Date() }: AppDeps) => {
+  /** Sets the actor for a live Khóa API. Answers only when the key has used up its minute. */
+  const resolveKey = async (c: AppContext, bearer: string): Promise<Response | null> => {
+    const key = await store.findActiveApiKey(await hashSecret(bearer));
+    if (!key) {
+      return null;
+    }
+    const minute = Math.floor(now().getTime() / MINUTE_MS);
+    if ((await store.countApiCall(key.id, minute)) > KEY_CALLS_PER_MINUTE) {
+      const wait = Math.ceil(((minute + 1) * MINUTE_MS - now().getTime()) / 1000);
+      c.header("Retry-After", String(Math.max(1, wait)));
+      return c.json({ error: "rate-limited" }, 429);
+    }
+    c.set("actor", { apiKeyId: key.id, kind: "key", unitId: key.unitId });
+    return null;
+  };
+
+  return createMiddleware<AppEnv>(async (c, next) => {
     c.set("actor", null);
 
     const bearer = BEARER.exec(c.req.header("authorization") ?? "")?.[1];
     if (bearer?.startsWith(API_KEY_PREFIX)) {
-      const key = await store.findActiveApiKey(await hashSecret(bearer));
-      if (key) {
-        c.set("actor", { apiKeyId: key.id, kind: "key", unitId: key.unitId });
+      const refusal = await resolveKey(c, bearer);
+      if (refusal) {
+        return refusal;
       }
       return next();
     }
@@ -55,5 +74,6 @@ const resolveActor = ({ store, now = () => new Date() }: AppDeps) =>
     }
     return next();
   });
+};
 
-export { API_KEY_PREFIX, resolveActor, SESSION_COOKIE };
+export { API_KEY_PREFIX, KEY_CALLS_PER_MINUTE, resolveActor, SESSION_COOKIE };

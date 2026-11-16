@@ -19,6 +19,8 @@ const PHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKi
 const TABLES = [
   "daily_visits",
   "target_changes",
+  "unit_changes",
+  "api_key_usage",
   "status_changes",
   "links",
   "api_keys",
