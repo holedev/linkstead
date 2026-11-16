@@ -89,7 +89,8 @@ The admin UI is Vietnamese only.
 - `pnpm dev` - the Worker on a local D1 (`wrangler dev`). It serves the UI as last built, so run
   `pnpm build:ui` first
 - `pnpm dev:ui` - the UI from Vite with hot reload, calling the Worker started by `pnpm dev`
-- `pnpm deploy` - builds the UI, then deploys
+- `pnpm deploy` - builds the UI, then deploys. A push to `main` does this by itself through
+  `.github/workflows/deploy.yml`, after lint, types and tests pass and migrations are applied
 - `pnpm db:generate` - a migration from `src/db/schema.ts`; `pnpm db:migrate:local` applies them locally,
   `pnpm db:migrate:remote` to the trial database
 - `pnpm test` / `pnpm check-types` / `pnpm lint:check`

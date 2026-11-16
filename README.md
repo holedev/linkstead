@@ -105,8 +105,21 @@ pnpm run deploy
 
 Phải gõ `pnpm run deploy`: `pnpm deploy` là một lệnh khác có sẵn của pnpm.
 
-Mỗi lần cập nhật về sau: `git pull`, `pnpm install`, `pnpm db:migrate:remote` (nếu có migration
-mới), rồi `pnpm run deploy`.
+### Tự động deploy khi đẩy lên `main`
+
+`.github/workflows/deploy.yml` chạy lint, kiểm tra kiểu và test cho mỗi pull request. Với mỗi lần đẩy lên
+`main`, nếu các bước đó qua, nó build giao diện, chạy migration lên database thật rồi deploy. Lần nào
+có bước lỗi thì không deploy, bản đang chạy giữ nguyên.
+
+Cần đặt hai secret một lần, ở GitHub: **Settings → Secrets and variables → Actions → New repository
+secret**:
+
+- `CLOUDFLARE_ACCOUNT_ID` - Account ID, ở trang Workers & Pages của Cloudflare (cột bên phải).
+- `CLOUDFLARE_API_TOKEN` - tạo ở **My Profile → API Tokens → Create Token**, mẫu **Edit Cloudflare
+  Workers**, thêm quyền **Account → D1 → Edit**.
+
+Kết quả từng lần chạy ở tab **Actions** của repo. Vẫn deploy tay được như trên khi cần:
+`pnpm db:migrate:remote` rồi `pnpm run deploy`.
 
 ## Tạo Quản trị hệ thống đầu tiên
 
