@@ -1,0 +1,1 @@
+ALTER TABLE `links` ADD `logo_scale` integer DEFAULT 100 NOT NULL;

@@ -16,6 +16,8 @@ type Link = {
   enabled: boolean;
   disabledBySystem: boolean;
   logoChoice: LogoChoice;
+  /** How much of the QR's logo box the logo fills, in percent: 40 to 100. */
+  logoScale: number;
   /** How it looks when pasted somewhere, as its Đơn vị set it. Empty parts take the Đích's. */
   preview: Preview;
   visits: number;
@@ -168,7 +170,9 @@ const api = {
   removeUnitLogo: (unitId: number) => call<void>("DELETE", `/api/units/${unitId}/qr-logo`),
   revokeKey: (unitId: number, keyId: number) => call<void>("DELETE", `/api/units/${unitId}/keys/${keyId}`),
   setLinkLogoChoice: (code: string, choice: "inherit" | "none") =>
-    call<{ logoChoice: LogoChoice }>("PUT", `/api/links/${code}/qr-logo`, { choice }),
+    call<{ logoChoice: LogoChoice; logoScale: number }>("PUT", `/api/links/${code}/qr-logo`, { choice }),
+  setLinkLogoScale: (code: string, scale: number) =>
+    call<{ logoChoice: LogoChoice; logoScale: number }>("PUT", `/api/links/${code}/qr-logo`, { scale }),
   setLinkPreview: (code: string, preview: Preview) => call<Link>("PUT", `/api/links/${code}/preview`, preview),
   setMemberRole: (unitId: number, email: string, role: Role) =>
     call<void>("PUT", `/api/units/${unitId}/members/${encodeURIComponent(email)}`, { role }),

@@ -21,4 +21,14 @@ const DEFAULT_QR_STYLE: QrStyle = "dark-on-light";
 
 const isQrStyle = (value: unknown): value is QrStyle => typeof value === "string" && Object.hasOwn(QR_STYLES, value);
 
-export { DEFAULT_QR_STYLE, isQrStyle, QR_STYLES, type QrStyle };
+/**
+ * How much of its box a logo may fill, in percent. The box never changes - only the picture in
+ * it - so no choice here can cover a module the code needs. Smaller leaves more white round it.
+ */
+const MIN_LOGO_SCALE = 40;
+const MAX_LOGO_SCALE = 100;
+
+const isLogoScale = (value: unknown): value is number =>
+  Number.isInteger(value) && (value as number) >= MIN_LOGO_SCALE && (value as number) <= MAX_LOGO_SCALE;
+
+export { DEFAULT_QR_STYLE, isLogoScale, isQrStyle, MAX_LOGO_SCALE, MIN_LOGO_SCALE, QR_STYLES, type QrStyle };

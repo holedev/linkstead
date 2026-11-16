@@ -117,6 +117,8 @@ const links = sqliteTable(
       .notNull()
       .default("inherit"),
     logoKey: text("logo_key"),
+    /** How much of the QR's logo box the logo fills, in percent (`domain/qr.ts`). The box itself is fixed. */
+    logoScale: integer("logo_scale").notNull().default(100),
     /** Tên link. */
     name: text("name").notNull(),
     note: text("note").notNull().default(""),

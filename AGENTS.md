@@ -34,9 +34,10 @@ These were decided before the first line of code. Each is a rule, not a default.
 - The logo is chosen at three levels, the lower winning: the university's logo for the whole
   system, a Đơn vị's own default, and a per-Link choice which may also be "none". The per-Link
   choice is stored so a later download gives the same picture.
-- The system decides the logo's size and position (centred, white backing, at most about a fifth of
-  the width) and raises error correction to the highest level whenever a logo is present. Nobody
-  can tune these.
+- The system decides the logo's box (centred, white backing, at most about a fifth of the width)
+  and raises error correction to the highest level whenever a logo is present. Nobody can tune
+  these. Inside that box a Link may shrink its logo, from 40% to 100% of the box, stored with the
+  Link - the box, and so what the code needs, never changes.
 - Uploaded logos are PNG or JPEG. **Never SVG** - it can carry script and would be served back
   under the university's domain.
 - The server renders SVG, and the API returns only SVG. PNG is made in the browser from that SVG.

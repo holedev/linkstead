@@ -33,6 +33,7 @@ const NEW_LINK_COLUMNS = {
   id: links.id,
   logoChoice: links.logoChoice,
   logoKey: links.logoKey,
+  logoScale: links.logoScale,
   name: links.name,
   note: links.note,
   previewDescription: links.previewDescription,
@@ -675,6 +676,10 @@ const createD1Store = (database: D1Database): Store => {
 
     setLinkLogo: async (linkId, choice, logoKey) => {
       await db.update(links).set({ logoChoice: choice, logoKey }).where(eq(links.id, linkId));
+    },
+
+    setLinkLogoScale: async (linkId, scale) => {
+      await db.update(links).set({ logoScale: scale }).where(eq(links.id, linkId));
     },
 
     setLinkStatus: async ({ linkId, enabled, bySystem, by, at }) => {

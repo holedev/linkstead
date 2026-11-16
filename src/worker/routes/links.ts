@@ -42,6 +42,7 @@ const present = (link: LinkRecord, origin: string) => ({
   disabledBySystem: link.disabledBySystem,
   enabled: link.enabled,
   logoChoice: link.logoChoice,
+  logoScale: link.logoScale,
   name: link.name,
   note: link.note,
   preview: { description: link.previewDescription, image: link.previewImage, title: link.previewTitle },

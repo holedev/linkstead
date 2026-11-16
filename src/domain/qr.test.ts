@@ -2,7 +2,7 @@ import jsQR from "jsqr";
 import { describe, expect, it } from "vitest";
 import { checkLogo, logoTypeOf, MAX_LOGO_BYTES } from "./logo";
 import { logoBox, QUIET_ZONE, qrMatrix, renderQrSvg } from "./qr";
-import { isQrStyle, QR_STYLES, type QrStyle } from "./qr-style";
+import { isLogoScale, isQrStyle, QR_STYLES, type QrStyle } from "./qr-style";
 
 const LINK = "https://go.ou.edu.vn/hoi-thao-khoa-hoc-quoc-te-2027";
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
@@ -12,6 +12,7 @@ const SVG = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><s
 const RECT = /M(\d+) (\d+)h(\d+)v1h-\d+z/g;
 const SCALE = 8;
 const MODULES = /<path fill="#[0-9a-f]+" d="([^"]*)"/;
+const IMAGE = /<image x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"/;
 const VIEW_BOX = /viewBox="0 0 (\d+)/;
 const BACKGROUND = /^<svg[^>]*><rect width="\d+" height="\d+" fill="(#[0-9a-f]+)"\/>/;
 const FOREGROUND = /<path fill="(#[0-9a-f]+)"/;
@@ -127,6 +128,29 @@ describe("renderQrSvg", () => {
     const box = logoBox(qrMatrix(LINK, true).size);
     expect(scan(withA, { size: box.logo, start: box.logoStart })).toBe(LINK);
     expect(scan(withB, { size: box.logo, start: box.logoStart })).toBe(LINK);
+  });
+
+  it("shrinks the logo about the centre of its box, which stays the same size", () => {
+    const box = logoBox(qrMatrix(LINK, true).size);
+    const imageOf = (scale?: number) =>
+      (renderQrSvg(LINK, PNG, "dark-on-light", scale).match(IMAGE) ?? []).slice(1).map(Number);
+    const full = imageOf();
+    const half = imageOf(50);
+
+    expect(full).toEqual([box.logoStart + QUIET_ZONE, box.logoStart + QUIET_ZONE, box.logo, box.logo]);
+    expect(half[2]).toBe(box.logo / 2);
+    expect((half[0] ?? 0) + (half[2] ?? 0) / 2).toBe((full[0] ?? 0) + (full[2] ?? 0) / 2);
+    // The white backing, and so the modules left showing, do not change with the logo's size.
+    const backing = (svg: string) => svg.slice(0, svg.indexOf("<image"));
+    expect(backing(renderQrSvg(LINK, PNG, "dark-on-light", 40))).toBe(backing(renderQrSvg(LINK, PNG)));
+    // Out of range means filling the box, never more.
+    expect(imageOf(250)).toEqual(full);
+    expect(imageOf(10)).toEqual(full);
+  });
+
+  it("knows the sizes a logo may take", () => {
+    expect([40, 70, 100].every(isLogoScale)).toBe(true);
+    expect([39, 101, 55.5, Number.NaN].some(isLogoScale)).toBe(false);
   });
 
   it("still reads with a logo over its centre", () => {

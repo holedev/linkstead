@@ -1,7 +1,7 @@
 import qrcode from "qrcode-generator";
 import { toBase64 } from "./base64";
 import { logoTypeOf } from "./logo";
-import { DEFAULT_QR_STYLE, QR_STYLES, type QrStyle } from "./qr-style";
+import { DEFAULT_QR_STYLE, isLogoScale, MAX_LOGO_SCALE, QR_STYLES, type QrStyle } from "./qr-style";
 
 /**
  * The picture of a QR (CONTEXT.md). The caller passes the Link's address - never the Đích - and
@@ -64,7 +64,12 @@ const darkPath = (matrix: QrMatrix, hidden: (row: number, column: number) => boo
  * same picture wherever it is opened. Bytes that are not PNG or JPEG are left out. `style` sets
  * the colours (`qr-style.ts`); the logo sits on its white backing in every one of them.
  */
-const renderQrSvg = (text: string, logoBytes: Uint8Array | null = null, style: QrStyle = DEFAULT_QR_STYLE): string => {
+const renderQrSvg = (
+  text: string,
+  logoBytes: Uint8Array | null = null,
+  style: QrStyle = DEFAULT_QR_STYLE,
+  logoScale = MAX_LOGO_SCALE
+): string => {
   const type = logoBytes ? logoTypeOf(logoBytes) : null;
   const logo = logoBytes && type ? { bytes: logoBytes, type } : null;
   const colours = QR_STYLES[style];
@@ -75,12 +80,15 @@ const renderQrSvg = (text: string, logoBytes: Uint8Array | null = null, style: Q
     logo !== null && row >= box.backingStart && row < end && column >= box.backingStart && column < end;
 
   const total = matrix.size + 2 * QUIET_ZONE;
+  // The picture shrinks about the box's centre; anything outside the allowed range fills the box.
+  const imageSize = (box.logo * (isLogoScale(logoScale) ? logoScale : MAX_LOGO_SCALE)) / 100;
+  const imageStart = box.logoStart + QUIET_ZONE + (box.logo - imageSize) / 2;
   const pixels = total * MODULE_PIXELS;
   const background = colours.background
     ? `<rect width="${total}" height="${total}" fill="${colours.background}"/>`
     : "";
   const image = logo
-    ? `<rect x="${box.backingStart + QUIET_ZONE}" y="${box.backingStart + QUIET_ZONE}" width="${box.backing}" height="${box.backing}" fill="#fff"/><image x="${box.logoStart + QUIET_ZONE}" y="${box.logoStart + QUIET_ZONE}" width="${box.logo}" height="${box.logo}" preserveAspectRatio="xMidYMid meet" href="data:${logo.type};base64,${toBase64(logo.bytes)}"/>`
+    ? `<rect x="${box.backingStart + QUIET_ZONE}" y="${box.backingStart + QUIET_ZONE}" width="${box.backing}" height="${box.backing}" fill="#fff"/><image x="${imageStart}" y="${imageStart}" width="${imageSize}" height="${imageSize}" preserveAspectRatio="xMidYMid meet" href="data:${logo.type};base64,${toBase64(logo.bytes)}"/>`
     : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="${pixels}" height="${pixels}" shape-rendering="crispEdges">${background}<path fill="${colours.foreground}" d="${darkPath(matrix, hidden)}"/>${image}</svg>`;
 };

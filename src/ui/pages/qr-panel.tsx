@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ErrorText } from "@/components/app";
-import { DEFAULT_QR_STYLE, QR_STYLES, type QrStyle } from "../../domain/qr-style";
+import { DEFAULT_QR_STYLE, MAX_LOGO_SCALE, MIN_LOGO_SCALE, QR_STYLES, type QrStyle } from "../../domain/qr-style";
 import { api, type Link, type LogoChoice } from "../api";
 import { messageOf } from "../messages";
 import { LogoUpload, QrPicture, useQr } from "../qr";
@@ -12,6 +12,7 @@ const CHOICES: { value: LogoChoice; label: string }[] = [
 ];
 
 const STYLE_KEY = "ou-link.qr-style";
+const SAVE_AFTER_MS = 400;
 
 /** A checkerboard, the usual sign for "nothing here": light for a dark QR, dark for a light one. */
 const checker = (a: string, b: string) => `repeating-conic-gradient(${a} 0% 25%, ${b} 0% 50%) 50% / 16px 16px`;
@@ -72,7 +73,7 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
   const [version, setVersion] = useState(0);
   const [style, setStyle] = useState<QrStyle>(readStyle);
   const look = LOOKS.find((candidate) => candidate.style === style) ?? LOOKS[0];
-  const { source, error } = useQr(`${link.code}|${link.logoChoice}|${version}|${style}`, () =>
+  const { source, error } = useQr(`${link.code}|${link.logoChoice}|${link.logoScale}|${version}|${style}`, () =>
     api.linkQr(link.code, style)
   );
   const choose = (next: QrStyle) => {
@@ -86,11 +87,11 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  const run = async (work: () => Promise<LogoChoice>) => {
+  const run = async (work: () => Promise<{ logoChoice: LogoChoice; logoScale: number }>) => {
     setBusy(true);
     setActionError("");
     try {
-      onChanged({ ...link, logoChoice: await work() });
+      onChanged({ ...link, ...(await work()) });
       setVersion((value) => value + 1);
     } catch (failure) {
       setActionError(messageOf(failure));
@@ -101,8 +102,19 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
   const upload = (file: File) =>
     run(async () => {
       await api.uploadLinkLogo(link.code, file);
-      return "custom";
+      return { logoChoice: "custom", logoScale: link.logoScale };
     });
+
+  // The slider moves freely; the size is saved once it rests, not on every step.
+  const [scale, setScale] = useState(link.logoScale);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only a new position of the slider should save
+  useEffect(() => {
+    if (scale === link.logoScale) {
+      return;
+    }
+    const timer = setTimeout(() => run(() => api.setLinkLogoScale(link.code, scale)), SAVE_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [scale]);
 
   return (
     <div className='space-y-4'>
@@ -153,7 +165,7 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
                   onChange={() => {
                     const { value } = choice;
                     if (value !== "custom") {
-                      run(async () => (await api.setLinkLogoChoice(link.code, value)).logoChoice);
+                      run(() => api.setLinkLogoChoice(link.code, value));
                     }
                   }}
                   type='radio'
@@ -162,6 +174,29 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
               </label>
             ))}
           </fieldset>
+          <div className='space-y-1'>
+            <label
+              className='flex items-center justify-between gap-2 font-medium text-sm'
+              htmlFor={`scale-${link.code}`}
+            >
+              Kích cỡ logo trong khung
+              <span className='font-normal text-muted-foreground tabular-nums'>{scale}%</span>
+            </label>
+            <input
+              className='w-full accent-primary'
+              disabled={link.logoChoice === "none"}
+              id={`scale-${link.code}`}
+              max={MAX_LOGO_SCALE}
+              min={MIN_LOGO_SCALE}
+              onChange={(event) => setScale(Number(event.target.value))}
+              step={5}
+              type='range'
+              value={scale}
+            />
+            <p className='text-muted-foreground text-xs'>
+              100% là logo lấp đầy khung. Khung giữ nguyên ở mọi cỡ, nên QR vẫn quét được như nhau.
+            </p>
+          </div>
           <LogoUpload
             disabled={busy}
             label={link.logoChoice === "custom" ? "Đổi logo riêng" : "Tải lên logo riêng"}

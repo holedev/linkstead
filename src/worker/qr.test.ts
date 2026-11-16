@@ -109,7 +109,10 @@ describe("the logo on a QR", () => {
     expect((await admin.upload("/api/units/1/qr-logo", UNIT)).status).toBe(204);
     expect(await qrOf(admin)).toContain(dataOf(UNIT));
 
-    expect(await (await admin.upload("/api/links/cfp-2027/qr-logo", OWN)).json()).toEqual({ logoChoice: "custom" });
+    expect(await (await admin.upload("/api/links/cfp-2027/qr-logo", OWN)).json()).toEqual({
+      logoChoice: "custom",
+      logoScale: 100
+    });
     expect(await qrOf(admin)).toContain(dataOf(OWN));
 
     expect((await admin.put("/api/links/cfp-2027/qr-logo", { choice: "none" })).status).toBe(200);
@@ -123,6 +126,29 @@ describe("the logo on a QR", () => {
 
     expect((await admin.delete("/api/admin/qr-logo")).status).toBe(204);
     expect(await qrOf(admin)).not.toContain("<image");
+  });
+
+  it("keeps the size a Link's logo takes in its box, for every later download", async () => {
+    const admin = await withLink();
+    await admin.upload("/api/admin/qr-logo", UNIVERSITY);
+    const full = await qrOf(admin);
+
+    const set = await admin.put("/api/links/cfp-2027/qr-logo", { scale: 60 });
+    expect(await set.json()).toEqual({ logoChoice: "inherit", logoScale: 60 });
+    const smaller = await qrOf(admin);
+    expect(smaller).not.toBe(full);
+    expect(smaller).toContain(dataOf(UNIVERSITY));
+    expect(await (await admin.get("/api/links?unitId=1")).json()).toMatchObject({ links: [{ logoScale: 60 }] });
+
+    // Choosing another logo keeps the size; asking for none keeps it for when a logo returns.
+    await admin.upload("/api/links/cfp-2027/qr-logo", OWN);
+    expect(await (await admin.put("/api/links/cfp-2027/qr-logo", { choice: "none" })).json()).toEqual({
+      logoChoice: "none",
+      logoScale: 60
+    });
+    expect((await admin.put("/api/links/cfp-2027/qr-logo", { scale: 120 })).status).toBe(422);
+    expect((await admin.put("/api/links/cfp-2027/qr-logo", { scale: "60" })).status).toBe(422);
+    expect((await admin.put("/api/links/cfp-2027/qr-logo", {})).status).toBe(422);
   });
 
   it("keeps a Link's own choice whatever its Đơn vị or the university changes later", async () => {

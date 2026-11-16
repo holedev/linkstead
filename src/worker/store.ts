@@ -44,6 +44,8 @@ type LinkRecord = LinkPreview & {
   /** The QR's logo for this Link: the Đơn vị's, none, or its own file under `logoKey`. */
   logoChoice: LogoChoice;
   logoKey: string | null;
+  /** How much of the QR's logo box the logo fills, in percent. */
+  logoScale: number;
   /** Every Lượt mở the Link has had, all days together. */
   visits: number;
   createdAt: Date;
@@ -147,6 +149,8 @@ type Store = {
   updateLinkPreview: (linkId: number, preview: LinkPreview) => Promise<void>;
   /** The per-Link choice of logo for its QR. `logoKey` is set only with `custom`. */
   setLinkLogo: (linkId: number, choice: LogoChoice, logoKey: string | null) => Promise<void>;
+  /** How much of the QR's logo box the Link's logo fills, in percent. */
+  setLinkLogoScale: (linkId: number, scale: number) => Promise<void>;
   /** Every logo file a Đơn vị or a Link points at, for the export. */
   listLogoKeys: () => Promise<string[]>;
   /** Every change of Đích and every switch-off and -on, newest first. */

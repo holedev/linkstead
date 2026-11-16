@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import { checkLogo, MAX_LOGO_BYTES } from "../../domain/logo";
 import { renderQrSvg } from "../../domain/qr";
-import { DEFAULT_QR_STYLE, isQrStyle } from "../../domain/qr-style";
+import { DEFAULT_QR_STYLE, isLogoScale, isQrStyle } from "../../domain/qr-style";
 import { newSecret } from "../../domain/secret";
 import type { AppContext, AppDeps, AppEnv } from "../context";
 import { readJson } from "../http";
@@ -63,6 +63,31 @@ const readLogo = async (c: AppContext, logos: LogoFiles | undefined): Promise<Ui
 };
 
 const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
+  /**
+   * A Link's choice of logo without a file: `choice` (the Đơn vị's, or none) and/or `scale`, how
+   * much of the logo box it fills. Giving up a file of its own removes the file.
+   */
+  const setLogoChoice = async (c: AppContext, link: LinkRecord) => {
+    const { choice, scale } = (await readJson(c)) ?? {};
+    const choiceValid = choice === undefined || choice === "inherit" || choice === "none";
+    if (!choiceValid || (choice === undefined && scale === undefined)) {
+      return c.json({ error: "bad-choice" }, 422);
+    }
+    if (scale !== undefined && !isLogoScale(scale)) {
+      return c.json({ error: "bad-scale" }, 422);
+    }
+    if (scale !== undefined) {
+      await store.setLinkLogoScale(link.id, scale);
+    }
+    if (choice !== undefined) {
+      await store.setLinkLogo(link.id, choice, null);
+      if (link.logoKey) {
+        await logos?.delete(link.logoKey);
+      }
+    }
+    return c.json({ logoChoice: choice ?? link.logoChoice, logoScale: scale ?? link.logoScale });
+  };
+
   const origin = (c: AppContext) => new URL(c.req.url).origin;
 
   /** Stores a new file, points at it through `save`, and only then drops the one it replaces. */
@@ -94,14 +119,20 @@ const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
       return c.json({ error: "bad-style" }, 422);
     }
     const { link } = reach;
-    const picture = renderQrSvg(`${origin(c)}/${link.code}`, await logoOfLink(store, logos, link), style);
+    const picture = renderQrSvg(
+      `${origin(c)}/${link.code}`,
+      await logoOfLink(store, logos, link),
+      style,
+      link.logoScale
+    );
     const suffix = style === DEFAULT_QR_STYLE ? "" : `-${style}`;
     return svg(c, picture, `qr-${link.code}${suffix}.svg`);
   });
 
   /**
-   * The Link's own choice of logo: a JSON `{ "choice": "inherit" | "none" }`, or the bytes of a
-   * PNG or JPEG for a logo of its own. Kept with the Link, so a later download is the same picture.
+   * The Link's own choice of logo: a JSON `{ "choice": "inherit" | "none" }` and/or
+   * `{ "scale": 40..100 }` - how much of the logo box the logo fills - or the bytes of a PNG or
+   * JPEG for a logo of its own. Kept with the Link, so a later download is the same picture.
    */
   app.put("/api/links/:code/qr-logo", async (c) => {
     const reach = await reachLink(c, store, { peopleOnly: true });
@@ -110,22 +141,14 @@ const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
     }
     const { link } = reach;
     if (c.req.header("content-type")?.startsWith("application/json")) {
-      const choice = (await readJson(c))?.choice;
-      if (choice !== "inherit" && choice !== "none") {
-        return c.json({ error: "bad-choice" }, 422);
-      }
-      await store.setLinkLogo(link.id, choice, null);
-      if (link.logoKey) {
-        await logos?.delete(link.logoKey);
-      }
-      return c.json({ logoChoice: choice });
+      return setLogoChoice(c, link);
     }
     const bytes = await readLogo(c, logos);
     if (bytes instanceof Response) {
       return bytes;
     }
     await replaceLogo(`links/${link.id}`, bytes, link.logoKey, (key) => store.setLinkLogo(link.id, "custom", key));
-    return c.json({ logoChoice: "custom" });
+    return c.json({ logoChoice: "custom", logoScale: link.logoScale });
   });
 
   // ── A Đơn vị's default ────────────────────────────────────────────────────
