@@ -57,6 +57,13 @@
       "when": 1794820539498,
       "tag": "0007_link_logo_scale",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1794824423791,
+      "tag": "0008_link_groups",
+      "breakpoints": true
     }
   ]
 }

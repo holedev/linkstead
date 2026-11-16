@@ -41,6 +41,8 @@ type LinkRecord = LinkPreview & {
   enabled: boolean;
   /** Switched off by a Quản trị hệ thống: only they switch it back on. */
   disabledBySystem: boolean;
+  /** The Nhóm it is sorted into, if any. */
+  groupId: number | null;
   /** The QR's logo for this Link: the Đơn vị's, none, or its own file under `logoKey`. */
   logoChoice: LogoChoice;
   logoKey: string | null;
@@ -87,6 +89,7 @@ type DayVisits = { day: string; count: number };
 
 type NewLink = {
   code: string;
+  groupId?: number | null;
   name: string;
   note: string;
   target: string;
@@ -94,6 +97,9 @@ type NewLink = {
   createdByAccountId: number | null;
   createdByApiKeyId: number | null;
 };
+
+/** A Nhóm: a Đơn vị's own way of sorting its Links. */
+type LinkGroup = { id: number; name: string; linkCount: number };
 
 type AccountRecord = {
   id: number;
@@ -180,6 +186,18 @@ type Store = {
    * Link already exists; `bad-snapshot` when it cannot be read, in which case nothing is kept.
    */
   importAll: (snapshot: Snapshot) => Promise<"done" | "not-empty" | "bad-snapshot">;
+
+  // ── Nhóm ──────────────────────────────────────────────────────────────────
+  /** A Đơn vị's Nhóm by name, each with how many Links it holds. */
+  listGroups: (unitId: number) => Promise<LinkGroup[]>;
+  findGroup: (unitId: number, groupId: number) => Promise<{ id: number; name: string } | null>;
+  /** Null when the Đơn vị already has a Nhóm of that name. */
+  createGroup: (unitId: number, name: string) => Promise<{ id: number; name: string } | null>;
+  renameGroup: (unitId: number, groupId: number, name: string) => Promise<"done" | "taken" | "unknown">;
+  /** Removes a Nhóm; its Links stay, in no Nhóm. False when there is no such Nhóm in the Đơn vị. */
+  deleteGroup: (unitId: number, groupId: number) => Promise<boolean>;
+  /** Sorts a Link into a Nhóm of its own Đơn vị, or into none. The caller checks the Nhóm is its. */
+  setLinkGroup: (linkId: number, groupId: number | null) => Promise<void>;
 
   // ── Mã dành riêng ─────────────────────────────────────────────────────────
   listReservedCodes: () => Promise<ReservedCode[]>;
@@ -274,6 +292,7 @@ export type {
   AuthorName,
   DayVisits,
   HistoryEntry,
+  LinkGroup,
   LinkPreview,
   LinkRecord,
   LogoChoice,

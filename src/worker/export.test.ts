@@ -11,7 +11,7 @@ beforeEach(() => h.reset());
 const TARGET = "https://journalofscience.ou.edu.vn/cfp";
 const PASSWORD = "mat-khau-quan-tri";
 const LINK_ROW =
-  /^cfp-2027,https:\/\/go\.test\/cfp-2027,"Poster ""A3"", sảnh A",https:\/\/journalofscience\.ou\.edu\.vn\/cfp,,Quản trị hệ thống đã tắt,\d{4}-.*Z,1$/;
+  /^cfp-2027,https:\/\/go\.test\/cfp-2027,"Poster ""A3"", sảnh A",,https:\/\/journalofscience\.ou\.edu\.vn\/cfp,,Quản trị hệ thống đã tắt,\d{4}-.*Z,1$/;
 
 type Browser = ReturnType<typeof h.client>;
 
@@ -39,7 +39,7 @@ describe("a Đơn vị's CSV", () => {
     const bytes = new Uint8Array(await response.clone().arrayBuffer());
     expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
     expect((await response.text()).split("\r\n")).toEqual([
-      "Mã link,Link,Tên link,Đích,Ghi chú,Trạng thái,Ngày tạo,Lượt mở (ước tính)",
+      "Mã link,Link,Tên link,Nhóm,Đích,Ghi chú,Trạng thái,Ngày tạo,Lượt mở (ước tính)",
       expect.stringMatching(LINK_ROW),
       ""
     ]);
@@ -110,6 +110,7 @@ describe("the whole installation", () => {
       "accounts",
       "api_keys",
       "daily_visits",
+      "link_groups",
       "links",
       "memberships",
       "reserved_codes",

@@ -70,6 +70,7 @@ const openApiDocument = (origin: string) => ({
             description: "Đang bật. Link bị tắt hiện trang thông báo thay vì chuyển tới đích.",
             type: "boolean"
           },
+          groupId: { description: "Nhóm của đơn vị mà link được xếp vào, nếu có.", type: ["integer", "null"] },
           logoChoice: { enum: ["inherit", "none", "custom"], type: "string" },
           name: { description: "Tên link: dùng cho việc gì. Chỉ người trong đơn vị thấy.", type: "string" },
           note: { type: "string" },
@@ -135,6 +136,10 @@ const openApiDocument = (origin: string) => ({
                 example: "hoi-thao-2027",
                 type: "string"
               },
+              groupId: {
+                description: "Nhóm của đơn vị để xếp link vào (tạo nhóm trong giao diện). Bỏ trống là không nhóm.",
+                type: ["integer", "null"]
+              },
               name: { example: "Poster hội thảo, bản in A3", maxLength: 200, type: "string" },
               note: { maxLength: 1000, type: "string" },
               target: { example: "https://journalofscience.ou.edu.vn/cfp", format: "uri", type: "string" }
@@ -148,8 +153,8 @@ const openApiDocument = (origin: string) => ({
           201: { content: json(ref("Link")), description: "Link vừa tạo." },
           409: refusal("Mã đã có link khác dùng.", ["code-taken"]),
           422: refusal(
-            "Tên, ghi chú, đích hoặc mã không hợp lệ. `problem` nói rõ: với đích là `not-a-url`, `not-https`, `points-at-self`, `too-long`; với mã là `too-short`, `too-long`, `bad-characters`, `reserved`.",
-            ["bad-name", "bad-note", "bad-target", "bad-code"]
+            "Tên, ghi chú, đích, mã hoặc nhóm không hợp lệ. `problem` nói rõ: với đích là `not-a-url`, `not-https`, `points-at-self`, `too-long`; với mã là `too-short`, `too-long`, `bad-characters`, `reserved`.",
+            ["bad-name", "bad-note", "bad-target", "bad-code", "unknown-group"]
           ),
           503: refusal("Chưa sinh được mã. Thử lại.", ["no-code-available"]),
           ...ALWAYS

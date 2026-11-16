@@ -16,6 +16,7 @@ const BY_CODE: Record<string, string> = {
   "cross-site": "Yêu cầu bị từ chối. Hãy tải lại trang và thử lại.",
   "disabled-by-system": "Link này do Quản trị hệ thống tắt, chỉ Quản trị hệ thống bật lại được.",
   forbidden: "Bạn không có quyền làm việc này.",
+  "group-name-taken": "Đơn vị đã có nhóm mang tên này.",
   "invalid-credentials": "Email hoặc mật khẩu không đúng.",
   "invalid-token": "Đường dẫn không hợp lệ, đã được dùng hoặc đã hết hạn. Hãy xin đường dẫn mới từ Quản lý đơn vị.",
   "last-admin": "Hệ thống phải luôn có ít nhất một Quản trị hệ thống. Hãy thêm người khác trước.",
@@ -35,6 +36,7 @@ const BY_CODE: Record<string, string> = {
   "unit-name-taken": "Đã có đơn vị mang tên này (kể cả đơn vị đã giải thể).",
   "unit-owns-links": "Đơn vị còn link nên chưa giải thể được. Hãy chuyển hết link sang đơn vị khác trước.",
   "unknown-code": "Không tìm thấy mã dành riêng này.",
+  "unknown-group": "Không tìm thấy nhóm này. Có thể nhóm vừa bị xóa.",
   "unknown-key": "Không tìm thấy khóa này, hoặc khóa đã bị thu hồi.",
   "unknown-link": "Không tìm thấy link này.",
   "unknown-unit": "Không tìm thấy đơn vị này."

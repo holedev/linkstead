@@ -99,6 +99,23 @@ const reservedCodes = sqliteTable("reserved_codes", {
   note: text("note").notNull().default("")
 });
 
+/**
+ * Nhóm: a Đơn vị's own way of sorting its Links - by event, by year, by issue. A Link is in at most
+ * one. Unlike a Link, a Nhóm can be renamed and deleted: nothing printed carries it.
+ */
+const linkGroups = sqliteTable(
+  "link_groups",
+  {
+    createdAt: createdAt(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    unitId: integer("unit_id")
+      .notNull()
+      .references(() => units.id)
+  },
+  (table) => [uniqueIndex("link_groups_unit_name_unique").on(table.unitId, table.name)]
+);
+
 /** Link. */
 const links = sqliteTable(
   "links",
@@ -111,6 +128,8 @@ const links = sqliteTable(
     /** Set when a Quản trị hệ thống switched it off: then only they switch it back on. */
     disabledBySystem: integer("disabled_by_system", { mode: "boolean" }).notNull().default(false),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    /** The Nhóm it is sorted into, of its own Đơn vị, if any. */
+    groupId: integer("group_id").references(() => linkGroups.id),
     id: integer("id").primaryKey({ autoIncrement: true }),
     /** `inherit` follows the Đơn vị, then the university. `custom` reads `logoKey`. */
     logoChoice: text("logo_choice", { enum: ["inherit", "none", "custom"] })
@@ -230,6 +249,7 @@ export {
   apiKeys,
   apiKeyUsage,
   dailyVisits,
+  linkGroups,
   links,
   memberships,
   passwordSetups,

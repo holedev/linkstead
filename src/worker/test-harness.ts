@@ -27,6 +27,7 @@ const TABLES = [
   "api_key_usage",
   "status_changes",
   "links",
+  "link_groups",
   "api_keys",
   "memberships",
   "sessions",

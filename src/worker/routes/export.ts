@@ -63,12 +63,14 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
     }
     const { origin } = new URL(c.req.url);
     const links = await store.listLinksByUnit(unit.id);
+    const groupNames = new Map((await store.listGroups(unit.id)).map((group) => [group.id, group.name]));
     const csv = toCsv(
-      ["Mã link", "Link", "Tên link", "Đích", "Ghi chú", "Trạng thái", "Ngày tạo", "Lượt mở (ước tính)"],
+      ["Mã link", "Link", "Tên link", "Nhóm", "Đích", "Ghi chú", "Trạng thái", "Ngày tạo", "Lượt mở (ước tính)"],
       links.map((link) => [
         link.code,
         `${origin}/${link.code}`,
         link.name,
+        (link.groupId && groupNames.get(link.groupId)) || "",
         link.target,
         link.note,
         status(link),

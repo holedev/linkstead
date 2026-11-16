@@ -41,6 +41,7 @@ const present = (link: LinkRecord, origin: string) => ({
   createdAt: link.createdAt.toISOString(),
   disabledBySystem: link.disabledBySystem,
   enabled: link.enabled,
+  groupId: link.groupId,
   logoChoice: link.logoChoice,
   logoScale: link.logoScale,
   name: link.name,
@@ -153,10 +154,19 @@ const createLink = async (
   handOut = false
 ) => {
   const url = new URL(c.req.url);
-  const fields = readFields(body, creator, url.hostname);
-  if ("error" in fields) {
-    return c.json(fields, 422);
+  const read = readFields(body, creator, url.hostname);
+  if ("error" in read) {
+    return c.json(read, 422);
   }
+  // A Nhóm, if one is named, must be one of the Đơn vị's own.
+  const groupId = body?.groupId === undefined || body.groupId === null ? null : positiveInt(String(body.groupId));
+  if (groupId === null && body?.groupId !== undefined && body.groupId !== null) {
+    return c.json({ error: "unknown-group" }, 422);
+  }
+  if (groupId !== null && !(await store.findGroup(creator.unitId, groupId))) {
+    return c.json({ error: "unknown-group" }, 422);
+  }
+  const fields = { ...read, groupId };
 
   const chosen = normalizeCode(text(body?.code));
   if (!chosen) {
@@ -235,6 +245,22 @@ const registerLinkRoutes = (
       return c.json(present({ ...link, ...cleared, target }, url.origin));
     }
     return c.json(present({ ...link, target }, url.origin));
+  });
+
+  /** Sorts the Link into one of its Đơn vị's Nhóm, or into none with `groupId: null`. */
+  app.put("/api/links/:code/group", async (c) => {
+    const reach = await reachLink(c, store, { peopleOnly: true });
+    if (reach instanceof Response) {
+      return reach;
+    }
+    const { link } = reach;
+    const raw = (await readJson(c))?.groupId;
+    const groupId = raw === null ? null : positiveInt(String(raw ?? ""));
+    if (raw !== null && !(groupId && (await store.findGroup(link.unitId, groupId)))) {
+      return c.json({ error: "unknown-group" }, 422);
+    }
+    await store.setLinkGroup(link.id, groupId);
+    return c.json(present({ ...link, groupId }, new URL(c.req.url).origin));
   });
 
   /**

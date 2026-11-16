@@ -5,6 +5,7 @@ import {
   accounts,
   apiKeys,
   dailyVisits,
+  linkGroups,
   links,
   memberships,
   passwordSetups,
@@ -30,6 +31,7 @@ const NEW_LINK_COLUMNS = {
   createdAt: links.createdAt,
   disabledBySystem: links.disabledBySystem,
   enabled: links.enabled,
+  groupId: links.groupId,
   id: links.id,
   logoChoice: links.logoChoice,
   logoKey: links.logoKey,
@@ -56,6 +58,7 @@ const SNAPSHOT_TABLES = [
   memberships,
   apiKeys,
   reservedCodes,
+  linkGroups,
   links,
   targetChanges,
   statusChanges,
@@ -185,6 +188,15 @@ const createD1Store = (database: D1Database): Store => {
       return row.id;
     },
 
+    createGroup: async (unitId, name) => {
+      const inserted = await db
+        .insert(linkGroups)
+        .values({ name, unitId })
+        .onConflictDoNothing()
+        .returning({ id: linkGroups.id, name: linkGroups.name });
+      return inserted[0] ?? null;
+    },
+
     createLink: async (link) => {
       // The unique index is what decides, not a check beforehand: two requests for one code
       // arriving together must not both succeed.
@@ -211,6 +223,18 @@ const createD1Store = (database: D1Database): Store => {
         .onConflictDoNothing()
         .returning({ id: units.id, name: units.name });
       return inserted[0] ?? null;
+    },
+
+    deleteGroup: async (unitId, groupId) => {
+      const [, removed] = await database.batch([
+        database
+          .prepare(
+            "UPDATE links SET group_id = NULL WHERE group_id = ?1 AND EXISTS (SELECT 1 FROM link_groups WHERE id = ?1 AND unit_id = ?2)"
+          )
+          .bind(groupId, unitId),
+        database.prepare("DELETE FROM link_groups WHERE id = ?1 AND unit_id = ?2").bind(groupId, unitId)
+      ]);
+      return (removed?.meta.changes ?? 0) > 0;
     },
 
     deleteSession: async (tokenHash) => {
@@ -240,6 +264,12 @@ const createD1Store = (database: D1Database): Store => {
             `UPDATE api_keys SET revoked_at = ?2 WHERE unit_id = ?1 AND revoked_at IS NULL
              AND EXISTS (SELECT 1 FROM units WHERE id = ?1 AND dissolved_at = ?2)`
           )
+          .bind(unitId, at.getTime()),
+        // Its Nhóm hold no Link - it owns none - so they simply go.
+        database
+          .prepare(
+            "DELETE FROM link_groups WHERE unit_id = ?1 AND EXISTS (SELECT 1 FROM units WHERE id = ?1 AND dissolved_at = ?2)"
+          )
           .bind(unitId, at.getTime())
       ]);
       return (dissolved?.meta.changes ?? 0) > 0;
@@ -265,6 +295,13 @@ const createD1Store = (database: D1Database): Store => {
         .select({ id: apiKeys.id, unitId: apiKeys.unitId })
         .from(apiKeys)
         .where(and(eq(apiKeys.keyHash, keyHash), isNull(apiKeys.revokedAt)))
+        .get()) ?? null,
+
+    findGroup: async (unitId, groupId) =>
+      (await db
+        .select({ id: linkGroups.id, name: linkGroups.name })
+        .from(linkGroups)
+        .where(and(eq(linkGroups.id, groupId), eq(linkGroups.unitId, unitId)))
         .get()) ?? null,
 
     findLink: async (code) => (await db.select(LINK_COLUMNS).from(links).where(eq(links.code, code)).get()) ?? null,
@@ -381,6 +418,18 @@ const createD1Store = (database: D1Database): Store => {
         .from(apiKeys)
         .where(eq(apiKeys.unitId, unitId))
         .orderBy(desc(apiKeys.id))
+        .all(),
+
+    listGroups: (unitId) =>
+      db
+        .select({
+          id: linkGroups.id,
+          linkCount: sql<number>`(select count(*) from links where links.group_id = link_groups.id)`,
+          name: linkGroups.name
+        })
+        .from(linkGroups)
+        .where(eq(linkGroups.unitId, unitId))
+        .orderBy(linkGroups.name)
         .all(),
 
     listHistory: async (linkId) => {
@@ -564,7 +613,23 @@ const createD1Store = (database: D1Database): Store => {
       const from = fromUnitId;
       const into = intoUnitId;
       // One batch, so one transaction: a merge never stops half-way.
-      const [, linksMoved, keysMoved, , , membersMoved] = await database.batch([
+      const [, , , , linksMoved, keysMoved, , , membersMoved] = await database.batch([
+        // A Nhóm whose name the other Đơn vị already has joins that one; the rest move across.
+        database
+          .prepare(
+            `UPDATE links SET group_id = (
+               SELECT kept.id FROM link_groups kept JOIN link_groups own ON own.name = kept.name
+               WHERE own.id = links.group_id AND kept.unit_id = ?2)
+             WHERE unit_id = ?1 AND group_id IN (
+               SELECT id FROM link_groups WHERE unit_id = ?1 AND name IN (SELECT name FROM link_groups WHERE unit_id = ?2))`
+          )
+          .bind(from, into),
+        database
+          .prepare(
+            "DELETE FROM link_groups WHERE unit_id = ?1 AND name IN (SELECT name FROM link_groups WHERE unit_id = ?2)"
+          )
+          .bind(from, into),
+        database.prepare("UPDATE link_groups SET unit_id = ?2 WHERE unit_id = ?1").bind(from, into),
         database
           .prepare(
             `INSERT INTO unit_changes (link_id, old_unit_id, new_unit_id, by_account_id, created_at)
@@ -616,7 +681,8 @@ const createD1Store = (database: D1Database): Store => {
           )
           .bind(toUnitId, byAccountId, at.getTime(), linkId, fromUnitId),
         database
-          .prepare("UPDATE links SET unit_id = ?1 WHERE id = ?2 AND unit_id = ?3")
+          // A Nhóm belongs to its Đơn vị, so a Link moving away leaves it.
+          .prepare("UPDATE links SET unit_id = ?1, group_id = NULL WHERE id = ?2 AND unit_id = ?3")
           .bind(toUnitId, linkId, fromUnitId)
       ]);
       return (moved?.meta.changes ?? 0) > 0;
@@ -643,6 +709,22 @@ const createD1Store = (database: D1Database): Store => {
     removeReservedCode: async (code) => {
       const removed = await db.delete(reservedCodes).where(eq(reservedCodes.code, code)).returning();
       return removed.length > 0;
+    },
+
+    renameGroup: async (unitId, groupId, name) => {
+      const renamed = await database
+        .prepare("UPDATE OR IGNORE link_groups SET name = ?1 WHERE id = ?2 AND unit_id = ?3")
+        .bind(name, groupId, unitId)
+        .run();
+      if (renamed.meta.changes > 0) {
+        return "done";
+      }
+      const row = await db
+        .select({ id: linkGroups.id })
+        .from(linkGroups)
+        .where(and(eq(linkGroups.id, groupId), eq(linkGroups.unitId, unitId)))
+        .get();
+      return row ? "taken" : "unknown";
     },
 
     revokeApiKey: async (keyId, unitId, at) => {
@@ -672,6 +754,10 @@ const createD1Store = (database: D1Database): Store => {
         .where(eq(accounts.id, accountId))
         .get();
       return row?.is ? "last-admin" : "not-an-admin";
+    },
+
+    setLinkGroup: async (linkId, groupId) => {
+      await db.update(links).set({ groupId }).where(eq(links.id, linkId));
     },
 
     setLinkLogo: async (linkId, choice, logoKey) => {

@@ -15,6 +15,8 @@ type Link = {
   unitId: number;
   enabled: boolean;
   disabledBySystem: boolean;
+  /** The Nhóm it is sorted into, if any. */
+  groupId: number | null;
   logoChoice: LogoChoice;
   /** How much of the QR's logo box the logo fills, in percent: 40 to 100. */
   logoScale: number;
@@ -33,7 +35,16 @@ type UnitOverview = { id: number; name: string; linkCount: number; managers: str
 type ReservedCode = { code: string; note: string; createdAt: string };
 /** A Link as a Quản trị hệ thống finds it: with the Đơn vị that owns it and its history. */
 type FoundLink = Link & { unitName: string; history: HistoryEntry[] };
-type NewLinkInput = { unitId: number; name: string; target: string; code: string; note: string };
+type NewLinkInput = {
+  unitId: number;
+  name: string;
+  target: string;
+  code: string;
+  note: string;
+  groupId?: number | null;
+};
+/** A Nhóm: a Đơn vị's own way of sorting its Links. */
+type LinkGroup = { id: number; name: string; linkCount: number };
 type Preview = { title: string; description: string; image: string };
 type Visits = { total: number; days: { day: string; count: number }[] };
 type LogoChoice = "inherit" | "none" | "custom";
@@ -145,11 +156,14 @@ const api = {
   adminUploadLogo: (file: File) => upload("/api/admin/qr-logo", file),
   changeTarget: (code: string, target: string, expectedTarget: string, resetPreview = false) =>
     call<Link>("PUT", `/api/links/${code}/target`, { expectedTarget, resetPreview, target }),
+  createGroup: (unitId: number, name: string) => call<LinkGroup>("POST", `/api/units/${unitId}/groups`, { name }),
   createKey: (unitId: number, name: string) =>
     call<{ id: number; key: string; name: string }>("POST", `/api/units/${unitId}/keys`, { name }),
   createLink: (input: NewLinkInput) => call<Link>("POST", "/api/links", input),
+  deleteGroup: (unitId: number, groupId: number) => call<void>("DELETE", `/api/units/${unitId}/groups/${groupId}`),
   disableLink: (code: string) => call<Link>("POST", `/api/links/${code}/disable`),
   enableLink: (code: string) => call<Link>("POST", `/api/links/${code}/enable`),
+  groups: (unitId: number) => call<{ groups: LinkGroup[] }>("GET", `/api/units/${unitId}/groups`),
   history: (code: string) => call<{ history: HistoryEntry[] }>("GET", `/api/links/${code}/history`),
   keys: (unitId: number) => call<{ keys: ApiKey[] }>("GET", `/api/units/${unitId}/keys`),
   linkPreview: (code: string) =>
@@ -168,7 +182,10 @@ const api = {
   removeMember: (unitId: number, email: string) =>
     call<void>("DELETE", `/api/units/${unitId}/members/${encodeURIComponent(email)}`),
   removeUnitLogo: (unitId: number) => call<void>("DELETE", `/api/units/${unitId}/qr-logo`),
+  renameGroup: (unitId: number, groupId: number, name: string) =>
+    call<{ id: number; name: string }>("PUT", `/api/units/${unitId}/groups/${groupId}`, { name }),
   revokeKey: (unitId: number, keyId: number) => call<void>("DELETE", `/api/units/${unitId}/keys/${keyId}`),
+  setLinkGroup: (code: string, groupId: number | null) => call<Link>("PUT", `/api/links/${code}/group`, { groupId }),
   setLinkLogoChoice: (code: string, choice: "inherit" | "none") =>
     call<{ logoChoice: LogoChoice; logoScale: number }>("PUT", `/api/links/${code}/qr-logo`, { choice }),
   setLinkLogoScale: (code: string, scale: number) =>
@@ -195,6 +212,7 @@ export {
   type FoundLink,
   type HistoryEntry,
   type Link,
+  type LinkGroup,
   type LogoChoice,
   type Me,
   type Member,

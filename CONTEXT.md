@@ -15,6 +15,12 @@ The part of a **Link** a person reads and types. Chosen when the Link is created
 left blank; never changed afterwards and never given to another Link, even once its own is disabled.
 _Avoid_: slug, alias, mã (alone - it collides with **QR**).
 
+**Nhóm** (En: Group):
+A **Đơn vị**'s own way of sorting its **Links** - by event, by year, by issue. A Link is in at most
+one Nhóm, of its own Đơn vị; it leaves it when it moves to another Đơn vị. Unlike a Link, a Nhóm can
+be renamed and deleted: nothing printed carries it, and deleting one leaves its Links in no Nhóm.
+_Avoid_: folder, tag, category, campaign.
+
 **Tên link** (En: Link Name):
 What a **Link** is for, in the words of whoever created it - "Poster hội thảo 20 năm, bản in A3".
 Every Link has one, because a **Mã link** alone tells nobody which piece of paper it sits on.

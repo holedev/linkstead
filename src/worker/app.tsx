@@ -10,6 +10,7 @@ import { openApiDocument } from "./openapi";
 import { registerAdminRoutes } from "./routes/admin";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerExportRoutes } from "./routes/export";
+import { registerGroupRoutes } from "./routes/groups";
 import { registerLinkRoutes } from "./routes/links";
 import { registerQrRoutes } from "./routes/qr";
 import { registerUnitRoutes } from "./routes/units";
@@ -36,6 +37,7 @@ const createApp = (deps: AppDeps) => {
   registerAuthRoutes(app, deps);
   registerUnitRoutes(app, deps);
   registerLinkRoutes(app, deps);
+  registerGroupRoutes(app, deps);
   registerAdminRoutes(app, deps);
   registerExportRoutes(app, deps);
   registerQrRoutes(app, deps);

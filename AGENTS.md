@@ -114,6 +114,7 @@ by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts
 | `GET /api/links/:code/visits`, `GET /api/links/:code/qr` | a Thành viên, or a Khóa API | Lượt mở per day; the QR as SVG, `?style=` one of the fixed looks in `domain/qr-style.ts` |
 | `GET /api/links/:code/history` | a Thành viên | every change of Đích, state and Đơn vị |
 | `PUT /api/links/:code/details`, `PUT /api/links/:code/qr-logo` | a Thành viên | rewords Tên link and note; the Link's logo choice |
+| `PUT /api/links/:code/group`, `/api/units/:unitId/groups...` | a Thành viên | sorts a Link into a Nhóm; makes, renames and deletes the Đơn vị's Nhóm |
 | `GET`, `PUT /api/links/:code/preview` | a Thành viên | the share preview: what the Đích says, and the Link's own title, description and image |
 | `GET /api/units/:unitId/links.csv`, `.../visits.csv` | a Thành viên | the Đơn vị's CSV downloads |
 | `/api/units/:unitId/members...`, `.../keys...`, `.../qr-logo`, `.../qr-preview` | Quản lý đơn vị | members and their roles, Khóa API, the Đơn vị's logo |

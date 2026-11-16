@@ -3,6 +3,8 @@ import {
   ChartNoAxesColumnIcon,
   CornerDownRightIcon,
   EllipsisIcon,
+  FolderIcon,
+  FolderInputIcon,
   HistoryIcon,
   PencilIcon,
   PowerIcon,
@@ -31,7 +33,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { checkTarget } from "../../domain/target";
-import { api, type HistoryEntry, type Link, type Visits } from "../api";
+import { api, type HistoryEntry, type Link, type LinkGroup, type Visits } from "../api";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { PreviewPanel } from "./preview-panel";
@@ -360,6 +362,77 @@ const TargetForm = ({
   );
 };
 
+/** Puts the Link in another of its Đơn vị's Nhóm, or in none. Nothing a visitor sees changes. */
+const GroupForm = ({
+  link,
+  groups,
+  onChanged,
+  onDone
+}: {
+  link: Link;
+  groups: LinkGroup[];
+  onChanged: (link: Link) => void;
+  onDone: () => void;
+}) => {
+  const [groupId, setGroupId] = useState<number | null>(link.groupId);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      onChanged(await api.setLinkGroup(link.code, groupId));
+      onDone();
+    } catch (failure) {
+      setError(messageOf(failure));
+      setBusy(false);
+    }
+  };
+
+  if (groups.length === 0) {
+    return (
+      <div className='space-y-4 text-sm'>
+        <p className='text-muted-foreground'>
+          Đơn vị chưa có nhóm nào. Tạo nhóm bằng nút "Quản lý nhóm" phía trên danh sách link.
+        </p>
+        <div className='flex justify-end'>
+          <Button onClick={onDone}>Đóng</Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form className='space-y-4' onSubmit={save}>
+      <Field label='Nhóm'>
+        {(props) => (
+          <select
+            {...props}
+            onChange={(event) => setGroupId(event.target.value ? Number(event.target.value) : null)}
+            value={groupId ?? ""}
+          >
+            <option value=''>Không nhóm</option>
+            {groups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+      <ErrorText>{error}</ErrorText>
+      <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
+        <Button onClick={onDone}>Hủy</Button>
+        <Button disabled={busy} type='submit' variant='primary'>
+          {busy ? "Đang lưu..." : "Lưu"}
+        </Button>
+      </div>
+    </form>
+  );
+};
+
 const StatusBadge = ({ link }: { link: Link }) => {
   if (link.enabled) {
     return <Badge tone='ok'>Đang bật</Badge>;
@@ -371,10 +444,11 @@ const StatusBadge = ({ link }: { link: Link }) => {
   );
 };
 
-type Task = "target" | "details" | "preview" | "history" | "visits" | "qr" | "disable" | null;
+type Task = "target" | "details" | "group" | "preview" | "history" | "visits" | "qr" | "disable" | null;
 
 const TASK_TITLE = {
   details: "Sửa tên, ghi chú",
+  group: "Chuyển nhóm",
   history: "Lịch sử thay đổi",
   preview: "Xem trước khi chia sẻ",
   qr: "QR và logo",
@@ -417,6 +491,10 @@ const LinkActions = ({
         <PencilIcon />
         Sửa tên, ghi chú
       </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onTask("group")}>
+        <FolderInputIcon />
+        Chuyển nhóm
+      </DropdownMenuItem>
       <DropdownMenuItem onSelect={() => onTask("qr")}>
         <QrCodeIcon />
         QR và logo
@@ -455,7 +533,17 @@ const LinkActions = ({
  * One Link: its QR, its address and where it leads, readable at a glance; everything else behind
  * the actions button. Nothing here can change the Mã link.
  */
-const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => void }) => {
+const LinkRow = ({
+  link,
+  groups,
+  onChanged
+}: {
+  link: Link;
+  /** The Đơn vị's Nhóm, to name the Link's and to offer the others. */
+  groups: LinkGroup[];
+  onChanged: (link: Link) => void;
+}) => {
+  const group = groups.find((candidate) => candidate.id === link.groupId) ?? null;
   const { me } = useSession();
   const isSystemAdmin = me?.isSystemAdmin ?? false;
   const [task, setTask] = useState<Task>(null);
@@ -501,6 +589,12 @@ const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
           <div className='flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1'>
             <h3 className='min-w-0 break-words font-medium leading-snug'>{link.name}</h3>
             <StatusBadge link={link} />
+            {group && (
+              <span className='inline-flex max-w-48 items-center gap-1 truncate rounded-full border px-2 py-0.5 text-muted-foreground text-xs'>
+                <FolderIcon aria-hidden='true' className='size-3 shrink-0' />
+                <span className='truncate'>{group.name}</span>
+              </span>
+            )}
           </div>
           <LinkActions
             busy={busy}
@@ -558,6 +652,7 @@ const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
       >
         {task === "target" && <TargetForm link={link} onChanged={onChanged} onDone={close} />}
         {task === "details" && <DetailsForm link={link} onChanged={onChanged} onDone={close} />}
+        {task === "group" && <GroupForm groups={groups} link={link} onChanged={onChanged} onDone={close} />}
         {task === "history" && <HistoryPanel link={link} />}
         {task === "visits" && <VisitsPanel link={link} />}
         {task === "preview" && <PreviewPanel link={link} onChanged={onChanged} onDone={close} />}
