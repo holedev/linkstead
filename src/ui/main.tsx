@@ -6,6 +6,7 @@ import { AdminPage } from "./pages/admin";
 import { KeysPage } from "./pages/keys";
 import { LinksPage } from "./pages/links";
 import { LoginPage } from "./pages/login";
+import { LogoPage } from "./pages/logo";
 import { MembersPage } from "./pages/members";
 import { SetupPage } from "./pages/setup";
 import { SessionProvider, useSession } from "./session";
@@ -33,6 +34,7 @@ if (root) {
               <Route element={<LinksPage />} index />
               <Route element={<MembersPage />} path='/members' />
               <Route element={<KeysPage />} path='/keys' />
+              <Route element={<LogoPage />} path='/logo' />
               <Route element={<AdminPage />} path='/admin' />
             </Route>
             <Route element={<Navigate replace to='/' />} path='*' />

@@ -19,12 +19,17 @@ A Quản trị hệ thống downloads everything from the administration screen
 (`GET /api/admin/export`). The file is JSON:
 
 ```json
-{ "version": 1, "exportedAt": "2027-03-01T03:00:00.000Z", "tables": { "accounts": [ ... ], ... } }
+{
+  "version": 1,
+  "exportedAt": "2027-03-01T03:00:00.000Z",
+  "tables": { "accounts": [ ... ], ... },
+  "logos": { "units/2/Xy...": "<base64>", ... }
+}
 ```
 
 Each table is a list of plain rows keyed by column name, exactly as in `migrations/`, so reading it
 does not depend on D1. It holds accounts (with password hashes), units, memberships, API keys (as
-hashes), reserved codes, links, the three histories and daily visits. It leaves out sign-in
+hashes), reserved codes, links, the three histories and daily visits, and the logo files for QR. It leaves out sign-in
 sessions, unused one-time password links and rate-limit counters. **Treat the file as a secret.**
 
 To take it into a new installation, before anyone has signed in there:
@@ -42,4 +47,5 @@ curl -X POST https://<new-host>/api/admin/import \
 - A file that cannot be read whole leaves nothing behind (`422 bad-snapshot`).
 - Passwords and Khóa API keep working: only their hashes travel, and the hashing is the same.
 
-Logo files are not in the export yet - there are none until QR logos are built.
+- Logo files travel in the same file, base64, under the key the database points at. On import each
+  is checked like an upload (PNG or JPEG, size); one that fails is left out and its QR shows no logo.

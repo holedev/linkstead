@@ -8,6 +8,20 @@
 
 type Role = "manager" | "member";
 
+type LogoChoice = "inherit" | "none" | "custom";
+
+type UnitRecord = { id: number; name: string; logoKey: string | null };
+
+/**
+ * Where logo files live, and nothing about where that is - R2 on Cloudflare, a folder elsewhere.
+ * Keys are made by the app; the bytes were checked to be PNG or JPEG before they got here.
+ */
+type LogoFiles = {
+  put: (key: string, bytes: Uint8Array) => Promise<void>;
+  get: (key: string) => Promise<Uint8Array | null>;
+  delete: (key: string) => Promise<void>;
+};
+
 type OpenableLink = {
   id: number;
   target: string;
@@ -24,6 +38,9 @@ type LinkRecord = {
   enabled: boolean;
   /** Switched off by a Quản trị hệ thống: only they switch it back on. */
   disabledBySystem: boolean;
+  /** The QR's logo for this Link: the Đơn vị's, none, or its own file under `logoKey`. */
+  logoChoice: LogoChoice;
+  logoKey: string | null;
   /** Every Lượt mở the Link has had, all days together. */
   visits: number;
   createdAt: Date;
@@ -53,7 +70,13 @@ type ReservedCode = { code: string; note: string; createdAt: Date };
  * rows keyed by column name, so it does not depend on which database wrote it. Sign-in sessions,
  * unused one-time links and rate-limit counters are left out - they mean nothing elsewhere.
  */
-type Snapshot = { version: 1; exportedAt: string; tables: Record<string, Record<string, unknown>[]> };
+type Snapshot = {
+  version: 1;
+  exportedAt: string;
+  tables: Record<string, Record<string, unknown>[]>;
+  /** Logo files by key, base64. Absent from an export made before logos existed. */
+  logos?: Record<string, string>;
+};
 
 type DayVisits = { day: string; count: number };
 
@@ -115,6 +138,10 @@ type Store = {
     by: Author;
     at: Date;
   }) => Promise<boolean>;
+  /** The per-Link choice of logo for its QR. `logoKey` is set only with `custom`. */
+  setLinkLogo: (linkId: number, choice: LogoChoice, logoKey: string | null) => Promise<void>;
+  /** Every logo file a Đơn vị or a Link points at, for the export. */
+  listLogoKeys: () => Promise<string[]>;
   /** Every change of Đích and every switch-off and -on, newest first. */
   listHistory: (linkId: number) => Promise<HistoryEntry[]>;
   /** Lượt mở per day, oldest first. Days with none have no row. */
@@ -176,7 +203,9 @@ type Store = {
   /** Every Đơn vị that has not been dissolved. */
   listUnits: () => Promise<{ id: number; name: string }[]>;
   unitExists: (unitId: number) => Promise<boolean>;
-  findUnit: (unitId: number) => Promise<{ id: number; name: string } | null>;
+  findUnit: (unitId: number) => Promise<UnitRecord | null>;
+  /** The Đơn vị's own default logo for its QR, or null to follow the university's. */
+  setUnitLogo: (unitId: number, logoKey: string | null) => Promise<void>;
   /** Every live Đơn vị with how many Links it owns and who manages it. */
   listUnitOverviews: () => Promise<UnitOverview[]>;
   /** Null when the name is taken - also by a Đơn vị that was dissolved. */
@@ -214,6 +243,8 @@ export type {
   DayVisits,
   HistoryEntry,
   LinkRecord,
+  LogoChoice,
+  LogoFiles,
   MemberRecord,
   Membership,
   MembershipOutcome,
@@ -223,5 +254,6 @@ export type {
   Role,
   Snapshot,
   Store,
-  UnitOverview
+  UnitOverview,
+  UnitRecord
 };

@@ -4,6 +4,7 @@ import { api, type HistoryEntry, type Link, type Visits } from "../api";
 import { Badge, Button, ConfirmDialog, CopyButton, ErrorText, Field, formatDate, formatDateTime } from "../components";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
+import { QrPanel } from "./qr-panel";
 
 const RECENT_DAYS = 30;
 const number = new Intl.NumberFormat("vi-VN");
@@ -156,7 +157,7 @@ const VisitsPanel = ({ link }: { link: Link }) => {
   );
 };
 
-type Panel = "target" | "history" | "visits" | null;
+type Panel = "target" | "history" | "visits" | "qr" | null;
 
 /**
  * One Link and everything a Thành viên may do to it. Changing the Đích and switching the Link off
@@ -253,6 +254,9 @@ const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
         <Button aria-expanded={panel === "visits"} onClick={() => toggle("visits")}>
           Lượt mở
         </Button>
+        <Button aria-expanded={panel === "qr"} onClick={() => toggle("qr")}>
+          QR
+        </Button>
         {link.enabled && (
           <Button disabled={busy} onClick={() => setConfirming("disable")}>
             Tắt link
@@ -288,6 +292,7 @@ const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
       <ErrorText>{error}</ErrorText>
       {panel === "history" && <HistoryPanel link={link} />}
       {panel === "visits" && <VisitsPanel link={link} />}
+      {panel === "qr" && <QrPanel link={link} onChanged={onChanged} />}
 
       <ConfirmDialog
         busy={busy}

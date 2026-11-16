@@ -32,7 +32,7 @@ const TABLES = [
   "accounts"
 ];
 
-type RequestOptions = { body?: unknown; headers?: Record<string, string> };
+type RequestOptions = { body?: unknown; headers?: Record<string, string>; bytes?: Uint8Array };
 
 const startHarness = async () => {
   const proxy = await getPlatformProxy<{ DB: D1Database }>({ persist: false });
@@ -59,10 +59,21 @@ const startHarness = async () => {
 
   const clock = { now: new Date("2027-03-01T03:00:00Z") };
   const deferred: Promise<unknown>[] = [];
+  // Logo files in memory: the app only knows the `LogoFiles` seam, so this is as real as R2 to it.
+  const logoFiles = new Map<string, Uint8Array>();
   const app = createApp({
     bootstrapToken: BOOTSTRAP_TOKEN,
     defer: (work) => {
       deferred.push(work);
+    },
+    logos: {
+      delete: async (key) => {
+        await Promise.resolve(logoFiles.delete(key));
+      },
+      get: (key) => Promise.resolve(logoFiles.get(key) ?? null),
+      put: async (key, bytes) => {
+        await Promise.resolve(logoFiles.set(key, bytes));
+      }
     },
     now: () => clock.now,
     serveUi: () =>
@@ -80,6 +91,7 @@ const startHarness = async () => {
       await run(statement);
     }
     clock.now = new Date("2027-03-01T03:00:00Z");
+    logoFiles.clear();
   };
 
   /** A caller that keeps its cookies between requests, like a browser - or sends none. */
@@ -94,7 +106,7 @@ const startHarness = async () => {
         headers["content-type"] = "application/json";
       }
       const response = await app.request(`${ORIGIN}${path}`, {
-        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        body: options.bytes ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
         headers,
         method
       });
@@ -108,7 +120,10 @@ const startHarness = async () => {
       delete: (path: string, options?: RequestOptions) => request("DELETE", path, options),
       get: (path: string, options?: RequestOptions) => request("GET", path, options),
       post: (path: string, body?: unknown, options?: RequestOptions) => request("POST", path, { ...options, body }),
-      put: (path: string, body?: unknown, options?: RequestOptions) => request("PUT", path, { ...options, body })
+      put: (path: string, body?: unknown, options?: RequestOptions) => request("PUT", path, { ...options, body }),
+      /** Sends a file as the request body, the way the UI uploads a logo. */
+      upload: (path: string, bytes: Uint8Array, options?: RequestOptions) =>
+        request("PUT", path, { ...options, bytes, headers: { "content-type": "image/png", ...options?.headers } })
     };
   };
 
@@ -129,6 +144,7 @@ const startHarness = async () => {
     client,
     db,
     dispose: proxy.dispose,
+    logoFiles,
     reset,
     signedInAdmin
   };

@@ -6,6 +6,7 @@ import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
 import { AdminLinkLookup } from "./admin-link";
+import { LogoCard } from "./logo-card";
 
 /** One busy flag and one error line for a card's writes. `run` answers whether the write went through. */
 const useAction = () => {
@@ -332,6 +333,34 @@ const HandOutCard = ({ units, onCreated }: { units: UnitOverview[]; onCreated: (
   );
 };
 
+/** The university's logo: what every QR shows unless its Đơn vị or the Link itself chose otherwise. */
+const UniversityLogoCard = () => {
+  const { data, reload } = useLoaded(0, () => api.adminLogo());
+  return (
+    <LogoCard
+      hasLogo={data?.set ?? false}
+      loadPreview={api.adminLogoPreview}
+      onRemove={async () => {
+        await api.adminRemoveLogo();
+        reload();
+      }}
+      onUpload={async (file) => {
+        await api.adminUploadLogo(file);
+        reload();
+      }}
+      removeLabel='Bỏ logo của Trường'
+      stamp={String(data?.set)}
+      title='Logo của Trường trên QR'
+    >
+      <p>
+        {data?.set
+          ? "Mọi QR dùng logo này, trừ khi đơn vị đặt logo riêng hoặc link chọn logo riêng hay không logo."
+          : "Chưa có logo chung. QR của đơn vị chưa đặt logo riêng sẽ không có logo."}
+      </p>
+    </LogoCard>
+  );
+};
+
 /** What only a Quản trị hệ thống does. The server refuses everyone else whatever this screen shows. */
 const AdminPage = () => {
   const { me, refresh } = useSession();
@@ -350,6 +379,7 @@ const AdminPage = () => {
       <AdminLinkLookup onMoved={reload} units={units ?? []} />
       <UnitsCard error={error} onChanged={unitsChanged} units={units} />
       <ReservedCodesCard />
+      <UniversityLogoCard />
       <HandOutCard onCreated={reload} units={units ?? []} />
       <Card>
         <h2 className='font-semibold text-lg'>Xuất toàn bộ dữ liệu</h2>

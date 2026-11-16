@@ -12,6 +12,8 @@
     // address would be looked up among the files before the Worker ever saw it.
     "run_worker_first": ["/*", "!/app/assets/*"]
   },
+  // Logo files for QR. Create it once with `wrangler r2 bucket create ou-link-logos`.
+  "r2_buckets": [{ "binding": "LOGOS", "bucket_name": "ou-link-logos" }],
   "d1_databases": [
     {
       "binding": "DB",

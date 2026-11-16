@@ -8,6 +8,7 @@ import { registerAdminRoutes } from "./routes/admin";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerExportRoutes } from "./routes/export";
 import { registerLinkRoutes } from "./routes/links";
+import { registerQrRoutes } from "./routes/qr";
 import { registerUnitRoutes } from "./routes/units";
 
 /**
@@ -25,6 +26,7 @@ const createApp = (deps: AppDeps) => {
   registerLinkRoutes(app, deps);
   registerAdminRoutes(app, deps);
   registerExportRoutes(app, deps);
+  registerQrRoutes(app, deps);
   // An unknown API path answers as an API, not with the visitor's notice page.
   app.all("/api/*", (c) => c.json({ error: "not-found" }, 404));
 

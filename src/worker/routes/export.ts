@@ -1,9 +1,12 @@
 import type { Hono } from "hono";
+import { fromBase64, toBase64 } from "../../domain/base64";
 import { toCsv } from "../../domain/csv";
+import { checkLogo } from "../../domain/logo";
 import { hashSecret } from "../../domain/secret";
 import type { AppContext, AppDeps, AppEnv } from "../context";
 import { positiveInt, readJson } from "../http";
 import type { Snapshot, Store } from "../store";
+import { SYSTEM_LOGO_KEY } from "./qr";
 
 const BEARER = /^Bearer\s+(\S+)$/i;
 
@@ -35,10 +38,23 @@ const status = (link: { enabled: boolean; disabledBySystem: boolean }): string =
   return link.disabledBySystem ? "Quản trị hệ thống đã tắt" : "Đã tắt";
 };
 
+/** The only shapes a logo's key has. A snapshot cannot make the import write anywhere else. */
+const LOGO_KEY = /^(system\/logo|(units|links)\/\d+\/[\w-]+)$/;
+
 const isSnapshot = (value: Record<string, unknown> | null): value is Snapshot =>
   value?.version === 1 && typeof value.tables === "object" && value.tables !== null && !Array.isArray(value.tables);
 
-const registerExportRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(), bootstrapToken }: AppDeps) => {
+const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new Date(), bootstrapToken }: AppDeps) => {
+  /** Logos are checked again like any upload. One that fails is left out: its QR shows no logo. */
+  const importLogos = async (files: Record<string, unknown>) => {
+    for (const [key, encoded] of Object.entries(files)) {
+      const bytes = typeof encoded === "string" ? fromBase64(encoded) : null;
+      if (LOGO_KEY.test(key) && bytes && !checkLogo(bytes)) {
+        await logos?.put(key, bytes);
+      }
+    }
+  };
+
   /** A Đơn vị's Links, one row each, for a spreadsheet. */
   app.get("/api/units/:unitId/links.csv", async (c) => {
     const unit = await memberUnit(c, store);
@@ -87,6 +103,13 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, now = () => new Date()
       return c.json({ error: "forbidden" }, 403);
     }
     const snapshot = await store.exportAll(now());
+    snapshot.logos = {};
+    for (const key of [SYSTEM_LOGO_KEY, ...(await store.listLogoKeys())]) {
+      const bytes = await logos?.get(key);
+      if (bytes) {
+        snapshot.logos[key] = toBase64(bytes);
+      }
+    }
     const day = snapshot.exportedAt.slice(0, 10);
     return download(c, JSON.stringify(snapshot), "application/json; charset=utf-8", `ou-link-${day}.json`);
   });
@@ -108,7 +131,11 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, now = () => new Date()
     if (outcome === "not-empty") {
       return c.json({ error: "not-empty" }, 409);
     }
-    return outcome === "done" ? c.body(null, 204) : c.json({ error: "bad-snapshot" }, 422);
+    if (outcome !== "done") {
+      return c.json({ error: "bad-snapshot" }, 422);
+    }
+    await importLogos(body.logos ?? {});
+    return c.body(null, 204);
   });
 };
 

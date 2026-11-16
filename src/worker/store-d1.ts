@@ -31,6 +31,8 @@ const NEW_LINK_COLUMNS = {
   disabledBySystem: links.disabledBySystem,
   enabled: links.enabled,
   id: links.id,
+  logoChoice: links.logoChoice,
+  logoKey: links.logoKey,
   name: links.name,
   note: links.note,
   target: links.target,
@@ -299,7 +301,7 @@ const createD1Store = (database: D1Database): Store => {
 
     findUnit: async (unitId) =>
       (await db
-        .select({ id: units.id, name: units.name })
+        .select({ id: units.id, logoKey: units.logoKey, name: units.name })
         .from(units)
         .where(and(eq(units.id, unitId), isNull(units.dissolvedAt)))
         .get()) ?? null,
@@ -434,6 +436,15 @@ const createD1Store = (database: D1Database): Store => {
     listLinksByUnit: (unitId) =>
       db.select(LINK_COLUMNS).from(links).where(eq(links.unitId, unitId)).orderBy(desc(links.id)).all(),
 
+    listLogoKeys: async () => {
+      const rows = await database
+        .prepare(
+          "SELECT logo_key AS key FROM units WHERE logo_key IS NOT NULL UNION SELECT logo_key FROM links WHERE logo_key IS NOT NULL"
+        )
+        .all<{ key: string }>();
+      return rows.results.map((row) => row.key);
+    },
+
     listMembers: async (unitId) => {
       const rows = await db
         .select({ email: accounts.email, passwordHash: accounts.passwordHash, role: memberships.role })
@@ -566,6 +577,10 @@ const createD1Store = (database: D1Database): Store => {
       return revoked.length > 0;
     },
 
+    setLinkLogo: async (linkId, choice, logoKey) => {
+      await db.update(links).set({ logoChoice: choice, logoKey }).where(eq(links.id, linkId));
+    },
+
     setLinkStatus: async ({ linkId, enabled, bySystem, by, at }) => {
       // As with a Đích: the line and the switch in one transaction, and neither when nothing changes.
       const [, updated] = await database.batch([
@@ -600,6 +615,10 @@ const createD1Store = (database: D1Database): Store => {
         .update(accounts)
         .set({ failedLogins: 0, lockedUntil: null, passwordHash })
         .where(eq(accounts.id, accountId));
+    },
+
+    setUnitLogo: async (unitId, logoKey) => {
+      await db.update(units).set({ logoKey }).where(eq(units.id, unitId));
     },
 
     unitExists: async (unitId) => {

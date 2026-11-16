@@ -39,6 +39,7 @@ const present = (link: LinkRecord, origin: string) => ({
   createdAt: link.createdAt.toISOString(),
   disabledBySystem: link.disabledBySystem,
   enabled: link.enabled,
+  logoChoice: link.logoChoice,
   name: link.name,
   note: link.note,
   target: link.target,
@@ -270,4 +271,4 @@ const registerLinkRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }
   });
 };
 
-export { createLink, present, presentEntry, registerLinkRoutes };
+export { createLink, present, presentEntry, reachLink, registerLinkRoutes };

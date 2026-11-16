@@ -195,4 +195,4 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() 
   });
 };
 
-export { registerAdminRoutes };
+export { registerAdminRoutes, systemAdmin };

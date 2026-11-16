@@ -61,6 +61,9 @@ const Layout = () => {
               <NavLink className={tabClass} to='/keys'>
                 Khóa API
               </NavLink>
+              <NavLink className={tabClass} to='/logo'>
+                Logo QR
+              </NavLink>
             </>
           )}
           {me?.isSystemAdmin && (

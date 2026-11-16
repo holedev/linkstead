@@ -12,6 +12,7 @@ type Link = {
   unitId: number;
   enabled: boolean;
   disabledBySystem: boolean;
+  logoChoice: LogoChoice;
   visits: number;
   createdAt: string;
 };
@@ -27,6 +28,7 @@ type ReservedCode = { code: string; note: string; createdAt: string };
 type FoundLink = Link & { unitName: string; history: HistoryEntry[] };
 type NewLinkInput = { unitId: number; name: string; target: string; code: string; note: string };
 type Visits = { total: number; days: { day: string; count: number }[] };
+type LogoChoice = "inherit" | "none" | "custom";
 type Member = { email: string; role: Role; hasPassword: boolean };
 type ApiKey = { id: number; name: string; createdAt: string; revokedAt: string | null };
 
@@ -65,6 +67,39 @@ const call = async <T>(method: string, path: string, body?: unknown): Promise<T>
   return data as T;
 };
 
+const failureOf = async (response: Response): Promise<ApiFailure> => {
+  const data = (await response.json().catch(() => null)) as { error?: string; problem?: string } | null;
+  return new ApiFailure(response.status, data?.error ?? "unknown", data?.problem);
+};
+
+/** A QR as the server drew it. The API returns SVG only; PNG is made from it in the browser. */
+const svg = async (path: string): Promise<string> => {
+  const response = await fetch(path, { credentials: "same-origin" }).catch(() => null);
+  if (!response) {
+    throw new ApiFailure(0, "network");
+  }
+  if (!response.ok) {
+    throw await failureOf(response);
+  }
+  return response.text();
+};
+
+/** Sends a logo file as the request body. The server decides what it is from its bytes. */
+const upload = async (path: string, file: File): Promise<void> => {
+  const response = await fetch(path, {
+    body: file,
+    credentials: "same-origin",
+    headers: { "content-type": "application/octet-stream" },
+    method: "PUT"
+  }).catch(() => null);
+  if (!response) {
+    throw new ApiFailure(0, "network");
+  }
+  if (!response.ok) {
+    throw await failureOf(response);
+  }
+};
+
 const api = {
   addMember: (unitId: number, email: string, role: Role) =>
     call<{ email: string; role: Role; setupUrl: string | null }>("POST", `/api/units/${unitId}/members`, {
@@ -79,13 +114,17 @@ const api = {
     }),
   adminDissolveUnit: (unitId: number) => call<void>("DELETE", `/api/admin/units/${unitId}`),
   adminFindLink: (code: string) => call<FoundLink>("GET", `/api/admin/links/${encodeURIComponent(code)}`),
+  adminLogo: () => call<{ set: boolean }>("GET", "/api/admin/qr-logo"),
+  adminLogoPreview: () => svg("/api/admin/qr-preview"),
   adminMoveLink: (code: string, unitId: number) =>
     call<Link & { unitName: string }>("POST", `/api/admin/links/${code}/move`, { unitId }),
+  adminRemoveLogo: () => call<void>("DELETE", "/api/admin/qr-logo"),
   adminReserve: (code: string, note: string) =>
     call<{ code: string; note: string }>("POST", "/api/admin/reserved-codes", { code, note }),
   adminReservedCodes: () => call<{ codes: ReservedCode[] }>("GET", "/api/admin/reserved-codes"),
   adminUnits: () => call<{ units: UnitOverview[] }>("GET", "/api/admin/units"),
   adminUnreserve: (code: string) => call<void>("DELETE", `/api/admin/reserved-codes/${code}`),
+  adminUploadLogo: (file: File) => upload("/api/admin/qr-logo", file),
   changeTarget: (code: string, target: string, expectedTarget: string) =>
     call<Link>("PUT", `/api/links/${code}/target`, { expectedTarget, target }),
   createKey: (unitId: number, name: string) =>
@@ -95,6 +134,7 @@ const api = {
   enableLink: (code: string) => call<Link>("POST", `/api/links/${code}/enable`),
   history: (code: string) => call<{ history: HistoryEntry[] }>("GET", `/api/links/${code}/history`),
   keys: (unitId: number) => call<{ keys: ApiKey[] }>("GET", `/api/units/${unitId}/keys`),
+  linkQr: (code: string) => svg(`/api/links/${code}/qr`),
   links: (unitId: number) => call<{ links: Link[] }>("GET", `/api/links?unitId=${unitId}`),
   login: (email: string, password: string) => call<Me>("POST", "/api/auth/login", { email, password }),
   logout: () => call<void>("POST", "/api/auth/logout"),
@@ -104,10 +144,17 @@ const api = {
     call<{ email: string; setupUrl: string }>("POST", `/api/units/${unitId}/members/password-setup`, { email }),
   removeMember: (unitId: number, email: string) =>
     call<void>("DELETE", `/api/units/${unitId}/members/${encodeURIComponent(email)}`),
+  removeUnitLogo: (unitId: number) => call<void>("DELETE", `/api/units/${unitId}/qr-logo`),
   revokeKey: (unitId: number, keyId: number) => call<void>("DELETE", `/api/units/${unitId}/keys/${keyId}`),
+  setLinkLogoChoice: (code: string, choice: "inherit" | "none") =>
+    call<{ logoChoice: LogoChoice }>("PUT", `/api/links/${code}/qr-logo`, { choice }),
   setMemberRole: (unitId: number, email: string, role: Role) =>
     call<void>("PUT", `/api/units/${unitId}/members/${encodeURIComponent(email)}`, { role }),
   setPassword: (token: string, password: string) => call<void>("POST", "/api/auth/setup", { password, token }),
+  unitLogo: (unitId: number) => call<{ own: boolean; university: boolean }>("GET", `/api/units/${unitId}/qr-logo`),
+  unitLogoPreview: (unitId: number) => svg(`/api/units/${unitId}/qr-preview`),
+  uploadLinkLogo: (code: string, file: File) => upload(`/api/links/${code}/qr-logo`, file),
+  uploadUnitLogo: (unitId: number, file: File) => upload(`/api/units/${unitId}/qr-logo`, file),
   visits: (code: string) => call<Visits>("GET", `/api/links/${code}/visits`)
 };
 
@@ -118,6 +165,7 @@ export {
   type FoundLink,
   type HistoryEntry,
   type Link,
+  type LogoChoice,
   type Me,
   type Member,
   type ReservedCode,

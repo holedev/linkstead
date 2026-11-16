@@ -162,4 +162,4 @@ const registerUnitRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }
   });
 };
 
-export { registerUnitRoutes };
+export { managedUnit, registerUnitRoutes };

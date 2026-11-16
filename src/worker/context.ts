@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import type { Store } from "./store";
+import type { LogoFiles, Store } from "./store";
 
 /**
  * Who is asking. Two kinds and never a blend: a person signed in through the UI, or an
@@ -17,6 +17,8 @@ type AppDeps = {
    */
   defer: (work: Promise<unknown>) => void;
   now?: () => Date;
+  /** Where logo files are kept. Unset where no file storage is attached: QR then carry no logo. */
+  logos?: LogoFiles;
   /**
    * What lets the very first Quản trị hệ thống be created. Unset means that door stays shut, and
    * it shuts for good once one exists.
