@@ -19,6 +19,7 @@ _Avoid_: slug, alias, mã (alone - it collides with **QR**).
 A **Đơn vị**'s own way of sorting its **Links** - by event, by year, by issue. A Link is in at most
 one Nhóm, of its own Đơn vị; it leaves it when it moves to another Đơn vị. Unlike a Link, a Nhóm can
 be renamed and deleted: nothing printed carries it, and deleting one leaves its Links in no Nhóm.
+The Links in no Nhóm are the Đơn vị's shared ones; the UI shows each Nhóm as a folder beside them.
 _Avoid_: folder, tag, category, campaign.
 
 **Tên link** (En: Link Name):

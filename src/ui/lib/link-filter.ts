@@ -6,8 +6,11 @@
 
 type Status = "all" | "on" | "off";
 type Sort = "new" | "old" | "visits" | "name";
-/** A Nhóm's id, "none" for Links in no Nhóm, or "all". */
-type GroupFilter = number | "none" | "all";
+/**
+ * Where on the Links screen: inside one Nhóm, by its id, or at the top - "root" - where the Nhóm
+ * show as folders and the Links in none are listed, as the Đơn vị's shared ones.
+ */
+type GroupFilter = number | "root";
 
 type LinkFilter = { query: string; status: Status; group: GroupFilter; sort: Sort };
 
@@ -22,7 +25,7 @@ type Filterable = {
   createdAt: string;
 };
 
-const DEFAULT_FILTER: LinkFilter = { group: "all", query: "", sort: "new", status: "all" };
+const DEFAULT_FILTER: LinkFilter = { group: "root", query: "", sort: "new", status: "all" };
 
 const STATUSES: readonly Status[] = ["all", "on", "off"];
 const SORTS: readonly Sort[] = ["new", "old", "visits", "name"];
@@ -47,11 +50,15 @@ const matchesQuery = (link: Filterable, query: string): boolean => {
   return words.every((word) => haystack.includes(word));
 };
 
-const matchesGroup = (link: Filterable, group: GroupFilter): boolean => {
-  if (group === "all") {
-    return true;
+/**
+ * Inside a Nhóm, its Links. At the top, the Links in no Nhóm - unless something is searched for,
+ * which looks through every Link, wherever it is sorted.
+ */
+const matchesGroup = (link: Filterable, group: GroupFilter, query: string): boolean => {
+  if (group !== "root") {
+    return link.groupId === group;
   }
-  return group === "none" ? link.groupId === null : link.groupId === group;
+  return Boolean(query.trim()) || link.groupId === null;
 };
 
 const matchesStatus = (link: Filterable, status: Status): boolean =>
@@ -70,16 +77,15 @@ const applyFilter = <T extends Filterable>(links: readonly T[], filter: LinkFilt
   links
     .filter(
       (link) =>
-        matchesQuery(link, filter.query) && matchesGroup(link, filter.group) && matchesStatus(link, filter.status)
+        matchesQuery(link, filter.query) &&
+        matchesGroup(link, filter.group, filter.query) &&
+        matchesStatus(link, filter.status)
     )
     .sort(ORDER[filter.sort]);
 
 const readGroup = (raw: string | null): GroupFilter => {
-  if (raw === "none") {
-    return "none";
-  }
   const id = Number(raw);
-  return Number.isInteger(id) && id > 0 ? id : "all";
+  return raw && Number.isInteger(id) && id > 0 ? id : "root";
 };
 
 /** The filter an address describes. Anything it does not understand falls back to the default. */
@@ -104,7 +110,7 @@ const writeFilter = (filter: LinkFilter): URLSearchParams => {
   if (filter.status !== "all") {
     params.set("status", filter.status);
   }
-  if (filter.group !== "all") {
+  if (filter.group !== "root") {
     params.set("group", String(filter.group));
   }
   if (filter.sort !== "new") {
@@ -113,8 +119,8 @@ const writeFilter = (filter: LinkFilter): URLSearchParams => {
   return params;
 };
 
-const isFiltering = (filter: LinkFilter): boolean =>
-  Boolean(filter.query.trim()) || filter.status !== "all" || filter.group !== "all";
+/** Whether the list is narrowed by a search or a state - being inside a Nhóm is where, not a filter. */
+const isFiltering = (filter: LinkFilter): boolean => Boolean(filter.query.trim()) || filter.status !== "all";
 
 export {
   applyFilter,

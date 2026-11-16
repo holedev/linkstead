@@ -47,18 +47,30 @@ describe("finding Links", () => {
     expect(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "ou.edu.vn" })).toHaveLength(3);
   });
 
-  it("filters by state and by Nhóm, including Links in none", () => {
-    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, status: "off" }))).toEqual(["cu"]);
-    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, status: "on" }))).toEqual(["cfp-2027", "so-3"]);
+  it("shows at the top only the Links in no Nhóm, and inside a Nhóm only its own", () => {
+    expect(codes(applyFilter(LINKS, DEFAULT_FILTER))).toEqual(["so-3"]);
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: 1 }))).toEqual(["cfp-2027"]);
-    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: "none" }))).toEqual(["so-3"]);
+    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: 2 }))).toEqual(["cu"]);
+  });
+
+  it("searches every Link from the top, but only the Nhóm's from inside it", () => {
+    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "duong" }))).toEqual(["cu"]);
+    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: 1, query: "duong" }))).toEqual([]);
+    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: 2, query: "duong" }))).toEqual(["cu"]);
+  });
+
+  it("filters by state wherever it is", () => {
+    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: 2, status: "on" }))).toEqual([]);
+    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "ou", status: "off" }))).toEqual(["cu"]);
+    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "ou", status: "on" }))).toEqual(["cfp-2027", "so-3"]);
   });
 
   it("orders newest first by default, or oldest, most opened, or by name", () => {
-    expect(codes(applyFilter(LINKS, DEFAULT_FILTER))).toEqual(["cfp-2027", "so-3", "cu"]);
-    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, sort: "old" }))).toEqual(["cu", "so-3", "cfp-2027"]);
-    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, sort: "visits" }))).toEqual(["so-3", "cfp-2027", "cu"]);
-    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, sort: "name" }))).toEqual(["so-3", "cu", "cfp-2027"]);
+    const everywhere = { ...DEFAULT_FILTER, query: "ou.edu.vn" };
+    expect(codes(applyFilter(LINKS, everywhere))).toEqual(["cfp-2027", "so-3", "cu"]);
+    expect(codes(applyFilter(LINKS, { ...everywhere, sort: "old" }))).toEqual(["cu", "so-3", "cfp-2027"]);
+    expect(codes(applyFilter(LINKS, { ...everywhere, sort: "visits" }))).toEqual(["so-3", "cfp-2027", "cu"]);
+    expect(codes(applyFilter(LINKS, { ...everywhere, sort: "name" }))).toEqual(["so-3", "cu", "cfp-2027"]);
   });
 
   it("leaves the list it was given as it was", () => {
@@ -73,7 +85,7 @@ describe("a filter in the address", () => {
     const filter = { group: 3, query: "hội thảo", sort: "visits", status: "off" } as const;
     expect(readFilter(writeFilter(filter))).toEqual(filter);
     expect(writeFilter(DEFAULT_FILTER).toString()).toBe("");
-    expect(readFilter(new URLSearchParams("group=none")).group).toBe("none");
+    expect(readFilter(new URLSearchParams("group=none")).group).toBe("root");
   });
 
   it("falls back to the default for anything it does not understand", () => {
@@ -84,6 +96,8 @@ describe("a filter in the address", () => {
     expect(isFiltering(DEFAULT_FILTER)).toBe(false);
     expect(isFiltering({ ...DEFAULT_FILTER, sort: "name" })).toBe(false);
     expect(isFiltering({ ...DEFAULT_FILTER, query: " " })).toBe(false);
-    expect(isFiltering({ ...DEFAULT_FILTER, group: "none" })).toBe(true);
+    // Being inside a Nhóm is a place, not a filter.
+    expect(isFiltering({ ...DEFAULT_FILTER, group: 4 })).toBe(false);
+    expect(isFiltering({ ...DEFAULT_FILTER, status: "off" })).toBe(true);
   });
 });

@@ -1,192 +1,163 @@
-import { CheckIcon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import { EllipsisIcon, FolderIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { Button, ConfirmDialog, ErrorText, Field } from "@/components/app";
+import { Button, ErrorText, Field } from "@/components/app";
 import { Button as UiButton } from "@/components/ui/button";
-import { api, type LinkGroup } from "../api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import type { LinkGroup } from "../api";
+import { useLinkDrop } from "../lib/drag";
 import { messageOf } from "../messages";
 
-/** One Nhóm in the manager: its name, how many Links, and renaming or deleting it in place. */
-const GroupRow = ({
+/**
+ * A Nhóm as a folder: open it to see its Links; rename or delete it from its menu. Deleting keeps
+ * its Links - they come back out to the top, with the Đơn vị's shared ones.
+ */
+const FolderTile = ({
   group,
-  busy,
+  onOpen,
   onRename,
-  onDelete
+  onDelete,
+  onDropLink
 }: {
   group: LinkGroup;
-  busy: boolean;
-  onRename: (name: string) => Promise<boolean>;
+  onOpen: () => void;
+  onRename: () => void;
   onDelete: () => void;
+  onDropLink: (code: string) => void;
 }) => {
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(group.name);
-
-  const save = async (event: FormEvent) => {
-    event.preventDefault();
-    if (await onRename(name)) {
-      setEditing(false);
-    }
-  };
-
-  if (editing) {
-    return (
-      <li className='p-2'>
-        <form className='flex items-center gap-2' onSubmit={save}>
-          <input
-            aria-label={`Tên mới cho nhóm ${group.name}`}
-            className='min-h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-base md:text-sm'
-            maxLength={100}
-            onChange={(event) => setName(event.target.value)}
-            required
-            value={name}
-          />
-          <UiButton aria-label='Lưu tên nhóm' disabled={busy} size='icon' type='submit' variant='outline'>
-            <CheckIcon />
-          </UiButton>
+  const { dropProps, over } = useLinkDrop(onDropLink);
+  return (
+    <li className='group/folder relative' {...dropProps}>
+      <button
+        className={cn(
+          "flex w-full items-center gap-3 rounded-xl border bg-card p-3 pr-12 text-left outline-none transition hover:border-ring hover:bg-accent/40 focus-visible:ring-[3px] focus-visible:ring-ring/50",
+          over && "border-primary bg-primary/10 ring-2 ring-primary/30"
+        )}
+        onClick={onOpen}
+        type='button'
+      >
+        <span className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary'>
+          <FolderIcon className='size-5' />
+        </span>
+        <span className='min-w-0'>
+          <span className='block truncate font-medium'>{group.name}</span>
+          <span className='block text-muted-foreground text-xs'>
+            {over ? "Thả để chuyển vào nhóm" : `${group.linkCount} link`}
+          </span>
+        </span>
+      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <UiButton
-            aria-label='Hủy đổi tên'
-            onClick={() => {
-              setName(group.name);
-              setEditing(false);
-            }}
+            aria-label={`Thao tác với nhóm ${group.name}`}
+            className='absolute top-1/2 right-2 size-8 -translate-y-1/2'
             size='icon'
-            type='button'
             variant='ghost'
           >
-            <XIcon />
+            <EllipsisIcon />
           </UiButton>
-        </form>
-      </li>
-    );
-  }
-
-  return (
-    <li className='flex items-center gap-2 p-2'>
-      <span className='min-w-0 flex-1 break-words'>{group.name}</span>
-      <span className='shrink-0 text-muted-foreground text-xs tabular-nums'>{group.linkCount} link</span>
-      <UiButton
-        aria-label={`Đổi tên nhóm ${group.name}`}
-        disabled={busy}
-        onClick={() => setEditing(true)}
-        size='icon'
-        variant='ghost'
-      >
-        <PencilIcon />
-      </UiButton>
-      <UiButton
-        aria-label={`Xóa nhóm ${group.name}`}
-        className='text-destructive'
-        disabled={busy}
-        onClick={onDelete}
-        size='icon'
-        variant='ghost'
-      >
-        <Trash2Icon />
-      </UiButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align='end' className='min-w-44'>
+          <DropdownMenuItem onSelect={onRename}>
+            <PencilIcon />
+            Đổi tên
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onDelete} variant='destructive'>
+            <Trash2Icon />
+            Xóa nhóm
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </li>
   );
 };
 
-/**
- * A Đơn vị's Nhóm: make one, rename one, delete one. Deleting keeps its Links, in no Nhóm -
- * nothing printed carries a Nhóm, so it is safe to reorganise at any time.
- */
-const GroupManager = ({
-  unitId,
+/** A Đơn vị's Nhóm, shown as folders at the top of its Links. */
+const FolderGrid = ({
   groups,
-  onChanged
+  onOpen,
+  onRename,
+  onDelete,
+  onDropLink
 }: {
-  unitId: number;
   groups: LinkGroup[];
-  onChanged: () => void;
+  onOpen: (group: LinkGroup) => void;
+  onRename: (group: LinkGroup) => void;
+  onDelete: (group: LinkGroup) => void;
+  /** A Link dropped on a folder: its Mã link, and the Nhóm it goes into. */
+  onDropLink: (code: string, group: LinkGroup) => void;
+}) => (
+  <ul aria-label='Nhóm' className='grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3'>
+    {groups.map((group) => (
+      <FolderTile
+        group={group}
+        key={group.id}
+        onDelete={() => onDelete(group)}
+        onDropLink={(code) => onDropLink(code, group)}
+        onOpen={() => onOpen(group)}
+        onRename={() => onRename(group)}
+      />
+    ))}
+  </ul>
+);
+
+/** Names a Nhóm, new or renamed. Closes itself once the name is saved. */
+const GroupNameForm = ({
+  initial = "",
+  submitLabel,
+  onSave,
+  onDone
+}: {
+  initial?: string;
+  submitLabel: string;
+  onSave: (name: string) => Promise<unknown>;
+  onDone: () => void;
 }) => {
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const deleting = groups.find((group) => group.id === deleteId) ?? null;
 
-  const run = async (work: () => Promise<unknown>) => {
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
     setBusy(true);
     setError("");
     try {
-      await work();
-      onChanged();
-      return true;
+      await onSave(name);
+      onDone();
     } catch (failure) {
       setError(messageOf(failure));
-      return false;
-    } finally {
       setBusy(false);
     }
   };
 
-  const create = async (event: FormEvent) => {
-    event.preventDefault();
-    if (await run(() => api.createGroup(unitId, name))) {
-      setName("");
-    }
-  };
-
   return (
-    <div className='space-y-4'>
-      <form className='grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end' onSubmit={create}>
-        <Field label='Nhóm mới'>
-          {(props) => (
-            <input
-              {...props}
-              maxLength={100}
-              onChange={(event) => setName(event.target.value)}
-              placeholder='Hội thảo 2027'
-              required
-              value={name}
-            />
-          )}
-        </Field>
-        <Button disabled={busy} type='submit' variant='primary'>
-          <PlusIcon />
-          Tạo nhóm
-        </Button>
-      </form>
+    <form className='space-y-4' onSubmit={save}>
+      <Field hint='Chỉ để sắp xếp link trong đơn vị. Địa chỉ link và QR đã in không đổi.' label='Tên nhóm'>
+        {(props) => (
+          <input
+            {...props}
+            maxLength={100}
+            onChange={(event) => setName(event.target.value)}
+            placeholder='Hội thảo 2027'
+            required
+            value={name}
+          />
+        )}
+      </Field>
       <ErrorText>{error}</ErrorText>
-      {groups.length === 0 ? (
-        <p className='text-muted-foreground text-sm'>Đơn vị chưa có nhóm nào.</p>
-      ) : (
-        <ul className='divide-y rounded-lg border'>
-          {groups.map((group) => (
-            <GroupRow
-              busy={busy}
-              group={group}
-              key={group.id}
-              onDelete={() => setDeleteId(group.id)}
-              onRename={(next) => run(() => api.renameGroup(unitId, group.id, next))}
-            />
-          ))}
-        </ul>
-      )}
-      <p className='text-muted-foreground text-xs'>
-        Nhóm chỉ để sắp xếp link trong đơn vị. Đổi tên hay xóa nhóm không ảnh hưởng tới địa chỉ link hay QR đã in.
-      </p>
-
-      <ConfirmDialog
-        busy={busy}
-        confirmLabel='Xóa nhóm'
-        onCancel={() => setDeleteId(null)}
-        onConfirm={() => {
-          const id = deleteId;
-          setDeleteId(null);
-          if (id !== null) {
-            run(() => api.deleteGroup(unitId, id));
-          }
-        }}
-        open={deleting !== null}
-        title={`Xóa nhóm "${deleting?.name}"`}
-      >
-        {deleting?.linkCount
-          ? `${deleting.linkCount} link trong nhóm vẫn còn nguyên, chỉ không còn thuộc nhóm nào.`
-          : "Nhóm này chưa có link nào."}
-      </ConfirmDialog>
-    </div>
+      <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
+        <Button onClick={onDone}>Hủy</Button>
+        <Button disabled={busy} type='submit' variant='primary'>
+          {busy ? "Đang lưu..." : submitLabel}
+        </Button>
+      </div>
+    </form>
   );
 };
 
-export { GroupManager };
+export { FolderGrid, GroupNameForm };

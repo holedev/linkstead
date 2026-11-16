@@ -5,6 +5,7 @@ import {
   EllipsisIcon,
   FolderIcon,
   FolderInputIcon,
+  GripVerticalIcon,
   HistoryIcon,
   PencilIcon,
   PowerIcon,
@@ -12,7 +13,7 @@ import {
   QrCodeIcon,
   Share2Icon
 } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
   Badge,
   Button,
@@ -32,8 +33,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import { checkTarget } from "../../domain/target";
 import { api, type HistoryEntry, type Link, type LinkGroup, type Visits } from "../api";
+import { startLinkDrag } from "../lib/drag";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { PreviewPanel } from "./preview-panel";
@@ -433,6 +436,17 @@ const GroupForm = ({
   );
 };
 
+/** The Nhóm a Link is in, named beside it - or nothing, for a Link in none. */
+const GroupBadge = ({ groupId, groups }: { groupId: number | null; groups: LinkGroup[] }) => {
+  const group = groups.find((candidate) => candidate.id === groupId);
+  return group ? (
+    <span className='inline-flex max-w-48 items-center gap-1 truncate rounded-full border px-2 py-0.5 text-muted-foreground text-xs'>
+      <FolderIcon aria-hidden='true' className='size-3 shrink-0' />
+      <span className='truncate'>{group.name}</span>
+    </span>
+  ) : null;
+};
+
 const StatusBadge = ({ link }: { link: Link }) => {
   if (link.enabled) {
     return <Badge tone='ok'>Đang bật</Badge>;
@@ -536,14 +550,18 @@ const LinkActions = ({
 const LinkRow = ({
   link,
   groups,
+  showGroup = true,
   onChanged
 }: {
   link: Link;
   /** The Đơn vị's Nhóm, to name the Link's and to offer the others. */
   groups: LinkGroup[];
+  /** Off inside a Nhóm, where every Link shown is in it. */
+  showGroup?: boolean;
   onChanged: (link: Link) => void;
 }) => {
-  const group = groups.find((candidate) => candidate.id === link.groupId) ?? null;
+  const row = useRef<HTMLLIElement>(null);
+  const [dragging, setDragging] = useState(false);
   const { me } = useSession();
   const isSystemAdmin = me?.isSystemAdmin ?? false;
   const [task, setTask] = useState<Task>(null);
@@ -567,7 +585,21 @@ const LinkRow = ({
   };
 
   return (
-    <li className='flex gap-3 p-4 sm:gap-4'>
+    <li className={cn("flex gap-3 p-4 transition-opacity sm:gap-4", dragging && "opacity-40")} ref={row}>
+      {/* Drag by this grip onto a Nhóm. A mouse only: on a phone, "Chuyển nhóm" does the same. */}
+      <span
+        aria-hidden='true'
+        className='-ml-2 hidden w-4 shrink-0 cursor-grab items-start justify-center pt-8 text-muted-foreground/60 hover:text-foreground active:cursor-grabbing md:flex'
+        draggable
+        onDragEnd={() => setDragging(false)}
+        onDragStart={(event) => {
+          setDragging(true);
+          startLinkDrag(event, link.code, row.current);
+        }}
+        title='Kéo vào một nhóm'
+      >
+        <GripVerticalIcon className='size-4' />
+      </span>
       <button
         aria-label={`QR của link ${link.name}. Mở để tải về hoặc đổi logo`}
         className='size-20 shrink-0 self-start overflow-hidden rounded-lg border bg-white outline-none transition hover:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:size-24'
@@ -589,12 +621,7 @@ const LinkRow = ({
           <div className='flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1'>
             <h3 className='min-w-0 break-words font-medium leading-snug'>{link.name}</h3>
             <StatusBadge link={link} />
-            {group && (
-              <span className='inline-flex max-w-48 items-center gap-1 truncate rounded-full border px-2 py-0.5 text-muted-foreground text-xs'>
-                <FolderIcon aria-hidden='true' className='size-3 shrink-0' />
-                <span className='truncate'>{group.name}</span>
-              </span>
-            )}
+            {showGroup && <GroupBadge groupId={link.groupId} groups={groups} />}
           </div>
           <LinkActions
             busy={busy}
