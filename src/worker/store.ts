@@ -222,6 +222,18 @@ type Store = {
   /** Null when the name is taken - also by a Đơn vị that was dissolved. */
   createUnit: (name: string) => Promise<{ id: number; name: string } | null>;
   /**
+   * Folds one live Đơn vị into another, in one transaction: its Links move (each noting it in its
+   * history), its Khóa API keep working for the other, its members join it - keeping the higher
+   * role where someone was in both - its default logo is kept if the other has none, and it is
+   * then dissolved. The caller checks first that both exist and differ.
+   */
+  mergeUnit: (merge: {
+    fromUnitId: number;
+    intoUnitId: number;
+    byAccountId: number;
+    at: Date;
+  }) => Promise<{ links: number; members: number; keys: number }>;
+  /**
    * Dissolves a Đơn vị: its members leave and its Khóa API stop working. False, and nothing
    * changes, while it still owns a Link.
    */

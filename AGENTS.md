@@ -48,7 +48,8 @@ These were decided before the first line of code. Each is a rule, not a default.
 - An Account is an `@ou.edu.vn` email. It may be in several Đơn vị; in none, it can create nothing.
 - A Đơn vị always has at least one Quản lý đơn vị.
 - A Quản trị hệ thống may switch off any Link and move a Link between Đơn vị. A Link they switched
-  off only they switch back on. A Đơn vị that still owns Links cannot be dissolved.
+  off only they switch back on. A Đơn vị that still owns Links cannot be dissolved;
+  it can be merged into another, which takes its Links, members and Khóa API.
 - Login is self-managed for now (ADR-0003).
 
 **API**

@@ -113,6 +113,35 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() 
     return c.json({ id: unit.id, managerEmail, name: unit.name, setupUrl }, 201);
   });
 
+  /**
+   * Folds a Đơn vị into another - for offices that merge. Its Links keep their addresses, so
+   * nothing printed changes; the other Đơn vị takes them, its members and its Khóa API, and this
+   * one is dissolved. Cannot be undone, which is why the UI asks first.
+   */
+  app.post("/api/admin/units/:unitId/merge", async (c) => {
+    const admin = systemAdmin(c);
+    if (admin instanceof Response) {
+      return admin;
+    }
+    const fromId = positiveInt(c.req.param("unitId"));
+    const intoId = positiveInt(String((await readJson(c))?.intoUnitId ?? ""));
+    const from = fromId ? await store.findUnit(fromId) : null;
+    const into = intoId ? await store.findUnit(intoId) : null;
+    if (!(from && into)) {
+      return c.json({ error: "unknown-unit" }, 404);
+    }
+    if (from.id === into.id) {
+      return c.json({ error: "same-unit" }, 422);
+    }
+    const moved = await store.mergeUnit({
+      at: now(),
+      byAccountId: admin.accountId,
+      fromUnitId: from.id,
+      intoUnitId: into.id
+    });
+    return c.json({ from: from.name, into: { id: into.id, name: into.name }, moved });
+  });
+
   /** Dissolves a Đơn vị that owns no Link. One that still does must give its Links away first. */
   app.delete("/api/admin/units/:unitId", async (c) => {
     const admin = systemAdmin(c);

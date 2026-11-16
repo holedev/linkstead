@@ -122,6 +122,12 @@ const api = {
     call<{ email: string; setupUrl: string | null }>("POST", "/api/admin/admins", { email }),
   adminLogo: () => call<{ set: boolean }>("GET", "/api/admin/qr-logo"),
   adminLogoPreview: () => svg("/api/admin/qr-preview"),
+  adminMergeUnit: (unitId: number, intoUnitId: number) =>
+    call<{
+      from: string;
+      into: { id: number; name: string };
+      moved: { links: number; members: number; keys: number };
+    }>("POST", `/api/admin/units/${unitId}/merge`, { intoUnitId }),
   adminMoveLink: (code: string, unitId: number) =>
     call<Link & { unitName: string }>("POST", `/api/admin/links/${code}/move`, { unitId }),
   adminRemoveLogo: () => call<void>("DELETE", "/api/admin/qr-logo"),

@@ -549,6 +549,53 @@ const createD1Store = (database: D1Database): Store => {
       await db.update(passwordSetups).set({ usedAt: at }).where(eq(passwordSetups.tokenHash, tokenHash));
     },
 
+    mergeUnit: async ({ fromUnitId, intoUnitId, byAccountId, at }) => {
+      const from = fromUnitId;
+      const into = intoUnitId;
+      // One batch, so one transaction: a merge never stops half-way.
+      const [, linksMoved, keysMoved, , , membersMoved] = await database.batch([
+        database
+          .prepare(
+            `INSERT INTO unit_changes (link_id, old_unit_id, new_unit_id, by_account_id, created_at)
+             SELECT id, unit_id, ?2, ?3, ?4 FROM links WHERE unit_id = ?1`
+          )
+          .bind(from, into, byAccountId, at.getTime()),
+        database.prepare("UPDATE links SET unit_id = ?2 WHERE unit_id = ?1").bind(from, into),
+        database.prepare("UPDATE api_keys SET unit_id = ?2 WHERE unit_id = ?1").bind(from, into),
+        database
+          .prepare(
+            `UPDATE memberships SET role = 'manager' WHERE unit_id = ?2
+             AND account_id IN (SELECT account_id FROM memberships WHERE unit_id = ?1 AND role = 'manager')`
+          )
+          .bind(from, into),
+        database
+          .prepare(
+            `INSERT OR IGNORE INTO memberships (account_id, unit_id, role, created_at)
+             SELECT account_id, ?2, role, created_at FROM memberships WHERE unit_id = ?1`
+          )
+          .bind(from, into),
+        database.prepare("DELETE FROM memberships WHERE unit_id = ?1").bind(from),
+        database
+          .prepare(
+            `UPDATE units SET logo_key = (SELECT logo_key FROM units WHERE id = ?1)
+             WHERE id = ?2 AND logo_key IS NULL`
+          )
+          .bind(from, into),
+        // The file now belongs to the other Đơn vị, so the dissolved one stops pointing at it.
+        database
+          .prepare(
+            "UPDATE units SET logo_key = NULL WHERE id = ?1 AND logo_key = (SELECT logo_key FROM units WHERE id = ?2)"
+          )
+          .bind(from, into),
+        database.prepare("UPDATE units SET dissolved_at = ?2 WHERE id = ?1").bind(from, at.getTime())
+      ]);
+      return {
+        keys: keysMoved?.meta.changes ?? 0,
+        links: linksMoved?.meta.changes ?? 0,
+        members: membersMoved?.meta.changes ?? 0
+      };
+    },
+
     moveLink: async ({ linkId, fromUnitId, toUnitId, byAccountId, at }) => {
       const [, moved] = await database.batch([
         database

@@ -1,7 +1,18 @@
-import { ArrowLeftIcon, ChevronRightIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, MergeIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Navigate, Outlet, Link as RouterLink, useParams } from "react-router";
-import { Badge, Button, Card, ConfirmDialog, DownloadLink, ErrorText, Field, SecretBox } from "@/components/app";
+import {
+  Badge,
+  Button,
+  Card,
+  ConfirmDialog,
+  DownloadLink,
+  ErrorText,
+  Field,
+  Modal,
+  Notice,
+  SecretBox
+} from "@/components/app";
 import { api, type Link, type UnitOverview } from "../api";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
@@ -30,6 +41,8 @@ const useAction = () => {
   return { busy, error, run };
 };
 
+type MergeResult = Awaited<ReturnType<typeof api.adminMergeUnit>>;
+
 type CreatedUnit = { name: string; managerEmail: string; setupUrl: string | null };
 
 const UnitsCard = ({
@@ -47,6 +60,31 @@ const UnitsCard = ({
   const [created, setCreated] = useState<CreatedUnit | null>(null);
   const [dissolveId, setDissolveId] = useState<number | null>(null);
   const dissolving = units?.find((unit) => unit.id === dissolveId) ?? null;
+  // Merging is two steps: choose the Đơn vị to merge into, then confirm on its own dialog.
+  const [mergeId, setMergeId] = useState<number | null>(null);
+  const [mergeInto, setMergeInto] = useState("");
+  const [confirmingMerge, setConfirmingMerge] = useState(false);
+  const [merged, setMerged] = useState<MergeResult | null>(null);
+  const merging = units?.find((unit) => unit.id === mergeId) ?? null;
+  const mergeTarget = units?.find((unit) => String(unit.id) === mergeInto) ?? null;
+  const mergeTargets = units?.filter((unit) => unit.id !== mergeId) ?? [];
+  const stopMerging = () => {
+    setMergeId(null);
+    setMergeInto("");
+    setConfirmingMerge(false);
+  };
+
+  const merge = () => {
+    const from = merging;
+    const into = mergeTarget;
+    stopMerging();
+    if (from && into) {
+      run(async () => {
+        setMerged(await api.adminMergeUnit(from.id, into.id));
+        onChanged();
+      });
+    }
+  };
 
   const create = (event: FormEvent) => {
     event.preventDefault();
@@ -118,6 +156,17 @@ const UnitsCard = ({
         )}
       </div>
 
+      {merged && (
+        <div className='border-border border-b p-4 sm:p-5'>
+          <Notice>
+            <p>
+              Đã gộp <strong>{merged.from}</strong> vào <strong>{merged.into.name}</strong>: {merged.moved.links} link,{" "}
+              {merged.moved.members} thành viên và {merged.moved.keys} khóa API đã chuyển sang. Địa chỉ các link không
+              đổi.
+            </p>
+          </Notice>
+        </div>
+      )}
       {!(units || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
       <ul className='divide-y divide-border'>
         {units?.map((unit) => (
@@ -134,18 +183,83 @@ const UnitsCard = ({
                 {unit.linkCount} link - Quản lý: <span className='break-all'>{unit.managers.join(", ")}</span>
               </p>
             </RouterLink>
-            {unit.linkCount === 0 ? (
-              <Button disabled={busy} onClick={() => setDissolveId(unit.id)} variant='danger'>
-                Giải thể
-              </Button>
-            ) : (
-              <p className='text-muted-foreground text-xs sm:max-w-48 sm:text-right'>
-                Còn link nên chưa giải thể được. Chuyển hết link đi trước.
-              </p>
-            )}
+            <div className='flex flex-wrap gap-2'>
+              {units.length > 1 && (
+                <Button disabled={busy} onClick={() => setMergeId(unit.id)}>
+                  <MergeIcon />
+                  Gộp vào...
+                </Button>
+              )}
+              {unit.linkCount === 0 && (
+                <Button disabled={busy} onClick={() => setDissolveId(unit.id)} variant='danger'>
+                  Giải thể
+                </Button>
+              )}
+            </div>
           </li>
         ))}
       </ul>
+
+      <Modal
+        description='Đơn vị được chọn sẽ nhận toàn bộ link, thành viên và khóa API, còn đơn vị này bị giải thể.'
+        onClose={stopMerging}
+        open={merging !== null && !confirmingMerge}
+        title={`Gộp "${merging?.name}" vào đơn vị khác`}
+      >
+        <form
+          className='space-y-4'
+          onSubmit={(event) => {
+            event.preventDefault();
+            setConfirmingMerge(true);
+          }}
+        >
+          <Field label='Gộp vào đơn vị'>
+            {(props) => (
+              <select {...props} onChange={(event) => setMergeInto(event.target.value)} required value={mergeInto}>
+                <option value=''>Chọn đơn vị nhận</option>
+                {mergeTargets.map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
+            <Button onClick={stopMerging}>Hủy</Button>
+            <Button disabled={!mergeTarget} type='submit' variant='primary'>
+              Tiếp tục
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        busy={busy}
+        confirmLabel='Gộp đơn vị'
+        onCancel={() => setConfirmingMerge(false)}
+        onConfirm={merge}
+        open={confirmingMerge && merging !== null && mergeTarget !== null}
+        title={`Gộp "${merging?.name}" vào "${mergeTarget?.name}"?`}
+      >
+        <ul className='list-disc space-y-1 pl-5'>
+          <li>
+            {merging?.linkCount} link chuyển sang {mergeTarget?.name}. Địa chỉ link và QR đã in không đổi; lịch sử của
+            mỗi link ghi lại việc chuyển.
+          </li>
+          <li>
+            Thành viên của {merging?.name} trở thành thành viên của {mergeTarget?.name}. Ai đã ở cả hai thì giữ vai trò
+            cao hơn.
+          </li>
+          <li>
+            Khóa API của {merging?.name} vẫn hoạt động, nay cho {mergeTarget?.name}.
+          </li>
+          <li>
+            {merging?.name} bị giải thể. <strong>Việc này không hoàn tác được</strong>, và tên "{merging?.name}" không
+            dùng lại được.
+          </li>
+        </ul>
+      </ConfirmDialog>
 
       <ConfirmDialog
         busy={busy}

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { bearer, startHarness, tokenOf } from "./test-harness";
+import { bearer, FIRST_UNIT, startHarness, tokenOf } from "./test-harness";
 
 let h: Awaited<ReturnType<typeof startHarness>>;
 beforeAll(async () => {
@@ -311,6 +311,74 @@ describe("a Link of any Đơn vị", () => {
     expect(await (await admin.get("/api/links/cfp-2027/history")).json()).toMatchObject({
       history: [{ newUnitName: "Tạp chí Khoa học & Nhà xuất bản", oldUnitName: "Khoa Kế toán" }]
     });
+  });
+});
+
+describe("merging one Đơn vị into another", () => {
+  it("moves its Links, Khóa API and members across, then dissolves it", async () => {
+    const admin = await h.signedInAdmin();
+    const accountant = await member(admin, 2, "ke-toan@ou.edu.vn");
+    await admin.post("/api/units/1/members", { email: "ca-hai@ou.edu.vn" });
+    await admin.post("/api/units/2/members", { email: "ca-hai@ou.edu.vn", role: "manager" });
+    const { key } = (await (await admin.post("/api/units/2/keys", { name: "Kế toán" })).json()) as { key: string };
+    await admin.post("/api/links", { code: "cua-tap-chi", name: "Tạp chí", target: TARGET, unitId: 1 });
+    await admin.post("/api/links", { code: "cua-ke-toan", name: "Kế toán", target: TARGET, unitId: 2 });
+
+    const merged = await admin.post("/api/admin/units/2/merge", { intoUnitId: 1 });
+    expect(await merged.json()).toEqual({
+      from: "Khoa Kế toán",
+      into: { id: 1, name: FIRST_UNIT },
+      moved: { keys: 1, links: 1, members: 3 }
+    });
+
+    // One Đơn vị left, holding both Links; every address still opens.
+    expect(((await (await admin.get("/api/admin/units")).json()) as { units: { id: number }[] }).units).toMatchObject([
+      { id: 1, linkCount: 2 }
+    ]);
+    expect(await codesOf(admin, 1)).toEqual(["cua-ke-toan", "cua-tap-chi"]);
+    expect((await h.client().get("/cua-ke-toan")).headers.get("location")).toBe(TARGET);
+    expect(await (await admin.get("/api/links/cua-ke-toan/history")).json()).toMatchObject({
+      history: [
+        {
+          by: { email: "admin@ou.edu.vn", kind: "account" },
+          kind: "unit",
+          newUnitName: FIRST_UNIT,
+          oldUnitName: "Khoa Kế toán"
+        }
+      ]
+    });
+
+    // The key works on, now for the Đơn vị it was merged into; members of either belong to it,
+    // keeping the higher of two roles.
+    const viaKey = (await (await h.client().get("/api/links", { headers: bearer(key) })).json()) as {
+      links: object[];
+    };
+    expect(viaKey.links).toHaveLength(2);
+    expect(await (await admin.get("/api/units/1/members")).json()).toMatchObject({
+      members: [
+        { email: "admin@ou.edu.vn", role: "manager" },
+        { email: "ca-hai@ou.edu.vn", role: "manager" },
+        { email: "ke-toan@ou.edu.vn", role: "member" }
+      ]
+    });
+    expect((await accountant.get("/api/links?unitId=1")).status).toBe(200);
+    expect((await accountant.get("/api/links?unitId=2")).status).toBe(403);
+  });
+
+  it("refuses the same Đơn vị, an unknown or dissolved one, and anyone but a Quản trị hệ thống", async () => {
+    const admin = await h.signedInAdmin();
+    const manager = await member(admin, 2, "quan-ly@ou.edu.vn", "manager");
+    const merge = async (from: number, intoUnitId: number) =>
+      (await admin.post(`/api/admin/units/${from}/merge`, { intoUnitId })).status;
+
+    expect(await merge(2, 2)).toBe(422);
+    expect(await merge(2, 9)).toBe(404);
+    expect(await merge(9, 1)).toBe(404);
+    expect((await manager.post("/api/admin/units/2/merge", { intoUnitId: 1 })).status).toBe(403);
+
+    expect(await merge(2, 1)).toBe(200);
+    expect(await merge(1, 2)).toBe(404);
+    expect(await merge(2, 1)).toBe(404);
   });
 });
 

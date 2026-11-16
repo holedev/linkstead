@@ -195,6 +195,23 @@ describe("the logo on a QR", () => {
     expect(await (await admin.get("/api/admin/qr-logo")).json()).toEqual({ set: true });
   });
 
+  it("follows a Link into the Đơn vị it is merged into, which keeps its own logo if it has one", async () => {
+    const admin = await withLink();
+    await admin.upload("/api/units/2/qr-logo", UNIT);
+    await admin.post("/api/links", { code: "cua-nxb", name: "NXB", target: TARGET, unitId: 2 });
+
+    // The Đơn vị merged into has no logo of its own, so it takes the other's.
+    await admin.post("/api/admin/units/2/merge", { intoUnitId: 1 });
+    expect(await qrOf(admin, "cua-nxb")).toContain(dataOf(UNIT));
+    expect(await qrOf(admin)).toContain(dataOf(UNIT));
+    expect(h.logoFiles.size).toBe(1);
+
+    await admin.post("/api/admin/units", { managerEmail: "khoa@ou.edu.vn", name: "Khoa Luật" });
+    await admin.upload("/api/units/3/qr-logo", OWN);
+    await admin.post("/api/admin/units/3/merge", { intoUnitId: 1 });
+    expect(await qrOf(admin)).toContain(dataOf(UNIT));
+  });
+
   it("travels with the export, so an imported installation gives the same pictures", async () => {
     const admin = await withLink();
     await admin.upload("/api/admin/qr-logo", UNIVERSITY);
