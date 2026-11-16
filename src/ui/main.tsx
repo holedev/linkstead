@@ -12,6 +12,7 @@ import {
   AdminUnitsPage,
   SystemAdminOnly
 } from "./pages/admin";
+import { ApiDocsPage } from "./pages/api-docs";
 import { KeysPage } from "./pages/keys";
 import { LinksPage } from "./pages/links";
 import { LoginPage } from "./pages/login";
@@ -39,6 +40,8 @@ if (root) {
           <Routes>
             <Route element={<LoginPage />} path='/login' />
             <Route element={<SetupPage />} path='/setup' />
+            {/* Open to anyone: a developer holding a Khóa API may have no account. */}
+            <Route element={<ApiDocsPage />} path='/api-docs' />
             <Route element={<SignedIn />}>
               <Route element={<LinksPage />} index />
               <Route element={<MembersPage />} path='/members' />

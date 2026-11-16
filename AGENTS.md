@@ -116,6 +116,7 @@ by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts
 | `GET /api/units/:unitId/links.csv`, `.../visits.csv` | a Thành viên | the Đơn vị's CSV downloads |
 | `/api/units/:unitId/members...`, `.../keys...`, `.../qr-logo`, `.../qr-preview` | Quản lý đơn vị | members and their roles, Khóa API, the Đơn vị's logo |
 | `/api/admin/admins`, `/units`, `/reserved-codes`, `/links...`, `/qr-logo`, `/export` | Quản trị hệ thống | other administrators, Đơn vị, Mã dành riêng, any Link (find, move, hand out a reserved code), the university's logo, the whole export |
+| `GET /api/openapi.json`, `GET /app/api-docs` | anyone | the Khóa API's six operations as OpenAPI 3.1 (`worker/openapi.ts`), and the Swagger page that reads it |
 | `POST /api/admin/import` | holder of `BOOTSTRAP_TOKEN` | takes an export into an unused installation (`docs/export-and-import.md`) |
 
 A Khóa API is refused past 120 calls a minute. A Quản trị hệ thống outside a Đơn vị can switch its

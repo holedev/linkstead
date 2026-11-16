@@ -151,6 +151,9 @@ trong giao diện.
 
 ## Dùng API
 
+Tài liệu đầy đủ, thử được ngay trên trình duyệt: **`/app/api-docs`** (Swagger, không cần đăng nhập). Bản mô tả
+OpenAPI ở `/api/openapi.json`, dùng được để sinh mã client.
+
 Quản lý đơn vị cấp Khóa API trong giao diện (mục **Khóa API**); khóa chỉ hiện một lần. Ứng dụng gửi
 khóa trong header `Authorization: Bearer <khóa>`. Một khóa chỉ làm việc trên link của đơn vị mình và
 bị từ chối khi vượt 120 lượt gọi mỗi phút.

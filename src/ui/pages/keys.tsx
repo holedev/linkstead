@@ -1,3 +1,4 @@
+import { BookOpenIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Badge, Button, Card, ConfirmDialog, ErrorText, Field, formatDate, SecretBox } from "@/components/app";
 import { api } from "../api";
@@ -52,10 +53,21 @@ const KeysPage = () => {
     <>
       <Card>
         <h2 className='font-semibold text-lg'>Cấp khóa API cho {unit?.unitName}</h2>
-        <p className='mt-1 text-muted-foreground text-sm'>
-          Khóa cho phép một ứng dụng tạo link, đổi đích, tắt, bật và xem link của đơn vị này, không phải của đơn vị
-          khác.
-        </p>
+        <div className='mt-1 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between'>
+          <p className='text-muted-foreground text-sm'>
+            Khóa cho phép một ứng dụng tạo link, đổi đích, tắt, bật và xem link của đơn vị này, không phải của đơn vị
+            khác.
+          </p>
+          <a
+            className='inline-flex shrink-0 items-center gap-1 font-medium text-primary text-sm underline-offset-4 hover:underline'
+            href='/app/api-docs'
+            rel='noreferrer'
+            target='_blank'
+          >
+            <BookOpenIcon className='size-4' />
+            Tài liệu API (Swagger)
+          </a>
+        </div>
         <form className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto] sm:items-end' onSubmit={create}>
           <Field label='Tên khóa'>
             {(props) => (
@@ -83,6 +95,10 @@ const KeysPage = () => {
               lại khóa nên không thể xem lại.
             </p>
             <SecretBox value={issued.key} />
+            <p className='text-sm'>
+              Gửi kèm người dùng khóa đường dẫn tài liệu:{" "}
+              <span className='break-all font-mono'>{window.location.origin}/app/api-docs</span>
+            </p>
           </div>
         )}
       </Card>

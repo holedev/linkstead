@@ -6,6 +6,7 @@ import { resolveActor } from "./actor";
 import type { AppDeps, AppEnv } from "./context";
 import { fetchPage as fetchRealPage } from "./fetch-page";
 import { Notice } from "./notice";
+import { openApiDocument } from "./openapi";
 import { registerAdminRoutes } from "./routes/admin";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerExportRoutes } from "./routes/export";
@@ -29,6 +30,9 @@ const createApp = (deps: AppDeps) => {
 
   app.use("/api/*", resolveActor(deps));
   app.get("/api/health", (c) => c.json({ ok: true }));
+  // The API's description, for the Swagger page and any client generator. Public: it says what a
+  // key can do, not anything a key would unlock.
+  app.get("/api/openapi.json", (c) => c.json(openApiDocument(new URL(c.req.url).origin)));
   registerAuthRoutes(app, deps);
   registerUnitRoutes(app, deps);
   registerLinkRoutes(app, deps);
