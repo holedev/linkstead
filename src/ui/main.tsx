@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { Layout } from "./layout";
+import { AdminPage } from "./pages/admin";
 import { KeysPage } from "./pages/keys";
 import { LinksPage } from "./pages/links";
 import { LoginPage } from "./pages/login";
@@ -32,6 +33,7 @@ if (root) {
               <Route element={<LinksPage />} index />
               <Route element={<MembersPage />} path='/members' />
               <Route element={<KeysPage />} path='/keys' />
+              <Route element={<AdminPage />} path='/admin' />
             </Route>
             <Route element={<Navigate replace to='/' />} path='*' />
           </Routes>

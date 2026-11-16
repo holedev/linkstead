@@ -6,6 +6,7 @@ import { ApiFailure } from "./api";
  */
 const BY_CODE: Record<string, string> = {
   "already-member": "Người này đã là thành viên của đơn vị.",
+  "already-reserved": "Mã này đã được dành riêng rồi.",
   "bad-name": "Hãy nhập tên (tối đa 200 ký tự).",
   "bad-note": "Ghi chú quá dài (tối đa 1000 ký tự).",
   "code-taken": "Mã này đã có link khác dùng. Mã đã dùng không bao giờ được cấp lại.",
@@ -14,16 +15,24 @@ const BY_CODE: Record<string, string> = {
   forbidden: "Bạn không có quyền làm việc này.",
   "invalid-credentials": "Email hoặc mật khẩu không đúng.",
   "invalid-token": "Đường dẫn không hợp lệ, đã được dùng hoặc đã hết hạn. Hãy xin đường dẫn mới từ Quản lý đơn vị.",
+  "last-manager": "Đơn vị phải luôn có ít nhất một Quản lý đơn vị. Hãy chỉ định người khác làm quản lý trước.",
+  "link-moved": "Link vừa được chuyển sang đơn vị khác. Hãy tra cứu lại.",
   locked: "Tài khoản tạm khóa 15 phút vì nhập sai mật khẩu nhiều lần.",
   network: "Không kết nối được máy chủ. Hãy kiểm tra mạng và thử lại.",
   "no-code-available": "Chưa sinh được mã. Hãy thử lại.",
   "not-a-member": "Người này không phải thành viên của đơn vị.",
   "not-signed-in": "Phiên đăng nhập đã hết. Hãy đăng nhập lại.",
   "not-university-email": "Chỉ nhận email @ou.edu.vn.",
+  "rate-limited": "Khóa API đã gọi quá nhiều lần trong một phút.",
+  "same-unit": "Link đang thuộc đơn vị này rồi.",
   "target-changed": "Đích vừa được người khác đổi. Hãy xem lại đích hiện tại rồi thử lại.",
   "too-short": "Mật khẩu phải có ít nhất 12 ký tự.",
+  "unit-name-taken": "Đã có đơn vị mang tên này (kể cả đơn vị đã giải thể).",
+  "unit-owns-links": "Đơn vị còn link nên chưa giải thể được. Hãy chuyển hết link sang đơn vị khác trước.",
+  "unknown-code": "Không tìm thấy mã dành riêng này.",
   "unknown-key": "Không tìm thấy khóa này, hoặc khóa đã bị thu hồi.",
-  "unknown-link": "Không tìm thấy link này."
+  "unknown-link": "Không tìm thấy link này.",
+  "unknown-unit": "Không tìm thấy đơn vị này."
 };
 
 const BY_PROBLEM: Record<string, string> = {

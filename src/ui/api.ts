@@ -18,8 +18,14 @@ type Link = {
 type Author = { kind: "account"; email: string } | { kind: "key"; name: string } | null;
 type HistoryEntry = { at: string; by: Author } & (
   | { kind: "target"; oldTarget: string; newTarget: string }
+  | { kind: "unit"; oldUnitName: string; newUnitName: string }
   | { kind: "status"; enabled: boolean; bySystem: boolean }
 );
+type UnitOverview = { id: number; name: string; linkCount: number; managers: string[] };
+type ReservedCode = { code: string; note: string; createdAt: string };
+/** A Link as a Quản trị hệ thống finds it: with the Đơn vị that owns it and its history. */
+type FoundLink = Link & { unitName: string; history: HistoryEntry[] };
+type NewLinkInput = { unitId: number; name: string; target: string; code: string; note: string };
 type Visits = { total: number; days: { day: string; count: number }[] };
 type Member = { email: string; role: Role; hasPassword: boolean };
 type ApiKey = { id: number; name: string; createdAt: string; revokedAt: string | null };
@@ -65,12 +71,26 @@ const api = {
       email,
       role
     }),
+  adminCreateLink: (input: NewLinkInput) => call<Link>("POST", "/api/admin/links", input),
+  adminCreateUnit: (name: string, managerEmail: string) =>
+    call<{ id: number; name: string; managerEmail: string; setupUrl: string | null }>("POST", "/api/admin/units", {
+      managerEmail,
+      name
+    }),
+  adminDissolveUnit: (unitId: number) => call<void>("DELETE", `/api/admin/units/${unitId}`),
+  adminFindLink: (code: string) => call<FoundLink>("GET", `/api/admin/links/${encodeURIComponent(code)}`),
+  adminMoveLink: (code: string, unitId: number) =>
+    call<Link & { unitName: string }>("POST", `/api/admin/links/${code}/move`, { unitId }),
+  adminReserve: (code: string, note: string) =>
+    call<{ code: string; note: string }>("POST", "/api/admin/reserved-codes", { code, note }),
+  adminReservedCodes: () => call<{ codes: ReservedCode[] }>("GET", "/api/admin/reserved-codes"),
+  adminUnits: () => call<{ units: UnitOverview[] }>("GET", "/api/admin/units"),
+  adminUnreserve: (code: string) => call<void>("DELETE", `/api/admin/reserved-codes/${code}`),
   changeTarget: (code: string, target: string, expectedTarget: string) =>
     call<Link>("PUT", `/api/links/${code}/target`, { expectedTarget, target }),
   createKey: (unitId: number, name: string) =>
     call<{ id: number; key: string; name: string }>("POST", `/api/units/${unitId}/keys`, { name }),
-  createLink: (input: { unitId: number; name: string; target: string; code: string; note: string }) =>
-    call<Link>("POST", "/api/links", input),
+  createLink: (input: NewLinkInput) => call<Link>("POST", "/api/links", input),
   disableLink: (code: string) => call<Link>("POST", `/api/links/${code}/disable`),
   enableLink: (code: string) => call<Link>("POST", `/api/links/${code}/enable`),
   history: (code: string) => call<{ history: HistoryEntry[] }>("GET", `/api/links/${code}/history`),
@@ -82,7 +102,11 @@ const api = {
   members: (unitId: number) => call<{ members: Member[] }>("GET", `/api/units/${unitId}/members`),
   reissueSetup: (unitId: number, email: string) =>
     call<{ email: string; setupUrl: string }>("POST", `/api/units/${unitId}/members/password-setup`, { email }),
+  removeMember: (unitId: number, email: string) =>
+    call<void>("DELETE", `/api/units/${unitId}/members/${encodeURIComponent(email)}`),
   revokeKey: (unitId: number, keyId: number) => call<void>("DELETE", `/api/units/${unitId}/keys/${keyId}`),
+  setMemberRole: (unitId: number, email: string, role: Role) =>
+    call<void>("PUT", `/api/units/${unitId}/members/${encodeURIComponent(email)}`, { role }),
   setPassword: (token: string, password: string) => call<void>("POST", "/api/auth/setup", { password, token }),
   visits: (code: string) => call<Visits>("GET", `/api/links/${code}/visits`)
 };
@@ -91,11 +115,14 @@ export {
   ApiFailure,
   type ApiKey,
   api,
+  type FoundLink,
   type HistoryEntry,
   type Link,
   type Me,
   type Member,
+  type ReservedCode,
   type Role,
   type UnitMembership,
+  type UnitOverview,
   type Visits
 };

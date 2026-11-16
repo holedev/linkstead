@@ -45,6 +45,49 @@ const usePanel = <T,>(stamp: string, load: () => Promise<T>) => {
   return { data, error };
 };
 
+const entryKey = (entry: HistoryEntry): string => {
+  if (entry.kind === "target") {
+    return `${entry.at}-target-${entry.newTarget}`;
+  }
+  return entry.kind === "unit" ? `${entry.at}-unit-${entry.newUnitName}` : `${entry.at}-status-${entry.enabled}`;
+};
+
+const EntryText = ({ entry }: { entry: HistoryEntry }) => {
+  if (entry.kind === "target") {
+    return (
+      <p className='break-all'>
+        Đổi đích từ <span className='text-muted line-through'>{entry.oldTarget}</span> sang{" "}
+        <span className='font-medium'>{entry.newTarget}</span>
+      </p>
+    );
+  }
+  if (entry.kind === "unit") {
+    return (
+      <p className='break-words'>
+        Chuyển link từ {entry.oldUnitName} sang <span className='font-medium'>{entry.newUnitName}</span>
+      </p>
+    );
+  }
+  return <p>{statusText(entry)}</p>;
+};
+
+/** A Link's changes, newest first: when, who, what. */
+const HistoryList = ({ entries, createdAt }: { entries: HistoryEntry[]; createdAt: string }) =>
+  entries.length === 0 ? (
+    <p className='mt-2 text-muted text-sm'>Chưa có thay đổi nào từ khi tạo ngày {formatDate(createdAt)}.</p>
+  ) : (
+    <ol className='mt-2 space-y-3'>
+      {entries.map((entry) => (
+        <li className='text-sm' key={entryKey(entry)}>
+          <p className='text-muted text-xs'>
+            {formatDateTime(entry.at)} - {authorOf(entry.by)}
+          </p>
+          <EntryText entry={entry} />
+        </li>
+      ))}
+    </ol>
+  );
+
 const HistoryPanel = ({ link }: { link: Link }) => {
   const { data, error } = usePanel(`${link.target}|${link.enabled}|${link.disabledBySystem}`, () =>
     api.history(link.code).then((answer) => answer.history)
@@ -55,31 +98,7 @@ const HistoryPanel = ({ link }: { link: Link }) => {
       <h4 className='font-medium text-sm'>Lịch sử thay đổi</h4>
       <ErrorText>{error}</ErrorText>
       {!(data || error) && <p className='mt-2 text-muted text-sm'>Đang tải...</p>}
-      {data?.length === 0 && (
-        <p className='mt-2 text-muted text-sm'>Chưa có thay đổi nào từ khi tạo ngày {formatDate(link.createdAt)}.</p>
-      )}
-      {data && data.length > 0 && (
-        <ol className='mt-2 space-y-3'>
-          {data.map((entry) => (
-            <li
-              className='text-sm'
-              key={`${entry.kind}-${entry.at}-${entry.kind === "target" ? entry.newTarget : entry.enabled}`}
-            >
-              <p className='text-muted text-xs'>
-                {formatDateTime(entry.at)} - {authorOf(entry.by)}
-              </p>
-              {entry.kind === "target" ? (
-                <p className='break-all'>
-                  Đổi đích từ <span className='text-muted line-through'>{entry.oldTarget}</span> sang{" "}
-                  <span className='font-medium'>{entry.newTarget}</span>
-                </p>
-              ) : (
-                <p>{statusText(entry)}</p>
-              )}
-            </li>
-          ))}
-        </ol>
-      )}
+      {data && <HistoryList createdAt={link.createdAt} entries={data} />}
     </div>
   );
 };
@@ -315,4 +334,4 @@ const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
   );
 };
 
-export { LinkRow };
+export { HistoryList, LinkRow };

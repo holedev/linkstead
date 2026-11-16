@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { api, type Role } from "../api";
-import { Badge, Button, Card, ErrorText, Field, SecretBox } from "../components";
+import { Badge, Button, Card, ConfirmDialog, ErrorText, Field, SecretBox } from "../components";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
@@ -24,7 +24,7 @@ const IssuedLink = ({ issued }: { issued: Issued }) =>
   );
 
 const MembersPage = () => {
-  const { unit } = useSession();
+  const { unit, me, refresh } = useSession();
   const unitId = unit?.unitId ?? 0;
   const { data, error, reload } = useLoaded(unitId, (id) => api.members(id).then((answer) => answer.members));
   const [email, setEmail] = useState("");
@@ -32,6 +32,26 @@ const MembersPage = () => {
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
   const [issued, setIssued] = useState<Issued | null>(null);
+
+  // The email, never the row: the dialog reads the live list, as on the keys screen.
+  const [removeEmail, setRemoveEmail] = useState<string | null>(null);
+  const removing = data?.find((member) => member.email === removeEmail) ?? null;
+
+  /** A change to who belongs here. It may be about the person looking, so their own units reload too. */
+  const change = async (work: () => Promise<void>) => {
+    setRemoveEmail(null);
+    setBusy(true);
+    setFormError("");
+    setIssued(null);
+    try {
+      await work();
+      reload();
+      await refresh();
+    } catch (failure) {
+      setFormError(messageOf(failure));
+    }
+    setBusy(false);
+  };
 
   const run = async (work: () => Promise<Issued>) => {
     setBusy(true);
@@ -99,7 +119,7 @@ const MembersPage = () => {
         {!(data || error) && <p className='p-4 text-muted'>Đang tải...</p>}
         <ul className='divide-y divide-line'>
           {data?.map((member) => (
-            <li className='flex flex-col gap-2 p-4 sm:flex-row sm:items-center' key={member.email}>
+            <li className='flex flex-col gap-3 p-4' key={member.email}>
               <div className='min-w-0 flex-1'>
                 <p className='break-all font-medium'>{member.email}</p>
                 <div className='mt-1 flex flex-wrap gap-2'>
@@ -109,13 +129,41 @@ const MembersPage = () => {
                   </Badge>
                 </div>
               </div>
-              <Button disabled={busy} onClick={() => run(() => api.reissueSetup(unitId, member.email))}>
-                Cấp đường dẫn đặt mật khẩu
-              </Button>
+              <div className='flex flex-wrap gap-2'>
+                <Button disabled={busy} onClick={() => run(() => api.reissueSetup(unitId, member.email))}>
+                  Cấp đường dẫn đặt mật khẩu
+                </Button>
+                <Button
+                  disabled={busy}
+                  onClick={() =>
+                    change(() =>
+                      api.setMemberRole(unitId, member.email, member.role === "manager" ? "member" : "manager")
+                    )
+                  }
+                >
+                  {member.role === "manager" ? "Chuyển thành Thành viên" : "Đặt làm Quản lý đơn vị"}
+                </Button>
+                <Button disabled={busy} onClick={() => setRemoveEmail(member.email)} variant='danger'>
+                  Xóa khỏi đơn vị
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
       </Card>
+
+      <ConfirmDialog
+        busy={busy}
+        confirmLabel='Xóa khỏi đơn vị'
+        onCancel={() => setRemoveEmail(null)}
+        onConfirm={() => change(() => api.removeMember(unitId, removeEmail ?? ""))}
+        open={removing !== null}
+        title='Xóa thành viên khỏi đơn vị'
+      >
+        Xóa {removing?.email === me?.email ? "chính bạn" : removing?.email} khỏi {unit?.unitName}? Người này sẽ không
+        còn tạo hay sửa được link của đơn vị. Các link họ đã tạo vẫn thuộc đơn vị và tiếp tục hoạt động; tài khoản của
+        họ vẫn còn và có thể được thêm lại.
+      </ConfirmDialog>
     </>
   );
 };

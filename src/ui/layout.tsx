@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router";
+import { NavLink, Outlet, useLocation } from "react-router";
 import { Button } from "./components";
 import { useSession } from "./session";
 
@@ -11,6 +11,8 @@ const Layout = () => {
   const { me, unit, selectUnit, signOut } = useSession();
   const units = me?.units ?? [];
   // Members and keys are a Quản lý đơn vị's to manage; the server refuses anyone else regardless.
+  // The administration screens are about every Đơn vị, so they show without one selected.
+  const onAdmin = useLocation().pathname.startsWith("/admin");
   const manages = unit?.role === "manager" || (me?.isSystemAdmin ?? false);
 
   return (
@@ -51,7 +53,7 @@ const Layout = () => {
           <NavLink className={tabClass} end to='/'>
             Link
           </NavLink>
-          {manages && (
+          {manages && unit && (
             <>
               <NavLink className={tabClass} to='/members'>
                 Thành viên
@@ -61,11 +63,16 @@ const Layout = () => {
               </NavLink>
             </>
           )}
+          {me?.isSystemAdmin && (
+            <NavLink className={tabClass} to='/admin'>
+              Quản trị hệ thống
+            </NavLink>
+          )}
         </nav>
       </header>
 
       <main className='mx-auto max-w-5xl space-y-4 px-4 py-6'>
-        {unit ? (
+        {unit || onAdmin ? (
           <Outlet />
         ) : (
           <p className='rounded-lg border border-line bg-surface p-5 text-muted'>
