@@ -82,22 +82,27 @@ const savePng = (svgUrl: string, filename: string): Promise<void> =>
 const QrPicture = ({
   source,
   name,
-  backdrop = "#fff"
+  backdrop = "#fff",
+  large = false
 }: {
   source: { text: string; url: string } | null;
   name: string;
   /** What shows through a QR with no background of its own - a CSS background. */
   backdrop?: string;
+  /** Shown big, as the main thing on its screen, rather than beside other content. */
+  large?: boolean;
 }) => {
+  // Large: most of a phone's width, and about 300px from a tablet up.
+  const box = large ? "aspect-square w-full max-w-80 sm:size-72" : "size-44";
   const [failed, setFailed] = useState(false);
   if (!source) {
-    return <div className='size-44 shrink-0 rounded-md border border-border bg-card' />;
+    return <div className={`${box} shrink-0 rounded-md border border-border bg-card`} />;
   }
   return (
-    <div className='flex shrink-0 flex-col gap-2'>
+    <div className={`flex shrink-0 flex-col gap-2 ${large ? "w-full max-w-80 sm:w-72" : ""}`}>
       <img
         alt='QR'
-        className='size-44 rounded-md border border-border'
+        className={`${box} rounded-md border border-border`}
         height={176}
         src={source.url}
         style={{ background: backdrop }}

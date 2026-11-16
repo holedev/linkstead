@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { ErrorText } from "@/components/app";
 import { DEFAULT_QR_STYLE, MAX_LOGO_SCALE, MIN_LOGO_SCALE, QR_STYLES, type QrStyle } from "../../domain/qr-style";
 import { api, type Link, type LogoChoice } from "../api";
@@ -64,6 +64,14 @@ const Swatch = ({ style }: { style: QrStyle }) => {
   );
 };
 
+/** One group of settings, framed and named. */
+const Panel = ({ title, children }: { title: string; children: ReactNode }) => (
+  <section className='space-y-3 rounded-lg border p-4'>
+    <h3 className='font-medium'>{title}</h3>
+    {children}
+  </section>
+);
+
 /**
  * A Link's QR and the one thing about it that can be chosen: which logo. Size, position and error
  * correction are the system's.
@@ -122,90 +130,102 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
         <strong>Chưa in QR này.</strong> Hệ thống đang chạy thử trên tên miền tạm; QR mang tên miền tạm sẽ ngừng hoạt
         động khi đổi sang tên miền chính thức.
       </p>
-      <div className='flex flex-col gap-4 sm:flex-row'>
-        <QrPicture
-          backdrop={look?.backdrop}
-          name={style === DEFAULT_QR_STYLE ? `qr-${link.code}` : `qr-${link.code}-${style}`}
-          source={source}
-        />
-        <div className='min-w-0 flex-1 space-y-3'>
-          <p className='text-muted-foreground text-sm'>
-            QR chứa địa chỉ {link.url}, không chứa đích - nên đổi đích sau khi in vẫn dùng được QR này.
+      <div className='grid gap-5 lg:grid-cols-[auto_1fr]'>
+        {/* The picture stays in view while the settings beside it scroll. */}
+        <div className='space-y-3 lg:sticky lg:top-0 lg:self-start'>
+          <QrPicture
+            backdrop={look?.backdrop}
+            large
+            name={style === DEFAULT_QR_STYLE ? `qr-${link.code}` : `qr-${link.code}-${style}`}
+            source={source}
+          />
+          <p className='max-w-80 text-muted-foreground text-sm sm:max-w-72'>
+            QR chứa địa chỉ <span className='break-all'>{link.url}</span>, không chứa đích - nên đổi đích sau khi in vẫn
+            dùng được QR này.
           </p>
-          <fieldset className='space-y-1'>
-            <legend className='font-medium text-sm'>Màu</legend>
-            <div className='grid grid-cols-1 gap-x-3 sm:grid-cols-2'>
-              {LOOKS.map((option) => (
-                <label className='flex min-h-11 items-center gap-2 text-sm md:min-h-9' key={option.style}>
+        </div>
+
+        <div className='min-w-0 space-y-4'>
+          <Panel title='Logo'>
+            <fieldset className='space-y-1' disabled={busy}>
+              <legend className='sr-only'>Logo ở giữa QR</legend>
+              {CHOICES.map((choice) => (
+                <label className='flex min-h-11 items-center gap-2 text-sm md:min-h-9' key={choice.value}>
                   <input
-                    checked={style === option.style}
-                    name={`style-${link.code}`}
-                    onChange={() => choose(option.style)}
+                    checked={link.logoChoice === choice.value}
+                    // A logo of its own starts with a file, so that choice is made by uploading one.
+                    disabled={choice.value === "custom" && link.logoChoice !== "custom"}
+                    name={`logo-${link.code}`}
+                    onChange={() => {
+                      const { value } = choice;
+                      if (value !== "custom") {
+                        run(() => api.setLinkLogoChoice(link.code, value));
+                      }
+                    }}
                     type='radio'
                   />
-                  <Swatch style={option.style} />
-                  {option.label}
+                  {choice.label}
                 </label>
               ))}
+            </fieldset>
+            <LogoUpload
+              disabled={busy}
+              label={link.logoChoice === "custom" ? "Đổi logo riêng" : "Tải lên logo riêng"}
+              onFile={upload}
+            />
+            <div className='space-y-1 border-t pt-3'>
+              <label
+                className='flex items-center justify-between gap-2 font-medium text-sm'
+                htmlFor={`scale-${link.code}`}
+              >
+                Kích cỡ logo trong khung
+                <span className='font-normal text-muted-foreground tabular-nums'>{scale}%</span>
+              </label>
+              <input
+                className='w-full accent-primary'
+                disabled={link.logoChoice === "none"}
+                id={`scale-${link.code}`}
+                max={MAX_LOGO_SCALE}
+                min={MIN_LOGO_SCALE}
+                onChange={(event) => setScale(Number(event.target.value))}
+                step={5}
+                type='range'
+                value={scale}
+              />
+              <p className='text-muted-foreground text-xs'>
+                100% là logo lấp đầy khung. Khung giữ nguyên ở mọi cỡ, nên QR vẫn quét được như nhau.
+              </p>
             </div>
+            <p className='text-muted-foreground text-xs'>
+              Ảnh PNG hoặc JPEG. Viền trắng hoặc trong suốt quanh logo được tự cắt bỏ để logo lấp đầy khung. Khung logo
+              ở giữa, trên nền trắng, có kích thước cố định để QR luôn quét được.
+            </p>
+          </Panel>
+
+          <Panel title='Màu'>
+            <fieldset>
+              <legend className='sr-only'>Màu của QR</legend>
+              <div className='grid grid-cols-1 gap-x-3 sm:grid-cols-2'>
+                {LOOKS.map((option) => (
+                  <label className='flex min-h-11 items-center gap-2 text-sm md:min-h-9' key={option.style}>
+                    <input
+                      checked={style === option.style}
+                      name={`style-${link.code}`}
+                      onChange={() => choose(option.style)}
+                      type='radio'
+                    />
+                    <Swatch style={option.style} />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             {look?.note && <p className='rounded-md bg-amber-50 px-3 py-2 text-amber-900 text-xs'>{look.note}</p>}
             <p className='text-muted-foreground text-xs'>
               Màu chỉ áp dụng cho lần tải này, không lưu vào link. Logo luôn nằm trên nền trắng.
             </p>
-          </fieldset>
-          <fieldset className='space-y-1' disabled={busy}>
-            <legend className='font-medium text-sm'>Logo ở giữa QR</legend>
-            {CHOICES.map((choice) => (
-              <label className='flex min-h-11 items-center gap-2 text-sm' key={choice.value}>
-                <input
-                  checked={link.logoChoice === choice.value}
-                  // A logo of its own starts with a file, so that choice is made by uploading one.
-                  disabled={choice.value === "custom" && link.logoChoice !== "custom"}
-                  name={`logo-${link.code}`}
-                  onChange={() => {
-                    const { value } = choice;
-                    if (value !== "custom") {
-                      run(() => api.setLinkLogoChoice(link.code, value));
-                    }
-                  }}
-                  type='radio'
-                />
-                {choice.label}
-              </label>
-            ))}
-          </fieldset>
-          <div className='space-y-1'>
-            <label
-              className='flex items-center justify-between gap-2 font-medium text-sm'
-              htmlFor={`scale-${link.code}`}
-            >
-              Kích cỡ logo trong khung
-              <span className='font-normal text-muted-foreground tabular-nums'>{scale}%</span>
-            </label>
-            <input
-              className='w-full accent-primary'
-              disabled={link.logoChoice === "none"}
-              id={`scale-${link.code}`}
-              max={MAX_LOGO_SCALE}
-              min={MIN_LOGO_SCALE}
-              onChange={(event) => setScale(Number(event.target.value))}
-              step={5}
-              type='range'
-              value={scale}
-            />
-            <p className='text-muted-foreground text-xs'>
-              100% là logo lấp đầy khung. Khung giữ nguyên ở mọi cỡ, nên QR vẫn quét được như nhau.
-            </p>
-          </div>
-          <LogoUpload
-            disabled={busy}
-            label={link.logoChoice === "custom" ? "Đổi logo riêng" : "Tải lên logo riêng"}
-            onFile={upload}
-          />
-          <p className='text-muted-foreground text-xs'>
-            Ảnh PNG hoặc JPEG. Viền trắng hoặc trong suốt quanh logo được tự cắt bỏ để logo lấp đầy khung. Khung logo ở
-            giữa, trên nền trắng, có kích thước cố định để QR luôn quét được.
-          </p>
+          </Panel>
+
           <ErrorText>{actionError || error}</ErrorText>
         </div>
       </div>

@@ -164,18 +164,21 @@ const Modal = ({
   onClose,
   title,
   description,
+  wide = false,
   children
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   description?: ReactNode;
+  /** Room for two columns from a laptop up, for a task with a picture beside its settings. */
+  wide?: boolean;
   children: ReactNode;
 }) => (
   <Dialog onOpenChange={(next) => !next && onClose()} open={open}>
     <DialogContent
       aria-describedby={description ? undefined : ""}
-      className='max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl'
+      className={cn("max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl", wide && "lg:max-w-4xl")}
     >
       <DialogHeader className='text-left'>
         <DialogTitle className='break-words pr-6 leading-snug'>{title}</DialogTitle>

@@ -536,6 +536,7 @@ const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
         onClose={close}
         open={task !== null && task !== "disable"}
         title={task && task !== "disable" ? TASK_TITLE[task] : ""}
+        wide={task === "qr"}
       >
         {task === "target" && <TargetForm link={link} onChanged={onChanged} onDone={close} />}
         {task === "details" && <DetailsForm link={link} onChanged={onChanged} onDone={close} />}
