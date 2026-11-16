@@ -183,6 +183,15 @@ type Store = {
   findAccountById: (id: number) => Promise<AccountRecord | null>;
   createAccount: (email: string, isSystemAdmin: boolean) => Promise<AccountRecord>;
   countSystemAdmins: () => Promise<number>;
+  /** Every Quản trị hệ thống, by email. */
+  listSystemAdmins: () => Promise<{ email: string; hasPassword: boolean }[]>;
+  /** Makes an account a Quản trị hệ thống. False when it already is one. */
+  grantSystemAdmin: (accountId: number) => Promise<boolean>;
+  /**
+   * Takes the role away. `last-admin`, and nothing changes, when nobody else holds it: the system
+   * is never left without a Quản trị hệ thống.
+   */
+  revokeSystemAdmin: (accountId: number) => Promise<"done" | "last-admin" | "not-an-admin">;
   /** Sets the password and forgets every failed attempt and lock before it. */
   setPassword: (accountId: number, passwordHash: string) => Promise<void>;
   /** Counts one more wrong password and returns the new consecutive total. */

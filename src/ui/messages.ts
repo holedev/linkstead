@@ -5,6 +5,7 @@ import { ApiFailure } from "./api";
  * once, and so a new one the server starts sending shows up here as the fallback, not as silence.
  */
 const BY_CODE: Record<string, string> = {
+  "already-admin": "Người này đã là Quản trị hệ thống.",
   "already-member": "Người này đã là thành viên của đơn vị.",
   "already-reserved": "Mã này đã được dành riêng rồi.",
   "bad-name": "Hãy nhập tên (tối đa 200 ký tự).",
@@ -15,6 +16,7 @@ const BY_CODE: Record<string, string> = {
   forbidden: "Bạn không có quyền làm việc này.",
   "invalid-credentials": "Email hoặc mật khẩu không đúng.",
   "invalid-token": "Đường dẫn không hợp lệ, đã được dùng hoặc đã hết hạn. Hãy xin đường dẫn mới từ Quản lý đơn vị.",
+  "last-admin": "Hệ thống phải luôn có ít nhất một Quản trị hệ thống. Hãy thêm người khác trước.",
   "last-manager": "Đơn vị phải luôn có ít nhất một Quản lý đơn vị. Hãy chỉ định người khác làm quản lý trước.",
   "link-moved": "Link vừa được chuyển sang đơn vị khác. Hãy tra cứu lại.",
   locked: "Tài khoản tạm khóa 15 phút vì nhập sai mật khẩu nhiều lần.",
@@ -22,6 +24,7 @@ const BY_CODE: Record<string, string> = {
   network: "Không kết nối được máy chủ. Hãy kiểm tra mạng và thử lại.",
   "no-code-available": "Chưa sinh được mã. Hãy thử lại.",
   "not-a-member": "Người này không phải thành viên của đơn vị.",
+  "not-an-admin": "Người này không phải Quản trị hệ thống.",
   "not-signed-in": "Phiên đăng nhập đã hết. Hãy đăng nhập lại.",
   "not-university-email": "Chỉ nhận email @ou.edu.vn.",
   "rate-limited": "Khóa API đã gọi quá nhiều lần trong một phút.",

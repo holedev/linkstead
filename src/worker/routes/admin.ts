@@ -28,6 +28,55 @@ const linkInPath = async (c: AppContext, store: Store): Promise<LinkRecord | nul
 };
 
 const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }: AppDeps) => {
+  // ── Quản trị hệ thống ─────────────────────────────────────────────────────
+  app.get("/api/admin/admins", async (c) => {
+    const admin = systemAdmin(c);
+    if (admin instanceof Response) {
+      return admin;
+    }
+    return c.json({ admins: await store.listSystemAdmins() });
+  });
+
+  /**
+   * Makes someone a Quản trị hệ thống, by email. A person the system has not met gets a Tài khoản
+   * and a one-time link to set a password. The role is not membership: it puts them in no Đơn vị.
+   */
+  app.post("/api/admin/admins", async (c) => {
+    const admin = systemAdmin(c);
+    if (admin instanceof Response) {
+      return admin;
+    }
+    const email = normalizeEmail(text((await readJson(c))?.email));
+    if (!isUniversityEmail(email)) {
+      return c.json({ error: "not-university-email" }, 422);
+    }
+    const account = (await store.findAccountByEmail(email)) ?? (await store.createAccount(email, false));
+    if (!(await store.grantSystemAdmin(account.id))) {
+      return c.json({ error: "already-admin" }, 409);
+    }
+    const setupUrl = account.passwordHash
+      ? null
+      : await issueSetupLink(store, account.id, new URL(c.req.url).origin, now());
+    return c.json({ email, setupUrl }, 201);
+  });
+
+  /**
+   * Takes the role away - from anyone, oneself included, but never from the last one. The Tài
+   * khoản and its memberships stay. It takes effect on that person's very next request.
+   */
+  app.delete("/api/admin/admins/:email", async (c) => {
+    const admin = systemAdmin(c);
+    if (admin instanceof Response) {
+      return admin;
+    }
+    const account = await store.findAccountByEmail(normalizeEmail(c.req.param("email")));
+    const outcome = account ? await store.revokeSystemAdmin(account.id) : "not-an-admin";
+    if (outcome === "not-an-admin") {
+      return c.json({ error: "not-an-admin" }, 404);
+    }
+    return outcome === "done" ? c.body(null, 204) : c.json({ error: "last-admin" }, 409);
+  });
+
   // ── Đơn vị ────────────────────────────────────────────────────────────────
   app.get("/api/admin/units", async (c) => {
     const admin = systemAdmin(c);

@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { Navigate } from "react-router";
 import { api, type Link, type UnitOverview } from "../api";
-import { Button, Card, ConfirmDialog, DownloadLink, ErrorText, Field, SecretBox } from "../components";
+import { Badge, Button, Card, ConfirmDialog, DownloadLink, ErrorText, Field, SecretBox } from "../components";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
@@ -149,6 +149,123 @@ const UnitsCard = ({
       >
         Mọi thành viên sẽ rời đơn vị và mọi khóa API của đơn vị ngừng hoạt động ngay. Việc này không hoàn tác được, và
         tên "{dissolving?.name}" không dùng lại được cho đơn vị mới.
+      </ConfirmDialog>
+    </Card>
+  );
+};
+
+/** Who else holds the role. Anyone here can do everything on this screen, for every Đơn vị. */
+const AdminsCard = () => {
+  const { me, refresh } = useSession();
+  const { data, error, reload } = useLoaded(0, () => api.adminAdmins().then((answer) => answer.admins));
+  const { busy, error: actionError, run } = useAction();
+  const [email, setEmail] = useState("");
+  const [granted, setGranted] = useState<{ email: string; setupUrl: string | null } | null>(null);
+  const [revokeEmail, setRevokeEmail] = useState<string | null>(null);
+  const revoking = data?.find((admin) => admin.email === revokeEmail) ?? null;
+  const isSelf = revoking?.email === me?.email;
+
+  const grant = (event: FormEvent) => {
+    event.preventDefault();
+    run(async () => {
+      setGranted(await api.adminGrant(email));
+      setEmail("");
+      reload();
+    });
+  };
+
+  const revoke = () => {
+    const target = revokeEmail;
+    setRevokeEmail(null);
+    if (target !== null) {
+      run(async () => {
+        await api.adminRevoke(target);
+        reload();
+        // Giving up one's own role closes this screen; the session says so.
+        await refresh();
+      });
+    }
+  };
+
+  return (
+    <Card flush>
+      <div className='border-line border-b p-4 sm:p-5'>
+        <h2 className='font-semibold text-lg'>Quản trị hệ thống</h2>
+        <p className='mt-1 text-muted text-sm'>
+          Người có vai trò này làm được mọi việc trên trang này với mọi đơn vị. Vai trò này không đưa họ vào đơn vị nào.
+        </p>
+        <form className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto] sm:items-end' onSubmit={grant}>
+          <Field label='Email người được thêm'>
+            {(props) => (
+              <input
+                {...props}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder='ten@ou.edu.vn'
+                required
+                type='email'
+                value={email}
+              />
+            )}
+          </Field>
+          <Button disabled={busy} type='submit' variant='primary'>
+            Thêm Quản trị hệ thống
+          </Button>
+        </form>
+        <div className='mt-4'>
+          <ErrorText>{actionError || error}</ErrorText>
+        </div>
+        {granted && (
+          <div className='mt-4 space-y-2 rounded-md border border-ok/30 bg-ok/5 p-3'>
+            <p className='text-sm'>
+              <strong>{granted.email}</strong> đã là Quản trị hệ thống.{" "}
+              {granted.setupUrl
+                ? "Hãy tự gửi đường dẫn đặt mật khẩu này cho họ; đường dẫn dùng được một lần, trong 7 ngày, và sẽ không hiện lại."
+                : "Người này đã có mật khẩu nên không cần đường dẫn mới."}
+            </p>
+            {granted.setupUrl && <SecretBox value={granted.setupUrl} />}
+          </div>
+        )}
+      </div>
+      {!(data || error) && <p className='p-4 text-muted'>Đang tải...</p>}
+      <ul className='divide-y divide-line'>
+        {data?.map((admin) => (
+          <li className='flex flex-col gap-2 p-4 sm:flex-row sm:items-center' key={admin.email}>
+            <div className='min-w-0 flex-1'>
+              <p className='break-all font-medium'>
+                {admin.email}
+                {admin.email === me?.email && <span className='font-normal text-muted'> (bạn)</span>}
+              </p>
+              {!admin.hasPassword && (
+                <div className='mt-1'>
+                  <Badge tone='danger'>Chưa đặt mật khẩu</Badge>
+                </div>
+              )}
+            </div>
+            {data.length > 1 ? (
+              <Button disabled={busy} onClick={() => setRevokeEmail(admin.email)} variant='danger'>
+                Thu hồi vai trò
+              </Button>
+            ) : (
+              <p className='text-muted text-xs sm:max-w-48 sm:text-right'>
+                Quản trị hệ thống duy nhất nên không thu hồi được.
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <ConfirmDialog
+        busy={busy}
+        confirmLabel='Thu hồi vai trò'
+        onCancel={() => setRevokeEmail(null)}
+        onConfirm={revoke}
+        open={revoking !== null}
+        title='Thu hồi vai trò Quản trị hệ thống'
+      >
+        {isSelf
+          ? "Thu hồi vai trò Quản trị hệ thống của chính bạn? Bạn sẽ rời trang này ngay và không tự lấy lại được vai trò - phải nhờ một Quản trị hệ thống khác thêm lại."
+          : `Thu hồi vai trò Quản trị hệ thống của ${revoking?.email}? Họ mất quyền ngay lập tức.`}{" "}
+        Tài khoản và các đơn vị họ đang thuộc về vẫn giữ nguyên.
       </ConfirmDialog>
     </Card>
   );
@@ -378,6 +495,7 @@ const AdminPage = () => {
     <>
       <AdminLinkLookup onMoved={reload} units={units ?? []} />
       <UnitsCard error={error} onChanged={unitsChanged} units={units} />
+      <AdminsCard />
       <ReservedCodesCard />
       <UniversityLogoCard />
       <HandOutCard onCreated={reload} units={units ?? []} />

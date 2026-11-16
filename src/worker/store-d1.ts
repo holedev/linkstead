@@ -306,6 +306,15 @@ const createD1Store = (database: D1Database): Store => {
         .where(and(eq(units.id, unitId), isNull(units.dissolvedAt)))
         .get()) ?? null,
 
+    grantSystemAdmin: async (accountId) => {
+      const granted = await db
+        .update(accounts)
+        .set({ isSystemAdmin: true })
+        .where(and(eq(accounts.id, accountId), eq(accounts.isSystemAdmin, false)))
+        .returning({ id: accounts.id });
+      return granted.length > 0;
+    },
+
     importAll: async (snapshot) => {
       const used = await database
         .prepare("SELECT (SELECT count(*) FROM accounts) + (SELECT count(*) FROM links) AS total")
@@ -473,6 +482,16 @@ const createD1Store = (database: D1Database): Store => {
         .orderBy(reservedCodes.code)
         .all(),
 
+    listSystemAdmins: async () => {
+      const rows = await db
+        .select({ email: accounts.email, passwordHash: accounts.passwordHash })
+        .from(accounts)
+        .where(eq(accounts.isSystemAdmin, true))
+        .orderBy(accounts.email)
+        .all();
+      return rows.map((row) => ({ email: row.email, hasPassword: row.passwordHash !== null }));
+    },
+
     listUnitOverviews: async () => {
       const rows = await db
         .select({
@@ -575,6 +594,26 @@ const createD1Store = (database: D1Database): Store => {
         .where(and(eq(apiKeys.id, keyId), eq(apiKeys.unitId, unitId), isNull(apiKeys.revokedAt)))
         .returning({ id: apiKeys.id });
       return revoked.length > 0;
+    },
+
+    revokeSystemAdmin: async (accountId) => {
+      // One statement decides, so two administrators removing each other cannot both succeed.
+      const revoked = await database
+        .prepare(
+          `UPDATE accounts SET is_system_admin = 0 WHERE id = ?1 AND is_system_admin = 1
+           AND (SELECT count(*) FROM accounts WHERE is_system_admin = 1) > 1`
+        )
+        .bind(accountId)
+        .run();
+      if (revoked.meta.changes > 0) {
+        return "done";
+      }
+      const row = await db
+        .select({ is: accounts.isSystemAdmin })
+        .from(accounts)
+        .where(eq(accounts.id, accountId))
+        .get();
+      return row?.is ? "last-admin" : "not-an-admin";
     },
 
     setLinkLogo: async (linkId, choice, logoKey) => {

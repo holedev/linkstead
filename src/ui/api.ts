@@ -106,6 +106,7 @@ const api = {
       email,
       role
     }),
+  adminAdmins: () => call<{ admins: { email: string; hasPassword: boolean }[] }>("GET", "/api/admin/admins"),
   adminCreateLink: (input: NewLinkInput) => call<Link>("POST", "/api/admin/links", input),
   adminCreateUnit: (name: string, managerEmail: string) =>
     call<{ id: number; name: string; managerEmail: string; setupUrl: string | null }>("POST", "/api/admin/units", {
@@ -114,6 +115,8 @@ const api = {
     }),
   adminDissolveUnit: (unitId: number) => call<void>("DELETE", `/api/admin/units/${unitId}`),
   adminFindLink: (code: string) => call<FoundLink>("GET", `/api/admin/links/${encodeURIComponent(code)}`),
+  adminGrant: (email: string) =>
+    call<{ email: string; setupUrl: string | null }>("POST", "/api/admin/admins", { email }),
   adminLogo: () => call<{ set: boolean }>("GET", "/api/admin/qr-logo"),
   adminLogoPreview: () => svg("/api/admin/qr-preview"),
   adminMoveLink: (code: string, unitId: number) =>
@@ -122,6 +125,7 @@ const api = {
   adminReserve: (code: string, note: string) =>
     call<{ code: string; note: string }>("POST", "/api/admin/reserved-codes", { code, note }),
   adminReservedCodes: () => call<{ codes: ReservedCode[] }>("GET", "/api/admin/reserved-codes"),
+  adminRevoke: (email: string) => call<void>("DELETE", `/api/admin/admins/${encodeURIComponent(email)}`),
   adminUnits: () => call<{ units: UnitOverview[] }>("GET", "/api/admin/units"),
   adminUnreserve: (code: string) => call<void>("DELETE", `/api/admin/reserved-codes/${code}`),
   adminUploadLogo: (file: File) => upload("/api/admin/qr-logo", file),

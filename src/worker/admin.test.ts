@@ -105,6 +105,90 @@ describe("Đơn vị, as a Quản trị hệ thống", () => {
   });
 });
 
+describe("a second Quản trị hệ thống", () => {
+  it("is named by an existing one, sets a password, and can then do what an administrator does", async () => {
+    const admin = await h.signedInAdmin();
+    const granted = await admin.post("/api/admin/admins", { email: "Phong.CNTT@ou.edu.vn" });
+    const body = (await granted.json()) as { email: string; setupUrl: string };
+
+    expect(granted.status).toBe(201);
+    expect(body.email).toBe("phong.cntt@ou.edu.vn");
+    expect(await (await admin.get("/api/admin/admins")).json()).toEqual({
+      admins: [
+        { email: "admin@ou.edu.vn", hasPassword: true },
+        { email: "phong.cntt@ou.edu.vn", hasPassword: false }
+      ]
+    });
+
+    const second = await signIn("phong.cntt@ou.edu.vn", body.setupUrl);
+    const me = (await (await second.get("/api/auth/me")).json()) as { isSystemAdmin: boolean; units: unknown[] };
+    // The role is not membership: they are in no Đơn vị.
+    expect(me).toMatchObject({ isSystemAdmin: true, units: [] });
+    expect((await second.post("/api/admin/reserved-codes", { code: "tuyensinh" })).status).toBe(201);
+    expect((await second.post("/api/links", { name: "Thử", target: TARGET, unitId: 1 })).status).toBe(403);
+  });
+
+  it("can be someone who already has an account, with no new link to pass on", async () => {
+    const admin = await h.signedInAdmin();
+    const editor = await member(admin, 1, "bien-tap@ou.edu.vn");
+    expect((await editor.get("/api/admin/units")).status).toBe(403);
+
+    const granted = await admin.post("/api/admin/admins", { email: "bien-tap@ou.edu.vn" });
+    expect(await granted.json()).toEqual({ email: "bien-tap@ou.edu.vn", setupUrl: null });
+    // No signing in again: the role is read on every request.
+    expect((await editor.get("/api/admin/units")).status).toBe(200);
+
+    const again = await admin.post("/api/admin/admins", { email: "bien-tap@ou.edu.vn" });
+    expect(again.status).toBe(409);
+    expect(await again.json()).toEqual({ error: "already-admin" });
+    expect((await admin.post("/api/admin/admins", { email: "ai-do@gmail.com" })).status).toBe(422);
+  });
+
+  it("loses the role at once when it is taken away, and keeps the account and its Đơn vị", async () => {
+    const admin = await h.signedInAdmin();
+    const editor = await member(admin, 1, "bien-tap@ou.edu.vn");
+    await admin.post("/api/admin/admins", { email: "bien-tap@ou.edu.vn" });
+
+    expect((await admin.delete("/api/admin/admins/Bien-Tap@ou.edu.vn")).status).toBe(204);
+    expect((await editor.get("/api/admin/units")).status).toBe(403);
+    expect((await editor.get("/api/links?unitId=1")).status).toBe(200);
+    expect((await admin.delete("/api/admin/admins/bien-tap@ou.edu.vn")).status).toBe(404);
+    expect((await admin.delete("/api/admin/admins/khong-co@ou.edu.vn")).status).toBe(404);
+  });
+
+  it("never leaves the system without one, so the first-administrator door stays shut", async () => {
+    const admin = await h.signedInAdmin();
+    const last = await admin.delete("/api/admin/admins/admin@ou.edu.vn");
+    expect(last.status).toBe(409);
+    expect(await last.json()).toEqual({ error: "last-admin" });
+
+    // With a second one, the first may step down - and then the second is the last.
+    const editor = await member(admin, 1, "bien-tap@ou.edu.vn");
+    await admin.post("/api/admin/admins", { email: "bien-tap@ou.edu.vn" });
+    expect((await admin.delete("/api/admin/admins/admin@ou.edu.vn")).status).toBe(204);
+    expect((await admin.get("/api/admin/admins")).status).toBe(403);
+    expect((await editor.delete("/api/admin/admins/bien-tap@ou.edu.vn")).status).toBe(409);
+
+    const reopened = await h
+      .client()
+      .post("/api/bootstrap", { email: "ke-la@ou.edu.vn" }, { headers: bearer("bootstrap-secret-for-tests") });
+    expect(reopened.status).toBe(409);
+  });
+
+  it("is closed to a Quản lý đơn vị, to a Khóa API and to a stranger", async () => {
+    const admin = await h.signedInAdmin();
+    const manager = await member(admin, 1, "quan-ly@ou.edu.vn", "manager");
+    const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
+    const body = { email: "quan-ly@ou.edu.vn" };
+
+    expect((await manager.post("/api/admin/admins", body)).status).toBe(403);
+    expect((await manager.get("/api/admin/admins")).status).toBe(403);
+    expect((await manager.delete("/api/admin/admins/admin@ou.edu.vn")).status).toBe(403);
+    expect((await h.client().post("/api/admin/admins", body, { headers: bearer(key) })).status).toBe(401);
+    expect((await h.client().post("/api/admin/admins", body)).status).toBe(401);
+  });
+});
+
 describe("Mã dành riêng", () => {
   it("holds a code back from everyone, until a Quản trị hệ thống hands it out", async () => {
     const admin = await h.signedInAdmin();
