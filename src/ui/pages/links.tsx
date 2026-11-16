@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { api, type Link } from "../api";
-import { Button, Card, ErrorText, Field, SecretBox } from "../components";
+import { Button, Card, DownloadLink, ErrorText, Field, SecretBox } from "../components";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
@@ -115,6 +115,12 @@ const LinksPage = () => {
         )}
         {!(data || error) && <p className='p-4 text-muted'>Đang tải...</p>}
         {data?.length === 0 && <p className='p-4 text-muted'>Đơn vị chưa có link nào.</p>}
+        {data && data.length > 0 && (
+          <div className='flex flex-wrap items-center gap-2 border-line border-b p-4'>
+            <DownloadLink href={`/api/units/${unitId}/links.csv`}>Tải danh sách link (CSV)</DownloadLink>
+            <DownloadLink href={`/api/units/${unitId}/visits.csv`}>Tải lượt mở theo ngày (CSV)</DownloadLink>
+          </div>
+        )}
         {data && data.length > 0 && (
           <ul className='divide-y divide-line'>
             {data.map((link) => (

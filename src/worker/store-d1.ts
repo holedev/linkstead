@@ -1,6 +1,6 @@
 import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { alias } from "drizzle-orm/sqlite-core";
+import { alias, getTableConfig } from "drizzle-orm/sqlite-core";
 import {
   accounts,
   apiKeys,
@@ -15,7 +15,7 @@ import {
   unitChanges,
   units
 } from "../db/schema";
-import type { AuthorName, HistoryEntry, MembershipOutcome, Store } from "./store";
+import type { AuthorName, HistoryEntry, MembershipOutcome, Snapshot, Store } from "./store";
 
 const ACCOUNT_COLUMNS = {
   email: accounts.email,
@@ -42,6 +42,29 @@ const LINK_COLUMNS = {
   // Table names written out: inside a subquery a bare `id` would be read as the inner table's.
   visits: sql<number>`coalesce((select sum(daily_visits.count) from daily_visits where daily_visits.link_id = links.id), 0)`
 };
+
+/** What a snapshot carries, parents before children so the foreign keys hold as rows go in. */
+const SNAPSHOT_TABLES = [
+  accounts,
+  units,
+  memberships,
+  apiKeys,
+  reservedCodes,
+  links,
+  targetChanges,
+  statusChanges,
+  unitChanges,
+  dailyVisits
+].map((table) => {
+  const config = getTableConfig(table);
+  return { columns: config.columns.map((column) => column.name), name: config.name };
+});
+
+/** D1 takes a limited number of statements in one batch. */
+const IMPORT_BATCH = 50;
+
+const isCell = (value: unknown): value is string | number | null =>
+  value === null || typeof value === "string" || typeof value === "number";
 
 const oldUnits = alias(units, "old_units");
 const newUnits = alias(units, "new_units");
@@ -216,6 +239,15 @@ const createD1Store = (database: D1Database): Store => {
       return (dissolved?.meta.changes ?? 0) > 0;
     },
 
+    exportAll: async (at) => {
+      const tables: Snapshot["tables"] = {};
+      for (const table of SNAPSHOT_TABLES) {
+        const rows = await database.prepare(`SELECT ${table.columns.join(", ")} FROM ${table.name}`).all();
+        tables[table.name] = rows.results;
+      }
+      return { exportedAt: at.toISOString(), tables, version: 1 };
+    },
+
     findAccountByEmail: async (email) =>
       (await db.select(ACCOUNT_COLUMNS).from(accounts).where(eq(accounts.email, email)).get()) ?? null,
 
@@ -271,6 +303,46 @@ const createD1Store = (database: D1Database): Store => {
         .from(units)
         .where(and(eq(units.id, unitId), isNull(units.dissolvedAt)))
         .get()) ?? null,
+
+    importAll: async (snapshot) => {
+      const used = await database
+        .prepare("SELECT (SELECT count(*) FROM accounts) + (SELECT count(*) FROM links) AS total")
+        .first<{ total: number }>();
+      if ((used?.total ?? 0) > 0) {
+        return "not-empty";
+      }
+
+      // Only columns this version knows, and only plain values: a snapshot is data, never SQL.
+      const statements: D1PreparedStatement[] = [];
+      for (const table of SNAPSHOT_TABLES) {
+        const rows = snapshot.tables[table.name];
+        if (!Array.isArray(rows)) {
+          return "bad-snapshot";
+        }
+        const insert = `INSERT INTO ${table.name} (${table.columns.join(", ")}) VALUES (${table.columns.map(() => "?").join(", ")})`;
+        for (const row of rows) {
+          const values = table.columns.map((column) => row?.[column] ?? null);
+          if (!values.every(isCell)) {
+            return "bad-snapshot";
+          }
+          statements.push(database.prepare(insert).bind(...values));
+        }
+      }
+
+      const wipe = [...SNAPSHOT_TABLES].reverse().map((table) => database.prepare(`DELETE FROM ${table.name}`));
+      try {
+        // The Đơn vị a fresh installation is seeded with give way to the snapshot's own.
+        await database.batch(wipe);
+        for (let start = 0; start < statements.length; start += IMPORT_BATCH) {
+          await database.batch(statements.slice(start, start + IMPORT_BATCH));
+        }
+      } catch {
+        // Batches are separate transactions, so a failure part-way is undone by hand.
+        await database.batch(wipe);
+        return "bad-snapshot";
+      }
+      return "done";
+    },
 
     isReservedCode: async (code) => {
       const row = await db
@@ -428,6 +500,15 @@ const createD1Store = (database: D1Database): Store => {
         .from(dailyVisits)
         .where(eq(dailyVisits.linkId, linkId))
         .orderBy(dailyVisits.day)
+        .all(),
+
+    listVisitsByUnit: (unitId) =>
+      db
+        .select({ code: links.code, count: dailyVisits.count, day: dailyVisits.day })
+        .from(dailyVisits)
+        .innerJoin(links, eq(links.id, dailyVisits.linkId))
+        .where(eq(links.unitId, unitId))
+        .orderBy(links.code, dailyVisits.day)
         .all(),
 
     lockAccount: async (accountId, until) => {

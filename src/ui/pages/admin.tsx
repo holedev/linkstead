@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { Navigate } from "react-router";
 import { api, type Link, type UnitOverview } from "../api";
-import { Button, Card, ConfirmDialog, ErrorText, Field, SecretBox } from "../components";
+import { Button, Card, ConfirmDialog, DownloadLink, ErrorText, Field, SecretBox } from "../components";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
@@ -351,6 +351,14 @@ const AdminPage = () => {
       <UnitsCard error={error} onChanged={unitsChanged} units={units} />
       <ReservedCodesCard />
       <HandOutCard onCreated={reload} units={units ?? []} />
+      <Card>
+        <h2 className='font-semibold text-lg'>Xuất toàn bộ dữ liệu</h2>
+        <p className='mt-1 mb-4 text-muted text-sm'>
+          Một tệp chứa mọi tài khoản, đơn vị, link, lịch sử và lượt mở, để chuyển sang một bản cài đặt khác. Tệp có chứa
+          mật khẩu và khóa API ở dạng đã băm - hãy cất giữ như dữ liệu mật và không gửi qua kênh không an toàn.
+        </p>
+        <DownloadLink href='/api/admin/export'>Tải tệp xuất (JSON)</DownloadLink>
+      </Card>
     </>
   );
 };

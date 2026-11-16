@@ -6,6 +6,7 @@ import type { AppDeps, AppEnv } from "./context";
 import { Notice } from "./notice";
 import { registerAdminRoutes } from "./routes/admin";
 import { registerAuthRoutes } from "./routes/auth";
+import { registerExportRoutes } from "./routes/export";
 import { registerLinkRoutes } from "./routes/links";
 import { registerUnitRoutes } from "./routes/units";
 
@@ -23,6 +24,7 @@ const createApp = (deps: AppDeps) => {
   registerUnitRoutes(app, deps);
   registerLinkRoutes(app, deps);
   registerAdminRoutes(app, deps);
+  registerExportRoutes(app, deps);
   // An unknown API path answers as an API, not with the visitor's notice page.
   app.all("/api/*", (c) => c.json({ error: "not-found" }, 404));
 

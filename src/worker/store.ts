@@ -48,6 +48,13 @@ type UnitOverview = { id: number; name: string; linkCount: number; managers: str
 
 type ReservedCode = { code: string; note: string; createdAt: Date };
 
+/**
+ * Everything an installation holds, in a form another can take in (ADR-0001): each table as plain
+ * rows keyed by column name, so it does not depend on which database wrote it. Sign-in sessions,
+ * unused one-time links and rate-limit counters are left out - they mean nothing elsewhere.
+ */
+type Snapshot = { version: 1; exportedAt: string; tables: Record<string, Record<string, unknown>[]> };
+
 type DayVisits = { day: string; count: number };
 
 type NewLink = {
@@ -124,6 +131,17 @@ type Store = {
     byAccountId: number;
     at: Date;
   }) => Promise<boolean>;
+
+  /** Lượt mở of every Link a Đơn vị owns, by Mã link then day. */
+  listVisitsByUnit: (unitId: number) => Promise<{ code: string; day: string; count: number }[]>;
+
+  // ── The whole installation ────────────────────────────────────────────────
+  exportAll: (at: Date) => Promise<Snapshot>;
+  /**
+   * Takes a snapshot into an installation nobody has used yet. `not-empty` when a Tài khoản or a
+   * Link already exists; `bad-snapshot` when it cannot be read, in which case nothing is kept.
+   */
+  importAll: (snapshot: Snapshot) => Promise<"done" | "not-empty" | "bad-snapshot">;
 
   // ── Mã dành riêng ─────────────────────────────────────────────────────────
   listReservedCodes: () => Promise<ReservedCode[]>;
@@ -203,6 +221,7 @@ export type {
   OpenableLink,
   ReservedCode,
   Role,
+  Snapshot,
   Store,
   UnitOverview
 };

@@ -17,6 +17,17 @@ const Button = ({ variant = "plain", className = "", type = "button", ...rest }:
   />
 );
 
+/** A file to save, as a link so the browser handles the download itself. Looks like a plain button. */
+const DownloadLink = ({ href, children }: { href: string; children: ReactNode }) => (
+  <a
+    className={`inline-flex min-h-11 items-center justify-center rounded-md px-4 font-medium transition ${BUTTON_STYLE.plain}`}
+    download
+    href={href}
+  >
+    {children}
+  </a>
+);
+
 const INPUT_STYLE = "min-h-11 w-full rounded-md border border-line bg-surface px-3 text-ink placeholder:text-muted";
 
 /** A label, its control and an optional hint, wired together for a screen reader. */
@@ -164,4 +175,16 @@ const formatDateTime = (iso: string): string =>
 
 const formatDate = (iso: string): string => new Date(iso).toLocaleDateString("vi-VN");
 
-export { Badge, Button, Card, ConfirmDialog, CopyButton, ErrorText, Field, formatDate, formatDateTime, SecretBox };
+export {
+  Badge,
+  Button,
+  Card,
+  ConfirmDialog,
+  CopyButton,
+  DownloadLink,
+  ErrorText,
+  Field,
+  formatDate,
+  formatDateTime,
+  SecretBox
+};
