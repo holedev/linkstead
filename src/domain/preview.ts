@@ -7,13 +7,6 @@
  * The Tên link is never shown here: it is the Đơn vị's own note on what the Link is for.
  */
 
-/** Whose fetch is a preview, not a person: these are answered with tags, not a redirect. */
-const PREVIEW_FETCHER =
-  /facebookexternalhit|facebot|zalo|twitterbot|slackbot|linkedinbot|discordbot|telegrambot|whatsapp|skypeuripreview|viber|pinterest|redditbot|embedly|googlebot|bingbot|applebot|iframely|preview/i;
-
-const isPreviewFetcher = (userAgent: string | null | undefined): boolean =>
-  Boolean(userAgent && PREVIEW_FETCHER.test(userAgent));
-
 type Preview = { title: string; description: string; image: string };
 
 const EMPTY: Preview = { description: "", image: "", title: "" };
@@ -121,10 +114,14 @@ const isFetchableTarget = (raw: string): boolean => {
 const escapeHtml = (text: string): string =>
   text.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
+/** A string as a script literal, safe inside `<script>`: no `</script>` can be spelt from it. */
+const scriptString = (text: string): string =>
+  JSON.stringify(text).replaceAll("<", "\\u003c").replaceAll(">", "\\u003e").replaceAll("&", "\\u0026");
+
 /**
  * The page a preview fetcher is given. It carries the tags, names the Link as the canonical
- * address, and still sends on anyone who lands on it - an app's own browser can look like its
- * fetcher.
+ * address, and sends on at once, showing nothing, anyone who lands on it all the same - an app's
+ * own browser can look like its fetcher (`visit.ts`).
  */
 const renderPreviewPage = ({
   linkUrl,
@@ -158,13 +155,12 @@ const renderPreviewPage = ({
   }
   const meta = tags.map(([kind, key, value]) => `<meta ${kind}="${key}" content="${escapeHtml(value)}">`).join("");
   const to = escapeHtml(target);
-  return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>${meta}<link rel="canonical" href="${escapeHtml(linkUrl)}"><meta name="robots" content="noindex"><meta http-equiv="refresh" content="0;url=${to}"></head><body><p><a href="${to}">${escapeHtml(title)}</a></p></body></html>`;
+  return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>${meta}<link rel="canonical" href="${escapeHtml(linkUrl)}"><meta name="robots" content="noindex"><meta http-equiv="refresh" content="0;url=${to}"><script>location.replace(${scriptString(target)})</script></head><body><noscript><a href="${to}">${escapeHtml(title)}</a></noscript></body></html>`;
 };
 
 export {
   EMPTY as EMPTY_PREVIEW,
   isFetchableTarget,
-  isPreviewFetcher,
   MAX_DESCRIPTION as MAX_PREVIEW_DESCRIPTION,
   MAX_TITLE as MAX_PREVIEW_TITLE,
   mergePreview,

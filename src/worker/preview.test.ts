@@ -80,6 +80,16 @@ describe("a Link pasted into a chat or a post", () => {
     expect(page).not.toContain("Tiêu đề cũ");
   });
 
+  it("redirects and counts a person opening the Link inside Zalo, rather than showing them the preview", async () => {
+    await withLink();
+    const inZalo =
+      "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36 Zalo android/12100";
+    const response = await h.client().get("/cfp-2027", { headers: { "user-agent": inZalo } });
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(TARGET);
+    expect(await visits()).toBe(1);
+  });
+
   it("still redirects a person, temporarily", async () => {
     await withLink();
     h.pages.set(TARGET, TARGET_PAGE);

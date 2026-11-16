@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { isWellFormedCode, normalizeCode, SYSTEM_RESERVED_CODES } from "../domain/link-code";
-import { isPreviewFetcher, mergePreview, readPreview, renderPreviewPage } from "../domain/preview";
-import { isMachineAgent, visitDay } from "../domain/visit";
+import { mergePreview, readPreview, renderPreviewPage } from "../domain/preview";
+import { isMachineAgent, isPreviewFetcher, visitDay } from "../domain/visit";
 import { resolveActor } from "./actor";
 import type { AppDeps, AppEnv } from "./context";
 import { fetchPage as fetchRealPage } from "./fetch-page";
