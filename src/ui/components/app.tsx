@@ -12,6 +12,7 @@ import {
 import { Badge as UiBadge } from "@/components/ui/badge";
 import { buttonVariants, Button as UiButton } from "@/components/ui/button";
 import { Card as UiCard } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
@@ -124,6 +125,67 @@ const CopyButton = ({ value, label = "Sao chép" }: { value: string; label?: str
   );
 };
 
+/** The same, as a small icon beside the value it copies. `label` says what, for a screen reader. */
+const CopyIconButton = ({ value, label }: { value: string; label: string }) => {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) {
+      return;
+    }
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  return (
+    <UiButton
+      aria-label={copied ? "Đã sao chép" : label}
+      className='size-9 shrink-0 text-muted-foreground md:size-7'
+      onClick={async () => {
+        await navigator.clipboard.writeText(value);
+        setCopied(true);
+      }}
+      size='icon'
+      title={copied ? "Đã sao chép" : label}
+      type='button'
+      variant='ghost'
+    >
+      {copied ? <CheckIcon className='text-ok' /> : <CopyIcon />}
+    </UiButton>
+  );
+};
+
+/**
+ * A task done in a window over the page: a form, a history, a picture. Its content is mounted only
+ * while it is open, so it always starts from how things are now.
+ */
+const Modal = ({
+  open,
+  onClose,
+  title,
+  description,
+  children
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  description?: ReactNode;
+  children: ReactNode;
+}) => (
+  <Dialog onOpenChange={(next) => !next && onClose()} open={open}>
+    <DialogContent
+      aria-describedby={description ? undefined : ""}
+      className='max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl'
+    >
+      <DialogHeader className='text-left'>
+        <DialogTitle className='break-words pr-6 leading-snug'>{title}</DialogTitle>
+        {description && <DialogDescription>{description}</DialogDescription>}
+      </DialogHeader>
+      {children}
+    </DialogContent>
+  </Dialog>
+);
+
 /** A value to hand to someone else: shown whole, selectable, with its copy button beside it. */
 const SecretBox = ({ value }: { value: string }) => (
   <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
@@ -192,11 +254,13 @@ export {
   CONTROL,
   ConfirmDialog,
   CopyButton,
+  CopyIconButton,
   DownloadLink,
   ErrorText,
   Field,
   formatDate,
   formatDateTime,
+  Modal,
   Notice,
   SecretBox
 };

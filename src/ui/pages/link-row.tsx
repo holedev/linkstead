@@ -1,14 +1,34 @@
+import {
+  ArrowRightLeftIcon,
+  ChartNoAxesColumnIcon,
+  CornerDownRightIcon,
+  EllipsisIcon,
+  HistoryIcon,
+  PencilIcon,
+  PowerIcon,
+  PowerOffIcon,
+  QrCodeIcon
+} from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import {
   Badge,
   Button,
   ConfirmDialog,
-  CopyButton,
+  CopyIconButton,
   ErrorText,
   Field,
   formatDate,
-  formatDateTime
+  formatDateTime,
+  Modal
 } from "@/components/app";
+import { Button as UiButton } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import { checkTarget } from "../../domain/target";
 import { api, type HistoryEntry, type Link, type Visits } from "../api";
 import { messageOf } from "../messages";
@@ -104,8 +124,7 @@ const HistoryPanel = ({ link }: { link: Link }) => {
   );
 
   return (
-    <div className='rounded-md border border-border bg-muted/50 p-3'>
-      <h4 className='font-medium text-sm'>Lịch sử thay đổi</h4>
+    <div>
       <ErrorText>{error}</ErrorText>
       {!(data || error) && <p className='mt-2 text-muted-foreground text-sm'>Đang tải...</p>}
       {data && <HistoryList createdAt={link.createdAt} entries={data} />}
@@ -119,9 +138,8 @@ const VisitsPanel = ({ link }: { link: Link }) => {
   const peak = Math.max(1, ...recent.map((day) => day.count));
 
   return (
-    <div className='rounded-md border border-border bg-muted/50 p-3'>
-      <h4 className='font-medium text-sm'>Lượt mở</h4>
-      <p className='mt-1 text-muted-foreground text-xs'>
+    <div>
+      <p className='text-muted-foreground text-xs'>
         Con số ước tính: mỗi lần mở link được đếm một lượt, không phải số người. Lượt mở do Zalo, Facebook tự tạo để
         hiện bản xem trước được bỏ qua khi nhận ra được.
       </p>
@@ -198,7 +216,7 @@ const DetailsForm = ({
   };
 
   return (
-    <form className='space-y-3 rounded-md border border-border bg-muted/50 p-3' onSubmit={save}>
+    <form className='space-y-4' onSubmit={save}>
       <Field hint='Chỉ người trong đơn vị thấy. Mã link và địa chỉ link không đổi.' label='Tên link'>
         {(props) => (
           <input {...props} maxLength={200} onChange={(event) => setName(event.target.value)} required value={name} />
@@ -216,11 +234,107 @@ const DetailsForm = ({
         )}
       </Field>
       <ErrorText>{error}</ErrorText>
-      <div className='flex flex-wrap gap-2'>
+      <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
+        <Button onClick={onDone}>Hủy</Button>
         <Button disabled={busy} type='submit' variant='primary'>
           {busy ? "Đang lưu..." : "Lưu"}
         </Button>
+      </div>
+    </form>
+  );
+};
+
+/**
+ * Changes the Đích in two steps: type the new one, then confirm it beside the old one. The second
+ * step is the confirmation the rule asks for - the write happens only from its button.
+ */
+const TargetForm = ({
+  link,
+  onChanged,
+  onDone
+}: {
+  link: Link;
+  onChanged: (link: Link) => void;
+  onDone: () => void;
+}) => {
+  const [draft, setDraft] = useState("");
+  const [reviewing, setReviewing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const next = draft.trim();
+
+  const review = (event: FormEvent) => {
+    event.preventDefault();
+    const problem = next === link.target ? "unchanged" : checkTarget(next, [window.location.hostname]);
+    setError(problem ? messageOf({ code: "bad-target", problem }) : "");
+    setReviewing(!problem);
+  };
+
+  const change = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      onChanged(await api.changeTarget(link.code, next, link.target));
+      onDone();
+    } catch (failure) {
+      setError(messageOf(failure));
+      setReviewing(false);
+      setBusy(false);
+    }
+  };
+
+  if (reviewing) {
+    return (
+      <div className='space-y-4 text-sm'>
+        <p className='text-muted-foreground'>Người mở {link.url} sẽ được chuyển tới đích mới ngay sau khi đổi.</p>
+        <dl className='space-y-3 rounded-lg border bg-muted/50 p-3'>
+          <div>
+            <dt className='text-muted-foreground text-xs'>Đích hiện tại</dt>
+            <dd className='break-all text-muted-foreground line-through'>{link.target}</dd>
+          </div>
+          <div>
+            <dt className='text-muted-foreground text-xs'>Đích mới</dt>
+            <dd className='break-all font-medium'>{next}</dd>
+          </div>
+        </dl>
+        <p className='text-muted-foreground'>Thay đổi được ghi vào lịch sử của link cùng email của bạn.</p>
+        <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
+          <Button disabled={busy} onClick={() => setReviewing(false)}>
+            Quay lại
+          </Button>
+          <Button disabled={busy} onClick={change} variant='primary'>
+            {busy ? "Đang đổi..." : "Đổi đích"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form className='space-y-4' onSubmit={review}>
+      <div className='text-sm'>
+        <p className='text-muted-foreground text-xs'>Đích hiện tại</p>
+        <p className='break-all'>{link.target}</p>
+      </div>
+      <Field hint='Mã link và QR đã in giữ nguyên; chỉ nơi người mở được chuyển tới thay đổi.' label='Đích mới'>
+        {(props) => (
+          <input
+            {...props}
+            inputMode='url'
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder='https://'
+            required
+            spellCheck={false}
+            value={draft}
+          />
+        )}
+      </Field>
+      <ErrorText>{error}</ErrorText>
+      <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
         <Button onClick={onDone}>Hủy</Button>
+        <Button type='submit' variant='primary'>
+          Xem lại
+        </Button>
       </div>
     </form>
   );
@@ -237,171 +351,206 @@ const StatusBadge = ({ link }: { link: Link }) => {
   );
 };
 
-type Panel = "target" | "details" | "history" | "visits" | "qr" | null;
+type Task = "target" | "details" | "history" | "visits" | "qr" | "disable" | null;
+
+const TASK_TITLE = {
+  details: "Sửa tên, ghi chú",
+  history: "Lịch sử thay đổi",
+  qr: "QR và logo",
+  target: "Đổi đích",
+  visits: "Lượt mở"
+};
+
+/** Everything that can be done to a Link beyond reading it, behind one button. */
+const LinkActions = ({
+  link,
+  canEnable,
+  busy,
+  onTask,
+  onEnable
+}: {
+  link: Link;
+  canEnable: boolean;
+  busy: boolean;
+  onTask: (task: Task) => void;
+  onEnable: () => void;
+}) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <UiButton
+        aria-label={`Thao tác với link ${link.name}`}
+        className='size-9 shrink-0 md:size-8'
+        disabled={busy}
+        size='icon'
+        variant='outline'
+      >
+        <EllipsisIcon />
+      </UiButton>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align='end' className='min-w-52'>
+      <DropdownMenuItem onSelect={() => onTask("target")}>
+        <ArrowRightLeftIcon />
+        Đổi đích
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onTask("details")}>
+        <PencilIcon />
+        Sửa tên, ghi chú
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onTask("qr")}>
+        <QrCodeIcon />
+        QR và logo
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={() => onTask("visits")}>
+        <ChartNoAxesColumnIcon />
+        Lượt mở
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onTask("history")}>
+        <HistoryIcon />
+        Lịch sử thay đổi
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      {link.enabled && (
+        <DropdownMenuItem onSelect={() => onTask("disable")} variant='destructive'>
+          <PowerOffIcon />
+          Tắt link
+        </DropdownMenuItem>
+      )}
+      {!link.enabled && (
+        <DropdownMenuItem disabled={!canEnable} onSelect={onEnable}>
+          <PowerIcon />
+          Bật lại link
+        </DropdownMenuItem>
+      )}
+    </DropdownMenuContent>
+  </DropdownMenu>
+);
 
 /**
- * One Link and everything a Thành viên may do to it. Changing the Đích and switching the Link off
- * both go through a confirmation; nothing here can change the Mã link.
+ * One Link: its QR, its address and where it leads, readable at a glance; everything else behind
+ * the actions button. Nothing here can change the Mã link.
  */
 const LinkRow = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => void }) => {
   const { me } = useSession();
   const isSystemAdmin = me?.isSystemAdmin ?? false;
-  const [panel, setPanel] = useState<Panel>(null);
-  const [draft, setDraft] = useState("");
-  const [confirming, setConfirming] = useState<"target" | "disable" | null>(null);
+  const [task, setTask] = useState<Task>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const toggle = (next: Panel) => {
-    setError("");
-    setPanel((current) => (current === next ? null : next));
-  };
+  // Counts what may have changed the picture, so the small QR is fetched again.
+  const [qrVersion, setQrVersion] = useState(0);
   const lockedBySystem = !link.enabled && link.disabledBySystem && !isSystemAdmin;
+  const close = () => setTask(null);
 
-  /** Runs a change, keeps the visit count the server did not recount, and reports a refusal. */
-  const run = async (change: () => Promise<Link>) => {
+  const setStatus = async (change: () => Promise<Link>) => {
+    setTask(null);
     setBusy(true);
     setError("");
     try {
       onChanged(await change());
-      return true;
     } catch (failure) {
       setError(messageOf(failure));
-      return false;
-    } finally {
-      setBusy(false);
-      setConfirming(null);
     }
-  };
-
-  const reviewTarget = (event: FormEvent) => {
-    event.preventDefault();
-    const next = draft.trim();
-    const problem = next === link.target ? "unchanged" : checkTarget(next, [window.location.hostname]);
-    if (problem) {
-      setError(messageOf({ code: "bad-target", problem }));
-      return;
-    }
-    setError("");
-    setConfirming("target");
-  };
-
-  const changeTarget = async () => {
-    if (await run(() => api.changeTarget(link.code, draft.trim(), link.target))) {
-      setDraft("");
-      setPanel("history");
-    }
+    setBusy(false);
   };
 
   return (
-    <li className='space-y-3 p-4'>
-      <div className='flex flex-wrap items-center gap-2'>
-        <h3 className='min-w-0 flex-1 break-words font-medium'>{link.name}</h3>
-        <StatusBadge link={link} />
-      </div>
-      <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
-        <code className='min-w-0 flex-1 break-all font-mono text-primary text-sm'>{link.url}</code>
-        <CopyButton value={link.url} />
-      </div>
-      <p className='break-all text-muted-foreground text-sm'>
-        Đích:{" "}
-        <a className='underline' href={link.target} rel='noreferrer' target='_blank'>
-          {link.target}
-        </a>
-      </p>
-      {link.note && <p className='break-words text-muted-foreground text-sm'>Ghi chú: {link.note}</p>}
-      <p className='text-muted-foreground text-xs'>
-        Tạo ngày {formatDate(link.createdAt)} - khoảng {number.format(link.visits)} lượt mở
-      </p>
-      {!link.enabled && (
-        <p className='text-muted-foreground text-sm'>
-          Người mở link này đang thấy trang thông báo link đã bị tắt.
-          {lockedBySystem && " Link do Quản trị hệ thống tắt nên chỉ Quản trị hệ thống bật lại được."}
-        </p>
-      )}
-
-      <div className='flex flex-wrap gap-2'>
-        <Button aria-expanded={panel === "target"} onClick={() => toggle("target")}>
-          Đổi đích
-        </Button>
-        <Button aria-expanded={panel === "details"} onClick={() => toggle("details")}>
-          Sửa tên, ghi chú
-        </Button>
-        <Button aria-expanded={panel === "history"} onClick={() => toggle("history")}>
-          Lịch sử
-        </Button>
-        <Button aria-expanded={panel === "visits"} onClick={() => toggle("visits")}>
-          Lượt mở
-        </Button>
-        <Button aria-expanded={panel === "qr"} onClick={() => toggle("qr")}>
-          QR
-        </Button>
-        {link.enabled && (
-          <Button disabled={busy} onClick={() => setConfirming("disable")}>
-            Tắt link
-          </Button>
-        )}
-        {!(link.enabled || lockedBySystem) && (
-          <Button disabled={busy} onClick={() => run(() => api.enableLink(link.code))}>
-            {busy ? "Đang bật..." : "Bật lại link"}
-          </Button>
-        )}
-      </div>
-
-      {panel === "target" && (
-        <form className='space-y-3 rounded-md border border-border bg-muted/50 p-3' onSubmit={reviewTarget}>
-          <Field hint='Mã link và QR đã in giữ nguyên; chỉ nơi người mở được chuyển tới thay đổi.' label='Đích mới'>
-            {(props) => (
-              <input
-                {...props}
-                inputMode='url'
-                onChange={(event) => setDraft(event.target.value)}
-                placeholder='https://'
-                required
-                spellCheck={false}
-                value={draft}
-              />
-            )}
-          </Field>
-          <Button type='submit' variant='primary'>
-            Xem lại và đổi đích
-          </Button>
-        </form>
-      )}
-      {panel === "details" && <DetailsForm link={link} onChanged={onChanged} onDone={() => setPanel(null)} />}
-      <ErrorText>{error}</ErrorText>
-      {panel === "history" && <HistoryPanel link={link} />}
-      {panel === "visits" && <VisitsPanel link={link} />}
-      {panel === "qr" && <QrPanel link={link} onChanged={onChanged} />}
-
-      <ConfirmDialog
-        busy={busy}
-        confirmLabel={busy ? "Đang đổi..." : "Đổi đích"}
-        onCancel={() => setConfirming(null)}
-        onConfirm={changeTarget}
-        open={confirming === "target"}
-        title={`Đổi đích của "${link.name}"`}
-        tone='primary'
+    <li className='flex gap-3 p-4 sm:gap-4'>
+      <button
+        aria-label={`QR của link ${link.name}. Mở để tải về hoặc đổi logo`}
+        className='size-20 shrink-0 self-start overflow-hidden rounded-lg border bg-white outline-none transition hover:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:size-24'
+        onClick={() => setTask("qr")}
+        type='button'
       >
-        <p>Người mở {link.url} sẽ được chuyển tới đích mới ngay sau khi đổi.</p>
-        <dl className='mt-3 space-y-2'>
-          <div>
-            <dt className='font-medium text-foreground'>Đích hiện tại</dt>
-            <dd className='break-all'>{link.target}</dd>
+        <img
+          alt=''
+          className={`size-full ${link.enabled ? "" : "opacity-40"}`}
+          height={96}
+          loading='lazy'
+          src={`/api/links/${link.code}/qr?v=${qrVersion}`}
+          width={96}
+        />
+      </button>
+
+      <div className='min-w-0 flex-1 space-y-1.5'>
+        <div className='flex items-start gap-2'>
+          <div className='flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1'>
+            <h3 className='min-w-0 break-words font-medium leading-snug'>{link.name}</h3>
+            <StatusBadge link={link} />
           </div>
-          <div>
-            <dt className='font-medium text-foreground'>Đích mới</dt>
-            <dd className='break-all text-foreground'>{draft.trim()}</dd>
-          </div>
-        </dl>
-        <p className='mt-3'>Thay đổi được ghi vào lịch sử của link cùng email của bạn.</p>
-      </ConfirmDialog>
+          <LinkActions
+            busy={busy}
+            canEnable={!lockedBySystem}
+            link={link}
+            onEnable={() => setStatus(() => api.enableLink(link.code))}
+            onTask={setTask}
+          />
+        </div>
+
+        <div className='flex items-center gap-1'>
+          <a
+            className='min-w-0 break-all font-mono text-primary text-sm underline-offset-4 hover:underline'
+            href={link.url}
+            rel='noreferrer'
+            target='_blank'
+          >
+            {link.url}
+          </a>
+          <CopyIconButton label='Sao chép link' value={link.url} />
+        </div>
+
+        <p className='flex items-start gap-1.5 text-muted-foreground text-sm'>
+          <CornerDownRightIcon aria-hidden='true' className='mt-0.5 size-4 shrink-0' />
+          <span className='sr-only'>Đích:</span>
+          <a
+            className='min-w-0 break-all underline-offset-4 hover:underline'
+            href={link.target}
+            rel='noreferrer'
+            target='_blank'
+          >
+            {link.target}
+          </a>
+        </p>
+
+        {link.note && <p className='break-words text-muted-foreground text-sm'>{link.note}</p>}
+        <p className='text-muted-foreground text-xs'>
+          Khoảng {number.format(link.visits)} lượt mở - tạo ngày {formatDate(link.createdAt)}
+        </p>
+        {!link.enabled && (
+          <p className='text-muted-foreground text-xs'>
+            Người mở link này đang thấy trang thông báo link đã bị tắt.
+            {lockedBySystem && " Link do Quản trị hệ thống tắt nên chỉ Quản trị hệ thống bật lại được."}
+          </p>
+        )}
+        <ErrorText>{error}</ErrorText>
+      </div>
+
+      <Modal
+        description={link.name}
+        onClose={close}
+        open={task !== null && task !== "disable"}
+        title={task && task !== "disable" ? TASK_TITLE[task] : ""}
+      >
+        {task === "target" && <TargetForm link={link} onChanged={onChanged} onDone={close} />}
+        {task === "details" && <DetailsForm link={link} onChanged={onChanged} onDone={close} />}
+        {task === "history" && <HistoryPanel link={link} />}
+        {task === "visits" && <VisitsPanel link={link} />}
+        {task === "qr" && (
+          <QrPanel
+            link={link}
+            onChanged={(changed) => {
+              onChanged(changed);
+              setQrVersion((value) => value + 1);
+            }}
+          />
+        )}
+      </Modal>
 
       <ConfirmDialog
         busy={busy}
-        confirmLabel={busy ? "Đang tắt..." : "Tắt link"}
-        onCancel={() => setConfirming(null)}
-        onConfirm={() => run(() => api.disableLink(link.code))}
-        open={confirming === "disable"}
+        confirmLabel='Tắt link'
+        onCancel={close}
+        onConfirm={() => setStatus(() => api.disableLink(link.code))}
+        open={task === "disable"}
         title={`Tắt link "${link.name}"`}
       >
         <p>

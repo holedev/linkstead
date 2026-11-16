@@ -40,8 +40,7 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
     });
 
   return (
-    <div className='space-y-3 rounded-md border border-border bg-muted/50 p-3'>
-      <h4 className='font-medium text-sm'>QR</h4>
+    <div className='space-y-4'>
       <p className='rounded-md bg-amber-100 px-3 py-2 text-amber-900 text-sm'>
         <strong>Chưa in QR này.</strong> Hệ thống đang chạy thử trên tên miền tạm; QR mang tên miền tạm sẽ ngừng hoạt
         động khi đổi sang tên miền chính thức.
