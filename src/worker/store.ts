@@ -45,6 +45,10 @@ type AccountRecord = {
 
 type Membership = { unitId: number; unitName: string; role: Role };
 
+type MemberRecord = { email: string; role: Role; hasPassword: boolean };
+
+type ApiKeyRecord = { id: number; name: string; createdAt: Date; revokedAt: Date | null };
+
 type Store = {
   // ── Opening a Link ────────────────────────────────────────────────────────
   /** The Link behind a normalised Mã link, or null when there is none. */
@@ -87,15 +91,18 @@ type Store = {
   unitExists: (unitId: number) => Promise<boolean>;
   listMemberships: (accountId: number) => Promise<Membership[]>;
   findRole: (accountId: number, unitId: number) => Promise<Role | null>;
+  listMembers: (unitId: number) => Promise<MemberRecord[]>;
   /** False when the account already belongs to that Đơn vị. */
   addMembership: (accountId: number, unitId: number, role: Role) => Promise<boolean>;
 
   // ── Khóa API ──────────────────────────────────────────────────────────────
   createApiKey: (key: { unitId: number; name: string; keyHash: string; createdByAccountId: number }) => Promise<number>;
+  /** Every key a Đơn vị ever had, newest first - never the key itself, which is not kept. */
+  listApiKeys: (unitId: number) => Promise<ApiKeyRecord[]>;
   /** The key behind a hash, unless it has been revoked. */
   findActiveApiKey: (keyHash: string) => Promise<{ id: number; unitId: number } | null>;
   /** False when that Đơn vị has no such live key. */
   revokeApiKey: (keyId: number, unitId: number, at: Date) => Promise<boolean>;
 };
 
-export type { AccountRecord, LinkRecord, Membership, NewLink, OpenableLink, Role, Store };
+export type { AccountRecord, ApiKeyRecord, LinkRecord, MemberRecord, Membership, NewLink, OpenableLink, Role, Store };

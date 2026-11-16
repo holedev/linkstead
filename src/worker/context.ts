@@ -22,6 +22,11 @@ type AppDeps = {
    * it shuts for good once one exists.
    */
   bootstrapToken?: string;
+  /**
+   * Answers a request under `/app` with the UI's files - the built page for any path that is not
+   * a file, since the UI routes in the browser. Unset where no UI has been built.
+   */
+  serveUi?: (request: Request) => Promise<Response>;
 };
 
 type AppEnv = { Variables: { actor: Actor | null } };

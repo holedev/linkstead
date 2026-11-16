@@ -163,8 +163,28 @@ const createD1Store = (database: D1Database): Store => {
       return row !== undefined;
     },
 
+    listApiKeys: (unitId) =>
+      db
+        .select({ createdAt: apiKeys.createdAt, id: apiKeys.id, name: apiKeys.name, revokedAt: apiKeys.revokedAt })
+        .from(apiKeys)
+        .where(eq(apiKeys.unitId, unitId))
+        .orderBy(desc(apiKeys.id))
+        .all(),
+
     listLinksByUnit: (unitId) =>
       db.select(LINK_COLUMNS).from(links).where(eq(links.unitId, unitId)).orderBy(desc(links.id)).all(),
+
+    listMembers: async (unitId) => {
+      const rows = await db
+        .select({ email: accounts.email, passwordHash: accounts.passwordHash, role: memberships.role })
+        .from(memberships)
+        .innerJoin(accounts, eq(accounts.id, memberships.accountId))
+        .where(eq(memberships.unitId, unitId))
+        .orderBy(accounts.email)
+        .all();
+      // The hash never leaves this file: the caller learns only whether one exists.
+      return rows.map((row) => ({ email: row.email, hasPassword: row.passwordHash !== null, role: row.role }));
+    },
 
     listMemberships: (accountId) =>
       db

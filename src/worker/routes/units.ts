@@ -30,6 +30,14 @@ const managedUnit = async (c: AppContext, store: Store): Promise<{ unitId: numbe
 };
 
 const registerUnitRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }: AppDeps) => {
+  app.get("/api/units/:unitId/members", async (c) => {
+    const unit = await managedUnit(c, store);
+    if (unit instanceof Response) {
+      return unit;
+    }
+    return c.json({ members: await store.listMembers(unit.unitId) });
+  });
+
   /**
    * Adds a Thành viên by email. A person the system has not met gets a Tài khoản and a one-time
    * link to set a password; one it already knows is simply added.
@@ -68,6 +76,23 @@ const registerUnitRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }
       return c.json({ error: "not-a-member" }, 404);
     }
     return c.json({ email, setupUrl: await issueSetupLink(store, account.id, new URL(c.req.url).origin, now()) }, 201);
+  });
+
+  /** The Đơn vị's keys by name. The keys themselves are not kept, so they cannot be listed. */
+  app.get("/api/units/:unitId/keys", async (c) => {
+    const unit = await managedUnit(c, store);
+    if (unit instanceof Response) {
+      return unit;
+    }
+    const keys = await store.listApiKeys(unit.unitId);
+    return c.json({
+      keys: keys.map((key) => ({
+        createdAt: key.createdAt.toISOString(),
+        id: key.id,
+        name: key.name,
+        revokedAt: key.revokedAt?.toISOString() ?? null
+      }))
+    });
   });
 
   /** Issues a Khóa API. The key itself is in this response and nowhere else, ever again. */

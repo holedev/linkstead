@@ -1,0 +1,150 @@
+import { type FormEvent, useState } from "react";
+import { api, type Link } from "../api";
+import { Badge, Button, Card, CopyButton, ErrorText, Field, formatDate, SecretBox } from "../components";
+import { messageOf } from "../messages";
+import { useSession } from "../session";
+import { useLoaded } from "../use-loaded";
+
+const EMPTY = { code: "", name: "", note: "", target: "" };
+
+/** The form for a new Link. It stays open after a save so several can be made in a row. */
+const CreateLink = ({ unitId, onCreated }: { unitId: number; onCreated: (link: Link) => void }) => {
+  const [form, setForm] = useState(EMPTY);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [created, setCreated] = useState<Link | null>(null);
+  const set = (field: keyof typeof EMPTY) => (event: { target: { value: string } }) =>
+    setForm((previous) => ({ ...previous, [field]: event.target.value }));
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const link = await api.createLink({ ...form, unitId });
+      setCreated(link);
+      setForm(EMPTY);
+      onCreated(link);
+    } catch (failure) {
+      setError(messageOf(failure));
+    }
+    setBusy(false);
+  };
+
+  return (
+    <Card>
+      <h2 className='font-semibold text-lg'>Tạo link</h2>
+      <form className='mt-4 space-y-4' onSubmit={submit}>
+        <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+          <Field hint='Link này dùng cho việc gì, in ở đâu. Chỉ người trong đơn vị thấy.' label='Tên link'>
+            {(props) => (
+              <input
+                {...props}
+                maxLength={200}
+                onChange={set("name")}
+                placeholder='Poster hội thảo, bản in A3'
+                required
+                value={form.name}
+              />
+            )}
+          </Field>
+          <Field hint='Bỏ trống để hệ thống tự sinh. Mã không đổi được sau khi tạo.' label='Mã link'>
+            {(props) => (
+              <input
+                {...props}
+                autoCapitalize='none'
+                maxLength={50}
+                onChange={set("code")}
+                placeholder='hoi-thao-2027'
+                spellCheck={false}
+                value={form.code}
+              />
+            )}
+          </Field>
+        </div>
+        <Field hint='Địa chỉ người mở link sẽ được chuyển tới. Đổi được về sau.' label='Đích'>
+          {(props) => (
+            <input
+              {...props}
+              inputMode='url'
+              onChange={set("target")}
+              placeholder='https://'
+              required
+              spellCheck={false}
+              value={form.target}
+            />
+          )}
+        </Field>
+        <Field label='Ghi chú (không bắt buộc)'>
+          {(props) => <textarea {...props} maxLength={1000} onChange={set("note")} rows={2} value={form.note} />}
+        </Field>
+        <ErrorText>{error}</ErrorText>
+        <Button disabled={busy} type='submit' variant='primary'>
+          {busy ? "Đang tạo..." : "Tạo link"}
+        </Button>
+      </form>
+
+      {created && (
+        <div className='mt-4 space-y-2 rounded-md border border-ok/30 bg-ok/5 p-3'>
+          <p className='font-medium text-ok text-sm'>Đã tạo link "{created.name}".</p>
+          <SecretBox value={created.url} />
+        </div>
+      )}
+    </Card>
+  );
+};
+
+const LinkRow = ({ link }: { link: Link }) => (
+  <li className='space-y-2 p-4'>
+    <div className='flex flex-wrap items-center gap-2'>
+      <h3 className='min-w-0 flex-1 break-words font-medium'>{link.name}</h3>
+      <Badge tone={link.enabled ? "ok" : "muted"}>{link.enabled ? "Đang bật" : "Đã tắt"}</Badge>
+    </div>
+    <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
+      <code className='min-w-0 flex-1 break-all font-mono text-brand text-sm'>{link.url}</code>
+      <CopyButton value={link.url} />
+    </div>
+    <p className='break-all text-muted text-sm'>
+      Đích:{" "}
+      <a className='underline' href={link.target} rel='noreferrer' target='_blank'>
+        {link.target}
+      </a>
+    </p>
+    {link.note && <p className='break-words text-muted text-sm'>Ghi chú: {link.note}</p>}
+    <p className='text-muted text-xs'>Tạo ngày {formatDate(link.createdAt)}</p>
+  </li>
+);
+
+const LinksPage = () => {
+  const { unit } = useSession();
+  const unitId = unit?.unitId ?? 0;
+  const { data, error, setData } = useLoaded(unitId, (id) => api.links(id).then((answer) => answer.links));
+
+  return (
+    <>
+      <CreateLink key={unitId} onCreated={(link) => setData((links) => [link, ...(links ?? [])])} unitId={unitId} />
+      <Card flush>
+        <h2 className='border-line border-b p-4 font-semibold text-lg'>
+          Link của {unit?.unitName}
+          {data && <span className='ml-2 font-normal text-muted text-sm'>({data.length})</span>}
+        </h2>
+        {error && (
+          <div className='p-4'>
+            <ErrorText>{error}</ErrorText>
+          </div>
+        )}
+        {!(data || error) && <p className='p-4 text-muted'>Đang tải...</p>}
+        {data?.length === 0 && <p className='p-4 text-muted'>Đơn vị chưa có link nào.</p>}
+        {data && data.length > 0 && (
+          <ul className='divide-y divide-line'>
+            {data.map((link) => (
+              <LinkRow key={link.code} link={link} />
+            ))}
+          </ul>
+        )}
+      </Card>
+    </>
+  );
+};
+
+export { LinksPage };

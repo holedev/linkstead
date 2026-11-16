@@ -51,6 +51,19 @@ describe("adding a Thành viên", () => {
     expect(((await second.json()) as { setupUrl: string | null }).setupUrl).toBeNull();
   });
 
+  it("lists members without ever exposing a password hash", async () => {
+    const admin = await h.signedInAdmin();
+    await admin.post("/api/units/1/members", { email: "chua-dat@ou.edu.vn" });
+    const listed = await admin.get("/api/units/1/members");
+    const text = await listed.clone().text();
+
+    expect(((await listed.json()) as { members: unknown[] }).members).toEqual([
+      { email: "admin@ou.edu.vn", hasPassword: true, role: "manager" },
+      { email: "chua-dat@ou.edu.vn", hasPassword: false, role: "member" }
+    ]);
+    expect(text).not.toContain("pbkdf2");
+  });
+
   it("refuses an address outside the university, and a member added twice", async () => {
     const admin = await h.signedInAdmin();
     expect((await admin.post("/api/units/1/members", { email: "ai-do@gmail.com" })).status).toBe(422);
@@ -115,6 +128,24 @@ describe("Khóa API", () => {
     expect((await app.post("/api/units/1/members", { email: "x@ou.edu.vn" }, { headers: bearer(key) })).status).toBe(
       401
     );
+  });
+
+  it("is listed by name and state, never by value", async () => {
+    const admin = await h.signedInAdmin();
+    const first = (await (await admin.post("/api/units/1/keys", { name: "Cũ" })).json()) as { id: number; key: string };
+    await admin.post("/api/units/1/keys", { name: "Mới" });
+    await admin.delete(`/api/units/1/keys/${first.id}`);
+
+    const listed = await admin.get("/api/units/1/keys");
+    const text = await listed.clone().text();
+    const { keys } = (await listed.json()) as { keys: { name: string; revokedAt: string | null }[] };
+
+    expect(keys.map((key) => [key.name, key.revokedAt !== null])).toEqual([
+      ["Mới", false],
+      ["Cũ", true]
+    ]);
+    expect(text).not.toContain(first.key);
+    expect((await h.client().get("/api/units/1/keys")).status).toBe(401);
   });
 
   it("is never stored as issued", async () => {

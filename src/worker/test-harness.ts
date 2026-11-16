@@ -62,6 +62,8 @@ const startHarness = async () => {
       deferred.push(work);
     },
     now: () => clock.now,
+    serveUi: () =>
+      Promise.resolve(new Response("<!doctype html><title>ui</title>", { headers: { "content-type": "text/html" } })),
     store: createD1Store(db)
   });
 

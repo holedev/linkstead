@@ -203,10 +203,20 @@ describe("opening a Link", () => {
     expect(await visits()).toEqual([]);
   });
 
+  it("serves the UI under /app, unframeable and without leaking the address as a referrer", async () => {
+    const response = await h.client().get("/app/setup?token=bi-mat");
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("<title>ui</title>");
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(response.headers.get("x-frame-options")).toBe("DENY");
+    expect((await h.client().get("/app")).status).toBe(200);
+  });
+
   it("answers the notice for malformed and system paths, and JSON for an unknown API path", async () => {
     const visitor = h.client();
     expect((await visitor.get("/hội-thảo")).status).toBe(404);
-    expect((await visitor.get("/app")).status).toBe(404);
+    expect((await visitor.get("/admin")).status).toBe(404);
     expect((await visitor.get("/a/b/c")).status).toBe(404);
     expect(await (await visitor.get("/api/khong-co")).json()).toEqual({ error: "not-found" });
     expect(await (await visitor.get("/api/health")).json()).toEqual({ ok: true });

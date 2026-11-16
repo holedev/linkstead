@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+/*
+ * One small palette, named by role. The blue is the only colour that means "act"; red means
+ * "this cannot be taken back"; amber is the trial notice and nothing else.
+ */
+@theme {
+  --color-ink: #16202e;
+  --color-muted: #5b6676;
+  --color-line: #d9dee6;
+  --color-surface: #ffffff;
+  --color-page: #f4f6f9;
+  --color-brand: #1b3f8f;
+  --color-brand-strong: #142f6b;
+  --color-danger: #b42318;
+  --color-ok: #1a7f4b;
+  --font-sans:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-page);
+}
+
+/* 16px on every control: anything smaller makes iOS zoom the page in on focus and leave it there. */
+input,
+select,
+textarea,
+button {
+  font-size: 1rem;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+dialog::backdrop {
+  background: rgb(22 32 46 / 0.5);
+}

@@ -84,7 +84,10 @@ The admin UI is Vietnamese only.
 
 ## Commands
 
-- `pnpm dev` - the Worker on a local D1 (`wrangler dev`)
+- `pnpm dev` - the Worker on a local D1 (`wrangler dev`). It serves the UI as last built, so run
+  `pnpm build:ui` first
+- `pnpm dev:ui` - the UI from Vite with hot reload, calling the Worker started by `pnpm dev`
+- `pnpm deploy` - builds the UI, then deploys
 - `pnpm db:generate` - a migration from `src/db/schema.ts`; `pnpm db:migrate:local` applies them locally,
   `pnpm db:migrate:remote` to the trial database
 - `pnpm test` / `pnpm check-types` / `pnpm lint:check`
@@ -104,10 +107,11 @@ by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts
 | `POST /api/units/:unitId/members/password-setup` | Quản lý đơn vị | a fresh one-time link |
 | `POST /api/units/:unitId/keys`, `DELETE /api/units/:unitId/keys/:keyId` | Quản lý đơn vị | issues and revokes a Khóa API |
 | `POST /api/links`, `GET /api/links` | a Thành viên, or a Khóa API | creates a Link, lists a Đơn vị's Links |
+| `GET /api/units/:unitId/members`, `GET /api/units/:unitId/keys` | Quản lý đơn vị | lists them - never a password hash, never a key |
+| `GET /app/*` | anyone | the UI |
 
-Not built yet: the UI under `/app` (so a one-time link currently points at a page that does not
-exist - post its token to `/api/auth/setup`), changing a Đích, switching a Link off and on, reading
-Lượt mở, QR and logos, exports, and the per-key rate limit.
+Not built yet: changing a Đích, switching a Link off and on, reading Lượt mở, QR and logos,
+exports, and the per-key rate limit - in the API and in the UI alike.
 
 **Starting a fresh deployment.** Set the secret, create the administrator, then remove the secret:
 
@@ -130,6 +134,10 @@ plan, so signing in and setting a password need Workers Paid. Opening a Link doe
   route decides what it needs.
 - `src/worker/test-harness.ts` - runs the app against a real local D1 with the real migrations, so
   the tests exercise the SQL the Worker runs.
+- `src/ui/` - the admin UI: React, built by Vite into `dist/client/app` and served by the Worker
+  under `/app`. Vietnamese only. `api.ts` is the one place it talks to the server, and
+  `messages.ts` the one place a server reason becomes a sentence. It has its own `tsconfig.json`
+  because it is browser code and the Worker is not.
 - `src/db/schema.ts` - the whole model of the first version.
 
 ## Conventions

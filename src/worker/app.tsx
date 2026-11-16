@@ -24,6 +24,22 @@ const createApp = (deps: AppDeps) => {
   // An unknown API path answers as an API, not with the visitor's notice page.
   app.all("/api/*", (c) => c.json({ error: "not-found" }, 404));
 
+  // The UI. It answers before the Link route does; `app` is a reserved code for that reason.
+  app.on(["GET", "HEAD"], ["/app", "/app/*"], async (c) => {
+    if (!deps.serveUi) {
+      return c.html(<Notice kind='unknown' />, 404);
+    }
+    const served = await deps.serveUi(c.req.raw);
+    // Copied so the headers can be set: a response handed back by the platform is read-only.
+    const response = new Response(served.body, served);
+    // A one-time password link carries its token in the address, so the page must never pass that
+    // address on as a referrer - and must not be framed by another site.
+    response.headers.set("Referrer-Policy", "no-referrer");
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    return response;
+  });
+
   // Opening a Link. Everything else in the system exists to make this one route worth trusting.
   app.get("/:code", async (c) => {
     const code = normalizeCode(c.req.param("code"));

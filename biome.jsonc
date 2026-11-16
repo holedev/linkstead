@@ -32,9 +32,11 @@
     "enabled": true,
     "rules": {
       "preset": "recommended",
-      // Statements against the database run in order on purpose, and a retry loop has to wait for
-      // each attempt. `Promise.all` would be the bug here, not the fix.
-      "performance": { "noAwaitInLoops": "off" },
+      // `noAwaitInLoops`: statements against the database run in order on purpose, and a retry
+      // loop has to wait for each attempt. `Promise.all` would be the bug here, not the fix.
+      // An inline handler in JSX is how a form field is written; hoisting each one would add a
+      // name per keystroke handler and make no measurable difference on screens this small.
+      "performance": { "noAwaitInLoops": "off", "noJsxPropsBind": "off" },
       "style": {
         "useConst": "off",
         "useImportType": "off",
