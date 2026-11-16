@@ -1,27 +1,28 @@
 import { Hono } from "hono";
 import { isWellFormedCode, normalizeCode, SYSTEM_RESERVED_CODES } from "../domain/link-code";
 import { isMachineAgent, visitDay } from "../domain/visit";
+import { resolveActor } from "./actor";
+import type { AppDeps, AppEnv } from "./context";
 import { Notice } from "./notice";
-import type { Store } from "./store";
-
-type AppDeps = {
-  store: Store;
-  /**
-   * Runs work the response must not wait for - counting a Lượt mở. On Workers this is
-   * `ctx.waitUntil`; elsewhere it can simply let the promise run.
-   */
-  defer: (work: Promise<unknown>) => void;
-  now?: () => Date;
-};
+import { registerAuthRoutes } from "./routes/auth";
+import { registerLinkRoutes } from "./routes/links";
+import { registerUnitRoutes } from "./routes/units";
 
 /**
  * The request handling, free of anything Workers-specific (ADR-0001): it is handed a `Store` and
  * a `defer`, and `index.ts` is the only place those come from Cloudflare.
  */
-const createApp = ({ store, defer, now = () => new Date() }: AppDeps) => {
-  const app = new Hono();
+const createApp = (deps: AppDeps) => {
+  const { store, defer, now = () => new Date() } = deps;
+  const app = new Hono<AppEnv>();
 
+  app.use("/api/*", resolveActor(deps));
   app.get("/api/health", (c) => c.json({ ok: true }));
+  registerAuthRoutes(app, deps);
+  registerUnitRoutes(app, deps);
+  registerLinkRoutes(app, deps);
+  // An unknown API path answers as an API, not with the visitor's notice page.
+  app.all("/api/*", (c) => c.json({ error: "not-found" }, 404));
 
   // Opening a Link. Everything else in the system exists to make this one route worth trusting.
   app.get("/:code", async (c) => {
@@ -56,4 +57,4 @@ const createApp = ({ store, defer, now = () => new Date() }: AppDeps) => {
   return app;
 };
 
-export { type AppDeps, createApp };
+export { createApp };

@@ -89,13 +89,47 @@ The admin UI is Vietnamese only.
   `pnpm db:migrate:remote` to the trial database
 - `pnpm test` / `pnpm check-types` / `pnpm lint:check`
 
+## What answers today
+
+Everything under `/api` speaks JSON. A person is recognised by the session cookie, an application
+by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts.
+
+| Route | Who | Does |
+| --- | --- | --- |
+| `GET /:code` | anyone | opens a Link, or shows a notice page |
+| `POST /api/bootstrap` | holder of `BOOTSTRAP_TOKEN` | creates the first Quản trị hệ thống, once |
+| `POST /api/auth/setup` | holder of a one-time link | sets a password |
+| `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | a person | the session |
+| `POST /api/units/:unitId/members` | Quản lý đơn vị | adds a Thành viên, returns their one-time link |
+| `POST /api/units/:unitId/members/password-setup` | Quản lý đơn vị | a fresh one-time link |
+| `POST /api/units/:unitId/keys`, `DELETE /api/units/:unitId/keys/:keyId` | Quản lý đơn vị | issues and revokes a Khóa API |
+| `POST /api/links`, `GET /api/links` | a Thành viên, or a Khóa API | creates a Link, lists a Đơn vị's Links |
+
+Not built yet: the UI under `/app` (so a one-time link currently points at a page that does not
+exist - post its token to `/api/auth/setup`), changing a Đích, switching a Link off and on, reading
+Lượt mở, QR and logos, exports, and the per-key rate limit.
+
+**Starting a fresh deployment.** Set the secret, create the administrator, then remove the secret:
+
+1. `wrangler secret put BOOTSTRAP_TOKEN`
+2. `POST /api/bootstrap` with `Authorization: Bearer <that secret>` and `{"email": "...@ou.edu.vn"}`.
+   The answer carries the one-time link. It works only while no Quản trị hệ thống exists.
+3. `wrangler secret delete BOOTSTRAP_TOKEN`
+
+**Passwords cost CPU.** Hashing one takes more than the 10 ms a request gets on the Workers Free
+plan, so signing in and setting a password need Workers Paid. Opening a Link does not.
+
 ## Layout
 
 - `src/domain/` - the rules, pure and tested: what a Mã link may be, what a Đích may be, what
   counts as a Lượt mở. No I/O.
-- `src/worker/app.tsx` - the request handling, written against the `Store` in `store.ts` and
-  nothing Cloudflare-specific. `store-d1.ts` and `index.ts` are the only files that know about
-  Workers; that seam is ADR-0001.
+- `src/worker/app.tsx` and `src/worker/routes/` - the request handling, written against the
+  `Store` in `store.ts` and nothing Cloudflare-specific. `store-d1.ts` and `index.ts` are the only
+  files that know about Workers; that seam is ADR-0001.
+- `src/worker/actor.ts` - works out who is asking. It refuses nothing but a cross-site write; each
+  route decides what it needs.
+- `src/worker/test-harness.ts` - runs the app against a real local D1 with the real migrations, so
+  the tests exercise the SQL the Worker runs.
 - `src/db/schema.ts` - the whole model of the first version.
 
 ## Conventions

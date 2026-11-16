@@ -14,9 +14,12 @@ const createdAt = () => integer("created_at", { mode: "timestamp_ms" }).notNull(
 const accounts = sqliteTable("accounts", {
   createdAt: createdAt(),
   email: text("email").notNull().unique(),
+  /** Consecutive wrong passwords since the last right one. Five lock the account for a while. */
+  failedLogins: integer("failed_logins").notNull().default(0),
   id: integer("id").primaryKey({ autoIncrement: true }),
   /** Quản trị hệ thống. A flag on the account, not a membership: it belongs to no Đơn vị. */
   isSystemAdmin: integer("is_system_admin", { mode: "boolean" }).notNull().default(false),
+  lockedUntil: integer("locked_until", { mode: "timestamp_ms" }),
   /** Null until the one-time setup link has been used. */
   passwordHash: text("password_hash")
 });
@@ -31,6 +34,20 @@ const passwordSetups = sqliteTable("password_setups", {
   tokenHash: text("token_hash").primaryKey(),
   usedAt: integer("used_at", { mode: "timestamp_ms" })
 });
+
+/** A signed-in browser. Kept in the database rather than in a signed cookie so it can be ended. */
+const sessions = sqliteTable(
+  "sessions",
+  {
+    accountId: integer("account_id")
+      .notNull()
+      .references(() => accounts.id),
+    createdAt: createdAt(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    tokenHash: text("token_hash").primaryKey()
+  },
+  (table) => [index("sessions_account_idx").on(table.accountId)]
+);
 
 /** Đơn vị. */
 const units = sqliteTable("units", {
@@ -138,4 +155,15 @@ const dailyVisits = sqliteTable(
   (table) => [primaryKey({ columns: [table.linkId, table.day] })]
 );
 
-export { accounts, apiKeys, dailyVisits, links, memberships, passwordSetups, reservedCodes, targetChanges, units };
+export {
+  accounts,
+  apiKeys,
+  dailyVisits,
+  links,
+  memberships,
+  passwordSetups,
+  reservedCodes,
+  sessions,
+  targetChanges,
+  units
+};

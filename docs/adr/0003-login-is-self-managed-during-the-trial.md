@@ -15,3 +15,6 @@ to their Đơn vị again.
 - There is no self sign-up and the system sends no mail. Someone already inside adds an email and
   passes on a one-time link for setting the password; a forgotten password goes the same way.
 - Failed sign-ins are rate-limited per Account. There is no second factor during the trial.
+- Passwords are hashed with PBKDF2 through Web Crypto, the one password hash Workers and Node both
+  provide natively, at the 100.000 iterations the Workers runtime allows. That is more CPU than a
+  request gets on the Workers Free plan, so signing in needs Workers Paid.
