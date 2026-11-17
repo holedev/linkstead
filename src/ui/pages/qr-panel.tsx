@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { ErrorText } from "@/components/app";
+import { ErrorText, TrialPrintWarning } from "@/components/app";
 import {
   DEFAULT_QR_STYLE,
   MAX_LOGO_SCALE,
@@ -179,10 +179,7 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
 
   return (
     <div className='space-y-4'>
-      <p className='rounded-md bg-amber-100 px-3 py-2 text-amber-900 text-sm'>
-        <strong>Chưa in QR này.</strong> Hệ thống đang chạy thử trên tên miền tạm; QR mang tên miền tạm sẽ ngừng hoạt
-        động khi đổi sang tên miền chính thức.
-      </p>
+      <TrialPrintWarning />
       <div className='grid gap-5 lg:grid-cols-[auto_1fr]'>
         {/* The picture stays in view while the settings beside it scroll. */}
         <div className='space-y-3 lg:sticky lg:top-0 lg:self-start'>

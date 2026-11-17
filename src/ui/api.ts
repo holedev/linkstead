@@ -192,6 +192,7 @@ const api = {
   groups: (unitId: number) => call<{ groups: LinkGroup[] }>("GET", `/api/units/${unitId}/groups`),
   history: (code: string) => call<{ history: HistoryEntry[] }>("GET", `/api/links/${code}/history`),
   keys: (unitId: number) => call<{ keys: ApiKey[] }>("GET", `/api/units/${unitId}/keys`),
+  link: (code: string) => call<Link>("GET", `/api/links/${encodeURIComponent(code)}`),
   linkPreview: (code: string) =>
     call<{ own: Preview; fromTarget: Preview | null }>("GET", `/api/links/${code}/preview`),
   linkQr: (code: string, style: QrStyle = DEFAULT_QR_STYLE) =>

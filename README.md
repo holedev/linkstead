@@ -20,8 +20,8 @@ trang đích chuyển chỗ vào năm sau.
   từng dòng, rồi tải QR của mọi link vừa tạo thành một tệp zip.
 - **Đổi đích có kiểm soát.** Đổi đích phải qua bước xác nhận hiện đích cũ và đích mới, và được ghi
   vào lịch sử cùng người đổi.
-- **QR.** QR luôn chứa địa chỉ link, không chứa đích. Logo chọn theo ba cấp: của Trường, của đơn vị,
-  của riêng từng link (hoặc không logo). Ô vuông hoặc chấm tròn bo góc. Tải về dạng SVG hoặc PNG.
+- **QR.** QR luôn chứa địa chỉ link, không chứa đích. Logo chọn theo ba cấp: của Trường (có sẵn
+  logo chính thức, đổi được), của đơn vị, của riêng từng link (hoặc không logo). Ô vuông hoặc chấm tròn bo góc. Tải về dạng SVG hoặc PNG.
 - **Theo đơn vị.** Link thuộc về đơn vị (tạp chí, khoa, phòng), không thuộc về cá nhân, nên vẫn còn
   khi người tạo rời đi. Một tài khoản có thể thuộc nhiều đơn vị.
 - **Lượt mở.** Đếm theo link theo ngày, theo quốc gia và theo trang giới thiệu (chỉ tên miền).

@@ -1,5 +1,5 @@
 import { raw } from "hono/html";
-import { ArrowRightIcon, Brand, Footer, Icon, LinkIcon, UNIVERSITY, VisitorPage } from "./visitor-page";
+import { ArrowRightIcon, Footer, Icon, LinkIcon, TopBand, UNIVERSITY, VisitorPage } from "./visitor-page";
 
 /**
  * What answers at `/`: what OU Link is, for the visitor who trimmed a Link down to its domain and
@@ -198,14 +198,11 @@ const Landing = ({ url }: { url: string }) => {
       indexable
       title={`OU Link - ${UNIVERSITY}`}
     >
-      <header class='wrap'>
-        <div class='top'>
-          <Brand />
-          <a class='btn primary' href='/app'>
-            Đăng nhập
-          </a>
-        </div>
-      </header>
+      <TopBand>
+        <a class='btn primary' href='/app'>
+          Đăng nhập
+        </a>
+      </TopBand>
       <main>
         <div class='wrap hero'>
           <div>

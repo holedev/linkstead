@@ -31,9 +31,7 @@ const LogoPage = () => {
     >
       <p>
         {data.own && "Đơn vị đang dùng logo riêng trên QR của mình."}
-        {!data.own && data.university && "Đơn vị chưa đặt logo riêng nên QR đang dùng logo của Trường."}
-        {!(data.own || data.university) &&
-          "Đơn vị chưa đặt logo riêng và Trường chưa có logo chung nên QR chưa có logo."}
+        {!data.own && "Đơn vị chưa đặt logo riêng nên QR đang dùng logo của Trường."}
       </p>
       <p>
         Logo này áp dụng cho mọi link của đơn vị đang để "Theo đơn vị". Link đã chọn logo riêng hoặc không logo thì giữ

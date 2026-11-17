@@ -1,7 +1,7 @@
 import { raw } from "hono/html";
 import type { Preview } from "../domain/preview";
 import { shownAddress } from "./notice";
-import { ArrowRightIcon, Brand, Footer, Icon, VisitorPage } from "./visitor-page";
+import { ArrowRightIcon, Footer, Icon, TopBand, VisitorPage } from "./visitor-page";
 
 /**
  * What a visitor meets at a Link with a password (ADR-0006): the address they opened and one field.
@@ -84,11 +84,7 @@ const PasswordPage = ({ url, state, preview }: { url: string; state: PasswordSta
     }
     title={`${preview.title} - OU Link`}
   >
-    <header class='wrap'>
-      <div class='top'>
-        <Brand />
-      </div>
-    </header>
+    <TopBand />
     <main class='wrap'>
       <section class='card gate'>
         <div class='badge'>

@@ -1,5 +1,5 @@
 import { raw } from "hono/html";
-import { ArrowRightIcon, Brand, Footer, Icon, VisitorPage } from "./visitor-page";
+import { ArrowRightIcon, Footer, Icon, TopBand, VisitorPage } from "./visitor-page";
 
 /**
  * The pages a visitor can meet instead of a redirect. Vietnamese and English on the same
@@ -164,11 +164,7 @@ const Notice = ({ kind, url, target }: { kind: NoticeKind; url: string; target?:
       head={<style>{raw(STYLE)}</style>}
       title={`${text.title} - OU Link`}
     >
-      <header class='wrap'>
-        <div class='top'>
-          <Brand />
-        </div>
-      </header>
+      <TopBand />
       <main class='wrap'>
         <section class='card notice'>
           <div class={kind === "unsafe" ? "badge danger" : "badge"}>{ICONS[kind]()}</div>

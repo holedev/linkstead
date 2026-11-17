@@ -260,6 +260,18 @@ const registerLinkRoutes = (
   });
 
   /**
+   * One Link, for its page in the UI. A person only: the Khóa API lists a Đơn vị's Links and that
+   * is all it reads (AGENTS.md), so this adds nothing a leaked key could use.
+   */
+  app.get("/api/links/:code", async (c) => {
+    const reach = await reachLink(c, store, { peopleOnly: true });
+    if (reach instanceof Response) {
+      return reach;
+    }
+    return c.json(present(reach.link, new URL(c.req.url).origin));
+  });
+
+  /**
    * Changes a Link's Đích and records who did. `expectedTarget` is the Đích the caller was shown
    * when confirming; if it has changed since, nothing is written and the answer says what it is now.
    * `resetPreview: true` also drops the share preview set by hand, which described the old Đích.

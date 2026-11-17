@@ -572,7 +572,10 @@ const HandOutCard = ({ units, onCreated }: { units: UnitOverview[]; onCreated: (
   );
 };
 
-/** The university's logo: what every QR shows unless its Đơn vị or the Link itself chose otherwise. */
+/**
+ * The university's logo on QR: what every QR shows unless its Đơn vị or the Link itself chose
+ * otherwise. Until one is uploaded, the one built into the Worker (`worker/default-logo.ts`).
+ */
 const UniversityLogoCard = () => {
   const { data, reload } = useLoaded(0, () => api.adminLogo());
   return (
@@ -587,14 +590,18 @@ const UniversityLogoCard = () => {
         await api.adminUploadLogo(file);
         reload();
       }}
-      removeLabel='Bỏ logo của Trường'
+      removeLabel='Về logo mặc định'
       stamp={String(data?.set)}
-      title='Logo của Trường trên QR'
+      title='Logo QR của Trường'
     >
       <p>
         {data?.set
-          ? "Mọi QR dùng logo này, trừ khi đơn vị đặt logo riêng hoặc link chọn logo riêng hay không logo."
-          : "Chưa có logo chung. QR của đơn vị chưa đặt logo riêng sẽ không có logo."}
+          ? "QR đang dùng logo đã tải lên ở đây. Bỏ nó thì QR quay về logo mặc định của Trường."
+          : "QR đang dùng logo mặc định của Trường, có sẵn trong hệ thống. Tải lên logo khác để thay."}
+      </p>
+      <p>
+        Áp dụng cho mọi QR, trừ khi đơn vị đặt logo riêng hoặc link chọn logo riêng hay không logo. Logo này chỉ đặt
+        giữa QR, không đổi logo trên giao diện.
       </p>
     </LogoCard>
   );
@@ -659,7 +666,7 @@ const AdminUnitPage = () => {
       {unit && (
         <>
           <div>
-            <h1 className='break-words font-semibold text-xl tracking-tight'>{unit.name}</h1>
+            <h1 className='break-words font-bold text-2xl tracking-tight'>{unit.name}</h1>
             <p className='text-muted-foreground text-sm'>
               {unit.linkCount} link - Quản lý: <span className='break-all'>{unit.managers.join(", ")}</span>
             </p>

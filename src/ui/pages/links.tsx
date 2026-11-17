@@ -11,7 +11,17 @@ import {
 } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import { Button, Card, CONTROL, ConfirmDialog, ErrorText, Field, Modal, SecretBox } from "@/components/app";
+import {
+  Button,
+  Card,
+  CONTROL,
+  ConfirmDialog,
+  ErrorText,
+  Field,
+  Modal,
+  SecretBox,
+  TrialPrintWarning
+} from "@/components/app";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { Table, TableBody } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { api, type Link, type LinkGroup } from "../api";
 import { useLinkDrop } from "../lib/drag";
@@ -38,7 +49,7 @@ import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
 import { BulkCreateDialog, ZipButtons } from "./bulk-create";
 import { FolderGrid, GroupNameForm } from "./groups";
-import { LinkRow } from "./link-row";
+import { LinkRow, LinkTableHeader } from "./link-row";
 
 const EMPTY = { code: "", name: "", note: "", target: "" };
 
@@ -338,12 +349,12 @@ const LinksHeading = ({
 }) => {
   const { dropProps, over } = useLinkDrop(onDropToTop);
   return (
-    <div className='min-w-0 flex-1'>
+    <div className='min-w-0 flex-1 basis-60'>
       {openGroup ? (
         <nav aria-label='Vị trí trong link' className='flex min-w-0 items-center gap-1.5'>
           <button
             className={cn(
-              "rounded-md px-1 font-semibold text-muted-foreground text-xl tracking-tight transition hover:text-foreground",
+              "rounded-md px-1 font-bold text-2xl text-muted-foreground tracking-tight transition hover:text-foreground",
               over && "bg-primary/10 text-primary ring-2 ring-primary/30"
             )}
             onClick={onTop}
@@ -354,13 +365,13 @@ const LinksHeading = ({
             Link
           </button>
           <ChevronRightIcon aria-hidden='true' className='size-5 shrink-0 text-muted-foreground' />
-          <h1 className='flex min-w-0 items-center gap-2 font-semibold text-xl tracking-tight'>
+          <h1 className='flex min-w-0 items-center gap-2 font-bold text-2xl tracking-tight'>
             <FolderOpenIcon aria-hidden='true' className='size-5 shrink-0 text-primary' />
             <span className='truncate'>{openGroup.name}</span>
           </h1>
         </nav>
       ) : (
-        <h1 className='font-semibold text-xl tracking-tight'>Link</h1>
+        <h1 className='font-bold text-2xl tracking-tight'>Link</h1>
       )}
       <p className='text-muted-foreground text-sm'>{over ? "Thả để đưa link ra khỏi nhóm" : summary}</p>
     </div>
@@ -464,7 +475,6 @@ const LinkList = ({
   groups,
   openGroup,
   onChanged,
-  onDeleted,
   onClear,
   onCreate
 }: {
@@ -473,7 +483,6 @@ const LinkList = ({
   groups: LinkGroup[];
   openGroup: LinkGroup | null;
   onChanged: (link: Link) => void;
-  onDeleted: (code: string) => void;
   onClear: () => void;
   onCreate: () => void;
 }) => {
@@ -496,18 +505,14 @@ const LinkList = ({
       )}
       {shown.length > 0 && (
         <Card flush>
-          <ul className='divide-y divide-border'>
-            {shown.map((link) => (
-              <LinkRow
-                groups={groups}
-                key={link.code}
-                link={link}
-                onChanged={onChanged}
-                onDeleted={onDeleted}
-                showGroup={!openGroup}
-              />
-            ))}
-          </ul>
+          <Table>
+            <LinkTableHeader />
+            <TableBody>
+              {shown.map((link) => (
+                <LinkRow groups={groups} key={link.code} link={link} onChanged={onChanged} showGroup={!openGroup} />
+              ))}
+            </TableBody>
+          </Table>
         </Card>
       )}
       {shown.length === 0 && filtering && (
@@ -629,11 +634,6 @@ const LinksPage = () => {
     groupsLoaded.reload();
   };
 
-  const dropLink = (code: string) => {
-    setData((links) => (links ?? []).filter((other) => other.code !== code));
-    groupsLoaded.reload();
-  };
-
   /** Puts a dropped Link into a Nhóm, or into none, and says so with a way back. */
   const moveLink = async (code: string, to: LinkGroup | null, remember = true) => {
     const link = data?.find((candidate) => candidate.code === code);
@@ -660,7 +660,7 @@ const LinksPage = () => {
 
   return (
     <>
-      <div className='flex flex-wrap items-center gap-2'>
+      <div className='flex flex-wrap items-end gap-2'>
         <LinksHeading
           onDropToTop={(code) => moveLink(code, null)}
           onTop={() => goTo(null)}
@@ -725,7 +725,6 @@ const LinksPage = () => {
             onChanged={replaceLink}
             onClear={() => setFilter({ ...DEFAULT_FILTER, group: filter.group, sort: filter.sort })}
             onCreate={() => setCreating(true)}
-            onDeleted={dropLink}
             openGroup={openGroup}
             shown={shown}
           />
@@ -766,7 +765,12 @@ const LinksPage = () => {
         open={zipping}
         title={`Tải QR của ${shown.length} link đang hiện`}
       >
-        {zipping && <ZipButtons codes={shown.map((link) => link.code)} />}
+        {zipping && (
+          <div className='space-y-4'>
+            <TrialPrintWarning />
+            <ZipButtons codes={shown.map((link) => link.code)} />
+          </div>
+        )}
       </Modal>
 
       <GroupDialogs

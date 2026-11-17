@@ -1,4 +1,12 @@
-import { CheckIcon, CircleAlertIcon, CopyIcon, DownloadIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import {
+  CheckIcon,
+  CircleAlertIcon,
+  CopyIcon,
+  DownloadIcon,
+  EyeIcon,
+  EyeOffIcon,
+  TriangleAlertIcon
+} from "lucide-react";
 import { type ComponentProps, type ReactNode, useEffect, useId, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -14,6 +22,7 @@ import { buttonVariants, Button as UiButton } from "@/components/ui/button";
 import { Card as UiCard } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 /**
@@ -273,6 +282,100 @@ const ConfirmDialog = ({
   </AlertDialog>
 );
 
+/** What the trial means for anything printed, said once here for the badge and the warnings. */
+const TRIAL_TITLE = "Bản thử nghiệm trên tên miền tạm";
+const TRIAL_TEXT =
+  "Chưa in QR hay tài liệu nào từ các link này - chúng sẽ ngừng hoạt động khi đổi sang tên miền chính thức.";
+
+/** In the header of every screen: a small amber "Thử nghiệm" that opens the whole sentence. */
+const TrialBadge = () => (
+  <Popover>
+    <PopoverTrigger asChild>
+      <button
+        className='flex shrink-0 items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 font-semibold text-amber-900 text-xs outline-none hover:bg-amber-100 focus-visible:ring-[3px] focus-visible:ring-ring/50'
+        type='button'
+      >
+        <span aria-hidden='true' className='size-1.5 rounded-full bg-amber-500' />
+        Thử nghiệm
+      </button>
+    </PopoverTrigger>
+    <PopoverContent align='end' className='w-80 text-sm'>
+      <p className='font-semibold'>{TRIAL_TITLE}</p>
+      <p className='mt-1 text-muted-foreground'>{TRIAL_TEXT}</p>
+    </PopoverContent>
+  </Popover>
+);
+
+/** Beside every way to download a QR: the moment someone is about to print one. */
+const TrialPrintWarning = () => (
+  <div
+    className='flex gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-amber-950 text-sm'
+    role='note'
+  >
+    <TriangleAlertIcon aria-hidden='true' className='mt-0.5 size-4 shrink-0 text-amber-600' />
+    <p>
+      <strong>Chưa in QR này.</strong> {TRIAL_TEXT}
+    </p>
+  </div>
+);
+
+/** The top of a screen: its title, a line under it, and the screen's own buttons on the right. */
+const PageHeader = ({
+  title,
+  description,
+  actions
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+}) => (
+  <div className='flex flex-wrap items-end gap-3'>
+    <div className='min-w-0 flex-1 basis-60'>
+      <h1 className='text-balance font-bold text-2xl tracking-tight'>{title}</h1>
+      {description && <p className='text-muted-foreground text-sm'>{description}</p>}
+    </div>
+    {actions && <div className='flex flex-wrap gap-2'>{actions}</div>}
+  </div>
+);
+
+/** The university's logo in white, for the brand blue. Served from `public/brand`. */
+const LOGO_WHITE = `${import.meta.env.BASE_URL}brand/logo-ou-white.avif`;
+
+/**
+ * Signing in and setting a password: the university's blue with its logo beside the form, above
+ * it on a phone. The only screens a person sees before being inside, so they say whose system it is.
+ */
+const SignInFrame = ({ title, children }: { title: string; children: ReactNode }) => (
+  <div className='grid min-h-dvh md:grid-cols-2'>
+    <aside className='relative flex flex-col justify-between gap-6 overflow-hidden bg-brand px-5 py-5 text-white md:p-10'>
+      <img
+        alt='Trường Đại học Mở Thành phố Hồ Chí Minh'
+        className='h-9 w-auto max-w-full self-start md:h-13'
+        height={69}
+        src={LOGO_WHITE}
+        width={384}
+      />
+      <div className='hidden max-w-md md:block'>
+        <p className='text-balance font-bold text-3xl leading-tight tracking-tight'>Link và QR cố định của Trường</p>
+        <p className='mt-3 text-white/80'>
+          In một lần, đổi nơi đến bất cứ lúc nào. Mỗi link thuộc về đơn vị, không thuộc về một người.
+        </p>
+      </div>
+      <p className='hidden text-white/60 text-xs md:block'>OU Link · Trường Đại học Mở Thành phố Hồ Chí Minh</p>
+      <span
+        aria-hidden='true'
+        className='pointer-events-none absolute -right-28 -bottom-32 hidden size-104 rounded-full border-56 border-white/5 md:block'
+      />
+    </aside>
+    <main className='flex flex-col justify-center px-4 py-8 md:px-10'>
+      <div className='mx-auto w-full max-w-sm space-y-4'>
+        <h1 className='font-bold text-2xl tracking-tight'>{title}</h1>
+        {children}
+      </div>
+    </main>
+  </div>
+);
+
 const formatDateTime = (iso: string): string =>
   new Date(iso).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" });
 
@@ -291,8 +394,13 @@ export {
   Field,
   formatDate,
   formatDateTime,
+  LOGO_WHITE,
   Modal,
   Notice,
+  PageHeader,
   PasswordInput,
-  SecretBox
+  SecretBox,
+  SignInFrame,
+  TrialBadge,
+  TrialPrintWarning
 };

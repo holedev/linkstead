@@ -14,6 +14,7 @@ import {
 } from "./pages/admin";
 import { ApiDocsPage } from "./pages/api-docs";
 import { KeysPage } from "./pages/keys";
+import { LinkDetailPage } from "./pages/link-detail";
 import { LinksPage } from "./pages/links";
 import { LoginPage } from "./pages/login";
 import { LogoPage } from "./pages/logo";
@@ -45,6 +46,7 @@ if (root) {
             <Route element={<ApiDocsPage />} path='/api-docs' />
             <Route element={<SignedIn />}>
               <Route element={<LinksPage />} index />
+              <Route element={<LinkDetailPage />} path='/links/:code' />
               <Route element={<StatsPage />} path='/stats' />
               <Route element={<MembersPage />} path='/members' />
               <Route element={<KeysPage />} path='/keys' />

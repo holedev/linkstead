@@ -39,7 +39,8 @@ These were decided before the first line of code. Each is a rule, not a default.
 - A QR always carries the Link, never the Đích.
 - The logo is chosen at three levels, the lower winning: the university's logo for the whole
   system, a Đơn vị's own default, and a per-Link choice which may also be "none". The per-Link
-  choice is stored so a later download gives the same picture.
+  choice is stored so a later download gives the same picture. Until a Quản trị hệ thống uploads
+  the university's logo, the one built into the Worker stands in (`worker/default-logo.ts`).
 - The system decides the logo's box (centred, white backing, at most about a fifth of the width)
   and raises error correction to the highest level whenever a logo is present. Nobody can tune
   these. Inside that box a Link may shrink its logo, from 40% to 100% of the box, stored with the
@@ -121,6 +122,7 @@ by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts
 | `POST /api/links`, `GET /api/links` | a Thành viên, or a Khóa API | creates a Link, lists a Đơn vị's Links |
 | `PUT /api/links/:code/target` | a Thành viên, or a Khóa API | changes the Đích, logged |
 | `POST /api/links/:code/disable`, `.../enable` | a Thành viên, a Khóa API, or a Quản trị hệ thống | switches a Link off and on, logged |
+| `GET /api/links/:code` | a Thành viên | one Link, for its page in the UI; never a Khóa API |
 | `GET /api/links/:code/visits`, `GET /api/links/:code/qr` | a Thành viên, or a Khóa API | Lượt mở per day, country and referring site; the QR as SVG, `?style=` one of the fixed looks in `domain/qr-style.ts` |
 | `GET /api/links/:code/history` | a Thành viên | every change of Đích, state and Đơn vị |
 | `POST /api/links/:code/archive`, `.../unarchive` | a Thành viên | puts a Link away from the list, or back; it keeps opening |
@@ -170,9 +172,14 @@ The API's `passwordKey` is that value, never the password.
   under `/app`. Vietnamese only. Built on shadcn/ui: `components/ui/` and `hooks/` are shadcn's own
   files, unlinted and left as shipped (`components.json` lets `shadcn add` bring in more);
   `components/app.tsx` is our layer on top, `components/app-sidebar.tsx` the sidebar with the
-  Đơn vị switcher. `@/` is `src/ui/`. `api.ts` is the one place it talks to the server, and
+  Đơn vị switcher. A Link has its own page (`pages/link-detail.tsx`); the list and that page share
+  `pages/link-forms.tsx`. `@/` is `src/ui/`. `api.ts` is the one place it talks to the server, and
   `messages.ts` the one place a server reason becomes a sentence. It has its own `tsconfig.json`
   because it is browser code and the Worker is not.
+- `src/ui/public/brand/` - the university's look, served at `/app/brand/` to the UI and the
+  visitor pages alike: its logo in white (on the brand blue, `#114FA0`, the blue of the logo), its
+  logo in colour (the favicon), and Be Vietnam Pro, self-hosted so no page calls another site.
+  This logo is not the one on QR, which is uploaded under "Logo QR của Trường".
 - `src/db/schema.ts` - the whole model of the first version.
 
 ## Conventions

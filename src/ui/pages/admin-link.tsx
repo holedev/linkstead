@@ -2,7 +2,7 @@ import { type FormEvent, useState } from "react";
 import { Badge, Button, Card, ConfirmDialog, ErrorText, Field, formatDate } from "@/components/app";
 import { api, type FoundLink, type UnitOverview } from "../api";
 import { messageOf } from "../messages";
-import { HistoryList } from "./link-row";
+import { HistoryList } from "./link-forms";
 
 const number = new Intl.NumberFormat("vi-VN");
 const TRAILING_SLASHES = /\/+$/;

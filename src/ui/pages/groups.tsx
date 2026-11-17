@@ -35,17 +35,17 @@ const FolderTile = ({
     <li className='group/folder relative' {...dropProps}>
       <button
         className={cn(
-          "flex w-full items-center gap-3 rounded-xl border bg-card p-3 pr-12 text-left outline-none transition hover:border-ring hover:bg-accent/40 focus-visible:ring-[3px] focus-visible:ring-ring/50",
+          "flex w-full items-center gap-2.5 rounded-lg border bg-card p-2 pr-10 text-left outline-none transition hover:border-ring hover:bg-accent/40 focus-visible:ring-[3px] focus-visible:ring-ring/50",
           over && "border-primary bg-primary/10 ring-2 ring-primary/30"
         )}
         onClick={onOpen}
         type='button'
       >
-        <span className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary'>
-          <FolderIcon className='size-5' />
+        <span className='flex size-8 shrink-0 items-center justify-center rounded-md bg-brand-soft text-primary'>
+          <FolderIcon className='size-4' />
         </span>
         <span className='min-w-0'>
-          <span className='block truncate font-medium'>{group.name}</span>
+          <span className='block truncate font-semibold text-sm'>{group.name}</span>
           <span className='block text-muted-foreground text-xs'>
             {over ? "Thả để chuyển vào nhóm" : `${group.linkCount} link`}
           </span>
@@ -55,7 +55,7 @@ const FolderTile = ({
         <DropdownMenuTrigger asChild>
           <UiButton
             aria-label={`Thao tác với nhóm ${group.name}`}
-            className='absolute top-1/2 right-2 size-8 -translate-y-1/2'
+            className='absolute top-1/2 right-1 size-8 -translate-y-1/2'
             size='icon'
             variant='ghost'
           >
@@ -92,7 +92,7 @@ const FolderGrid = ({
   /** A Link dropped on a folder: its Mã link, and the Nhóm it goes into. */
   onDropLink: (code: string, group: LinkGroup) => void;
 }) => (
-  <ul aria-label='Nhóm' className='grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3'>
+  <ul aria-label='Nhóm' className='grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4'>
     {groups.map((group) => (
       <FolderTile
         group={group}

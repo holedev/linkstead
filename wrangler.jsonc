@@ -10,9 +10,10 @@
     // The built UI: `dist/client/app/**`, so its files are served under `/app`.
     "directory": "./dist/client",
     "binding": "ASSETS",
-    // The Worker answers everything except the UI's hashed files. Left to the default, a Link's
-    // address would be looked up among the files before the Worker ever saw it.
-    "run_worker_first": ["/*", "!/app/assets/*"]
+    // The Worker answers everything except the UI's hashed files and the university's logo and
+    // fonts. Left to the default, a Link's address would be looked up among the files before the
+    // Worker ever saw it.
+    "run_worker_first": ["/*", "!/app/assets/*", "!/app/brand/*"]
   },
   // Logo files for QR. Create it once with `wrangler r2 bucket create ou-link-logos`.
   "r2_buckets": [{ "binding": "LOGOS", "bucket_name": "ou-link-logos" }],

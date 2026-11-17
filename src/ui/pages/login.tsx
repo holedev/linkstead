@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { Navigate } from "react-router";
-import { Button, Card, ErrorText, Field, PasswordInput } from "@/components/app";
+import { Button, Card, ErrorText, Field, PasswordInput, SignInFrame } from "@/components/app";
 import { api } from "../api";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
@@ -30,11 +30,7 @@ const LoginPage = () => {
   };
 
   return (
-    <main className='mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4 py-10'>
-      <div>
-        <h1 className='font-semibold text-2xl text-primary'>OU Link</h1>
-        <p className='text-muted-foreground text-sm'>Link và mã QR của Trường Đại học Mở Thành phố Hồ Chí Minh</p>
-      </div>
+    <SignInFrame title='Đăng nhập'>
       <Card>
         <form className='space-y-4' onSubmit={submit}>
           <Field label='Email'>
@@ -70,7 +66,7 @@ const LoginPage = () => {
       <p className='text-muted-foreground text-sm'>
         Chưa có tài khoản hoặc quên mật khẩu? Hãy nhờ Quản lý đơn vị của bạn cấp đường dẫn đặt mật khẩu.
       </p>
-    </main>
+    </SignInFrame>
   );
 };
 

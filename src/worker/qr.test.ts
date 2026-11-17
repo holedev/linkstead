@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { checkLogo, logoTypeOf } from "../domain/logo";
+import { DEFAULT_LOGO } from "./default-logo";
 import { BOOTSTRAP_TOKEN, bearer, startHarness, tokenOf } from "./test-harness";
 
 let h: Awaited<ReturnType<typeof startHarness>>;
@@ -48,7 +50,7 @@ describe("a Link's QR", () => {
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     const picture = await response.text();
     expect(picture.startsWith("<svg ")).toBe(true);
-    expect(picture).not.toContain("<image");
+    expect(picture).toContain(dataOf(DEFAULT_LOGO));
     expect(await (await h.client().get("/api/links/cfp-2027/qr", { headers: bearer(key) })).text()).toBe(picture);
   });
 
@@ -99,9 +101,14 @@ describe("the look of a Link's QR", () => {
 });
 
 describe("the logo on a QR", () => {
+  it("is the university's built-in logo until one is uploaded, and a PNG the upload rules accept", () => {
+    expect(checkLogo(DEFAULT_LOGO)).toBeNull();
+    expect(logoTypeOf(DEFAULT_LOGO)).toBe("image/png");
+  });
+
   it("is chosen at three levels, the lower winning", async () => {
     const admin = await withLink();
-    expect(await qrOf(admin)).not.toContain("<image");
+    expect(await qrOf(admin)).toContain(dataOf(DEFAULT_LOGO));
 
     expect((await admin.upload("/api/admin/qr-logo", UNIVERSITY)).status).toBe(204);
     expect(await qrOf(admin)).toContain(dataOf(UNIVERSITY));
@@ -125,7 +132,7 @@ describe("the logo on a QR", () => {
     expect(await qrOf(admin)).toContain(dataOf(UNIVERSITY));
 
     expect((await admin.delete("/api/admin/qr-logo")).status).toBe(204);
-    expect(await qrOf(admin)).not.toContain("<image");
+    expect(await qrOf(admin)).toContain(dataOf(DEFAULT_LOGO));
   });
 
   it("keeps the size a Link's logo takes in its box, for every later download", async () => {
@@ -189,7 +196,7 @@ describe("the logo on a QR", () => {
       expect(await attempt(path, new Uint8Array())).toEqual({ error: "bad-logo", problem: "empty" });
     }
     expect(h.logoFiles.size).toBe(0);
-    expect(await qrOf(admin)).not.toContain("<image");
+    expect(await qrOf(admin)).toContain(dataOf(DEFAULT_LOGO));
     expect((await admin.put("/api/links/cfp-2027/qr-logo", { choice: "custom" })).status).toBe(422);
   });
 

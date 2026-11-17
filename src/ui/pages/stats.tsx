@@ -186,7 +186,7 @@ const StatsPage = () => {
     <>
       <div className='flex flex-wrap items-end justify-between gap-3'>
         <div>
-          <h1 className='font-semibold text-xl tracking-tight'>Lượt mở</h1>
+          <h1 className='font-bold text-2xl tracking-tight'>Lượt mở</h1>
           <p className='text-muted-foreground text-sm'>
             Mọi link của {unit?.unitName}. Con số ước tính: lượt xem trước của Zalo, Facebook được bỏ qua khi nhận ra.
           </p>

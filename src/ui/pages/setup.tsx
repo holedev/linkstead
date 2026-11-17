@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Button, Card, ErrorText, Field, PasswordInput } from "@/components/app";
+import { Button, Card, ErrorText, Field, PasswordInput, SignInFrame } from "@/components/app";
 import { checkNewPassword } from "../../domain/password";
 import { api } from "../api";
 import { messageOf } from "../messages";
@@ -53,8 +53,7 @@ const SetupPage = () => {
   };
 
   return (
-    <main className='mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4 py-10'>
-      <h1 className='font-semibold text-2xl text-primary'>Đặt mật khẩu</h1>
+    <SignInFrame title='Đặt mật khẩu'>
       <Card>
         {done ? (
           <div className='space-y-4'>
@@ -102,7 +101,7 @@ const SetupPage = () => {
           </form>
         )}
       </Card>
-    </main>
+    </SignInFrame>
   );
 };
 

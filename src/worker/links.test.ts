@@ -108,6 +108,34 @@ describe("creating a Link", () => {
   });
 });
 
+describe("reading one Link", () => {
+  it("answers a member of its Đơn vị, whatever the case of the code", async () => {
+    const admin = await h.signedInAdmin();
+    await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: TARGET, unitId: 1 });
+
+    const read = await admin.get("/api/links/CFP-2027");
+    expect(read.status).toBe(200);
+    expect(await read.json()).toMatchObject({ code: "cfp-2027", name: "Poster", target: TARGET, unitId: 1 });
+    expect((await admin.get("/api/links/khong-co")).status).toBe(404);
+  });
+
+  it("is refused to a stranger, a member of another Đơn vị and every Khóa API", async () => {
+    const admin = await h.signedInAdmin();
+    await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: TARGET, unitId: 1 });
+    const added = await admin.post("/api/units/2/members", { email: "nxb@ou.edu.vn" });
+    const publisher = h.client();
+    const { setupUrl } = (await added.json()) as { setupUrl: string };
+    await publisher.setup(tokenOf(setupUrl), "nxb@ou.edu.vn", "mat-khau-du-dai");
+    await publisher.login("nxb@ou.edu.vn", "mat-khau-du-dai");
+    const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
+
+    expect((await h.client().get("/api/links/cfp-2027")).status).toBe(401);
+    expect((await publisher.get("/api/links/cfp-2027")).status).toBe(403);
+    // The API reads a Đơn vị's Links as a list and nothing else (AGENTS.md).
+    expect((await h.client().get("/api/links/cfp-2027", { headers: bearer(key) })).status).toBe(403);
+  });
+});
+
 describe("a Khóa API and Links", () => {
   it("creates in its own Đơn vị whatever the request names, and lists only that Đơn vị", async () => {
     const admin = await h.signedInAdmin();

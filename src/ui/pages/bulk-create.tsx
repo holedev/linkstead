@@ -1,6 +1,6 @@
 import { CheckCircle2Icon, DownloadIcon, FileUpIcon, XCircleIcon } from "lucide-react";
 import { type ChangeEvent, useState } from "react";
-import { Button, ErrorText, Modal } from "@/components/app";
+import { Button, ErrorText, Modal, TrialPrintWarning } from "@/components/app";
 import { parseCsv, toCsv } from "../../domain/csv";
 import { api, type Link, type LinkGroup } from "../api";
 import { MAX_ROWS, type PlannedRow, planRows, TEMPLATE_HEADER, TEMPLATE_ROW } from "../lib/bulk";
@@ -278,7 +278,12 @@ const BulkCreateDialog = ({
               row: outcome.row
             }))}
           />
-          {created.length > 0 && <ZipButtons codes={created.map((outcome) => outcome.link?.code ?? "")} />}
+          {created.length > 0 && (
+            <>
+              <TrialPrintWarning />
+              <ZipButtons codes={created.map((outcome) => outcome.link?.code ?? "")} />
+            </>
+          )}
           <div className='flex justify-end'>
             <Button onClick={close} variant='primary'>
               Xong

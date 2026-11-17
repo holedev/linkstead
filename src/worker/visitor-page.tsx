@@ -7,26 +7,57 @@ import type { Child } from "hono/jsx";
  * response and must show even when nothing else on the site loads.
  */
 
+/** Where the UI's build puts the university's files (`src/ui/public/brand`). */
+const BRAND = "/app/brand";
+
+const VIETNAMESE =
+  "U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB";
+const LATIN =
+  "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD";
+
+/**
+ * Be Vietnam Pro from this site, as the admin UI has it: nothing about a visitor goes to another
+ * site to draw the page. `swap`: the text shows at once in the system's font and changes when the
+ * font arrives, so a slow phone still reads the notice straight away.
+ */
+const FONTS = [400, 600, 700]
+  .flatMap((weight) =>
+    (
+      [
+        ["vietnamese", VIETNAMESE],
+        ["latin", LATIN]
+      ] as const
+    ).map(
+      ([subset, range]) =>
+        `@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-display:swap;font-weight:${weight};src:url(${BRAND}/fonts/be-vietnam-pro-${subset}-${weight}.woff2) format("woff2");unicode-range:${range}}`
+    )
+  )
+  .join("\n");
+
 const STYLE = `
-:root{--bg:#f5f7fb;--surface:#fff;--text:#0f1b2d;--muted:#5a6a80;--border:#e1e7ef;--brand:#1f4fa3;--brand-ink:#fff;--brand-soft:#e9f0fb;--warn:#a1520a;--warn-soft:#fdf1dc;--danger:#b42318;--danger-soft:#fde8e6;--code:#eef2f7;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#0b1220;--surface:#111a2b;--text:#e6ecf5;--muted:#9babc0;--border:#223049;--brand:#82abff;--brand-ink:#0b1220;--brand-soft:#16264a;--warn:#f6c063;--warn-soft:#33260c;--danger:#ff8a80;--danger-soft:#3a1614;--code:#0d1626;color-scheme:dark}}
+${FONTS}
+:root{--bg:#f5f7fb;--surface:#fff;--text:#0f1b2d;--muted:#5a6a80;--border:#e1e7ef;--brand:#114fa0;--band:#114fa0;--brand-ink:#fff;--brand-soft:#e7eef8;--warn:#a1520a;--warn-soft:#fdf1dc;--danger:#b42318;--danger-soft:#fde8e6;--code:#eef2f7;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0b1220;--surface:#111a2b;--text:#e6ecf5;--muted:#9babc0;--border:#223049;--brand:#82abff;--band:#0d3b78;--brand-ink:#0b1220;--brand-soft:#16264a;--warn:#f6c063;--warn-soft:#33260c;--danger:#ff8a80;--danger-soft:#3a1614;--code:#0d1626;color-scheme:dark}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--text);font:16px/1.6 "Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:var(--brand)}
 h1,h2,h3,p{margin:0}
 main{flex:1}
 .wrap{width:100%;max-width:68rem;margin:0 auto;padding:0 1rem}
-.top{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 0}
-.brand{display:flex;align-items:center;gap:.65rem;min-width:0;color:inherit;text-decoration:none}
-.mark{flex:none;display:grid;place-items:center;width:2.25rem;height:2.25rem;border-radius:.65rem;background:var(--brand);color:var(--brand-ink)}
-.brand b{display:block;font-size:1rem;line-height:1.2}
-.brand small{display:block;overflow:hidden;color:var(--muted);font-size:.75rem;line-height:1.3;white-space:nowrap;text-overflow:ellipsis}
+.band{background:var(--band);color:#fff;margin-bottom:1.5rem}
+.top{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.85rem 1rem}
+.brand{display:flex;align-items:center;gap:.85rem;min-width:0;color:inherit;text-decoration:none;border-radius:.4rem}
+.brand img{display:block;height:2.25rem;width:auto;max-width:100%}
+.brand b{flex:none;padding-left:.85rem;border-left:1px solid rgb(255 255 255 / .35);font-size:1rem;font-weight:600;line-height:1.2;white-space:nowrap}
+@media (max-width:30rem){.brand img{height:1.85rem}.brand b{display:none}}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;padding:.6rem 1rem;border:1px solid var(--border);border-radius:.65rem;background:var(--surface);color:var(--text);font-weight:600;font-size:.95rem;line-height:1.2;text-decoration:none;white-space:nowrap}
 .btn:hover{border-color:var(--brand)}
 .btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
 .btn.primary:hover{filter:brightness(1.08)}
+.band .btn.primary{background:#fff;border-color:#fff;color:#114fa0}
 .btn:focus-visible,.brand:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 45%,transparent);outline-offset:2px}
+.band .btn:focus-visible,.band .brand:focus-visible{outline-color:rgb(255 255 255 / .7)}
 .actions{display:flex;flex-wrap:wrap;gap:.6rem}
 .muted{color:var(--muted)}
 .en{color:var(--muted);font-size:.95em}
@@ -72,16 +103,20 @@ const ArrowRightIcon = () => (
 /** The university, as every visitor page names it. */
 const UNIVERSITY = "Trường Đại học Mở Thành phố Hồ Chí Minh";
 
-const Brand = () => (
-  <a class='brand' href='/'>
-    <span class='mark'>
-      <LinkIcon />
-    </span>
-    <span style='min-width:0'>
-      <b>OU Link</b>
-      <small>{UNIVERSITY}</small>
-    </span>
-  </a>
+/**
+ * The top of every visitor page: the university's logo, white on its blue, and the system's name.
+ * `children` sits on the right - the way in, on the introduction.
+ */
+const TopBand = ({ children }: { children?: Child }) => (
+  <header class='band'>
+    <div class='wrap top'>
+      <a class='brand' href='/'>
+        <img alt={UNIVERSITY} height='69' src={`${BRAND}/logo-ou-white.avif`} width='384' />
+        <b>OU Link</b>
+      </a>
+      {children}
+    </div>
+  </header>
 );
 
 const Footer = () => (
@@ -115,7 +150,8 @@ const VisitorPage = ({
       <meta content='width=device-width, initial-scale=1' name='viewport' />
       {indexable ? null : <meta content='noindex' name='robots' />}
       <meta content={description} name='description' />
-      <meta content='#1f4fa3' name='theme-color' />
+      <meta content='#114fa0' name='theme-color' />
+      <link href={`${BRAND}/logo-ou.png`} rel='icon' type='image/png' />
       <title>{title}</title>
       <style>{raw(STYLE)}</style>
       {head}
@@ -124,4 +160,4 @@ const VisitorPage = ({
   </html>
 );
 
-export { ArrowRightIcon, Brand, Footer, Icon, LinkIcon, UNIVERSITY, VisitorPage };
+export { ArrowRightIcon, Footer, Icon, LinkIcon, TopBand, UNIVERSITY, VisitorPage };

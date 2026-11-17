@@ -4,6 +4,7 @@ import { renderQrSvg } from "../../domain/qr";
 import { DEFAULT_QR_STYLE, isLogoScale, isQrShape, isQrStyle } from "../../domain/qr-style";
 import { newSecret } from "../../domain/secret";
 import type { AppContext, AppDeps, AppEnv } from "../context";
+import { DEFAULT_LOGO } from "../default-logo";
 import { readJson } from "../http";
 import type { LinkRecord, LogoFiles, Store } from "../store";
 import { systemAdmin } from "./admin";
@@ -18,21 +19,22 @@ const SYSTEM_LOGO_KEY = "system/logo";
  * "none" - then its Đơn vị's default, then the university's.
  */
 const logoOfLink = async (store: Store, logos: LogoFiles | undefined, link: LinkRecord): Promise<Uint8Array | null> => {
-  if (!logos || link.logoChoice === "none") {
+  if (link.logoChoice === "none") {
     return null;
   }
   if (link.logoChoice === "custom") {
-    return link.logoKey ? await logos.get(link.logoKey) : null;
+    return link.logoKey ? ((await logos?.get(link.logoKey)) ?? null) : null;
   }
   return logoOfUnit(store, logos, link.unitId);
 };
 
-const logoOfUnit = async (store: Store, logos: LogoFiles | undefined, unitId: number): Promise<Uint8Array | null> => {
-  if (!logos) {
-    return null;
-  }
+/** The university's: the one a Quản trị hệ thống uploaded, or else the one built in. */
+const universityLogo = async (logos: LogoFiles | undefined): Promise<Uint8Array> =>
+  (await logos?.get(SYSTEM_LOGO_KEY)) ?? DEFAULT_LOGO;
+
+const logoOfUnit = async (store: Store, logos: LogoFiles | undefined, unitId: number): Promise<Uint8Array> => {
   const unit = await store.findUnit(unitId);
-  return (unit?.logoKey ? await logos.get(unit.logoKey) : null) ?? (await logos.get(SYSTEM_LOGO_KEY));
+  return (unit?.logoKey ? await logos?.get(unit.logoKey) : null) ?? (await universityLogo(logos));
 };
 
 /**
@@ -229,7 +231,7 @@ const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
     if (admin instanceof Response) {
       return admin;
     }
-    return svg(c, renderQrSvg(`${origin(c)}/vi-du`, (await logos?.get(SYSTEM_LOGO_KEY)) ?? null), "qr-vi-du.svg");
+    return svg(c, renderQrSvg(`${origin(c)}/vi-du`, await universityLogo(logos)), "qr-vi-du.svg");
   });
 
   app.put("/api/admin/qr-logo", async (c) => {
