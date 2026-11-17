@@ -10,11 +10,11 @@ import { messageOf } from "./messages";
  * from it, and with that lose what the person had just been shown. An answer for a Đơn vị the
  * user has already left is dropped.
  */
-const useLoaded = <T>(unitId: number, load: (unitId: number) => Promise<T>) => {
+const useLoaded = <T, K extends number | string = number>(unitId: K, load: (unitId: K) => Promise<T>) => {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState("");
   const [version, setVersion] = useState(0);
-  const loadedFor = useRef<number | null>(null);
+  const loadedFor = useRef<K | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `load` is the same call on every render; `version` is the reload trigger
   useEffect(() => {

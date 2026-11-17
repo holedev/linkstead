@@ -1,10 +1,12 @@
 import {
   ChevronRightIcon,
   DownloadIcon,
+  FileUpIcon,
   FolderOpenIcon,
   FolderPlusIcon,
   Link2Icon,
   PlusIcon,
+  QrCodeIcon,
   SearchIcon
 } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
@@ -14,6 +16,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -32,6 +36,7 @@ import {
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
+import { BulkCreateDialog, ZipButtons } from "./bulk-create";
 import { FolderGrid, GroupNameForm } from "./groups";
 import { LinkRow } from "./link-row";
 
@@ -167,16 +172,17 @@ const CreateLinkForm = ({
   );
 };
 
-/** The Đơn vị's two CSV downloads, behind one button. */
-const DownloadMenu = ({ unitId }: { unitId: number }) => (
+/** The Đơn vị's CSV downloads, and the QR of the Links on screen, behind one button. */
+const DownloadMenu = ({ unitId, shownCount, onQrZip }: { unitId: number; shownCount: number; onQrZip: () => void }) => (
   <DropdownMenu>
     <DropdownMenuTrigger asChild>
       <Button>
         <DownloadIcon />
-        Tải CSV
+        Tải về
       </Button>
     </DropdownMenuTrigger>
-    <DropdownMenuContent align='end' className='min-w-56'>
+    <DropdownMenuContent align='end' className='min-w-64'>
+      <DropdownMenuLabel className='text-muted-foreground text-xs'>Tệp CSV của cả đơn vị</DropdownMenuLabel>
       <DropdownMenuItem asChild>
         <a download href={`/api/units/${unitId}/links.csv`}>
           Danh sách link
@@ -187,11 +193,60 @@ const DownloadMenu = ({ unitId }: { unitId: number }) => (
           Lượt mở theo ngày
         </a>
       </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <a download href={`/api/units/${unitId}/visit-sources.csv`}>
+          Lượt mở theo quốc gia và nguồn
+        </a>
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem disabled={shownCount === 0} onSelect={onQrZip}>
+        <QrCodeIcon />
+        QR của {shownCount} link đang hiện (.zip)
+      </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
 );
 
 const SELECT = cn(CONTROL, "w-auto md:min-w-36");
+
+/** The buttons beside the title: downloads, a new Nhóm (at the top only), import, a new Link. */
+const HeaderActions = ({
+  unitId,
+  atTop,
+  hasLinks,
+  shownCount,
+  onQrZip,
+  onCreateGroup,
+  onImport,
+  onCreate
+}: {
+  unitId: number;
+  atTop: boolean;
+  hasLinks: boolean;
+  shownCount: number;
+  onQrZip: () => void;
+  onCreateGroup: () => void;
+  onImport: () => void;
+  onCreate: () => void;
+}) => (
+  <>
+    {hasLinks && <DownloadMenu onQrZip={onQrZip} shownCount={shownCount} unitId={unitId} />}
+    {atTop && (
+      <Button onClick={onCreateGroup}>
+        <FolderPlusIcon />
+        Tạo nhóm
+      </Button>
+    )}
+    <Button onClick={onImport}>
+      <FileUpIcon />
+      Nhập CSV
+    </Button>
+    <Button onClick={onCreate} variant='primary'>
+      <PlusIcon />
+      Tạo link
+    </Button>
+  </>
+);
 
 /** Search, state and order for the Links below - kept in the address with where one is. */
 const Toolbar = ({
@@ -229,6 +284,7 @@ const Toolbar = ({
         <option value='all'>Mọi trạng thái</option>
         <option value='on'>Đang bật</option>
         <option value='off'>Đã tắt</option>
+        <option value='archived'>Đã lưu trữ</option>
       </select>
       <select
         aria-label='Sắp xếp'
@@ -408,6 +464,7 @@ const LinkList = ({
   groups,
   openGroup,
   onChanged,
+  onDeleted,
   onClear,
   onCreate
 }: {
@@ -416,6 +473,7 @@ const LinkList = ({
   groups: LinkGroup[];
   openGroup: LinkGroup | null;
   onChanged: (link: Link) => void;
+  onDeleted: (code: string) => void;
   onClear: () => void;
   onCreate: () => void;
 }) => {
@@ -440,7 +498,14 @@ const LinkList = ({
         <Card flush>
           <ul className='divide-y divide-border'>
             {shown.map((link) => (
-              <LinkRow groups={groups} key={link.code} link={link} onChanged={onChanged} showGroup={!openGroup} />
+              <LinkRow
+                groups={groups}
+                key={link.code}
+                link={link}
+                onChanged={onChanged}
+                onDeleted={onDeleted}
+                showGroup={!openGroup}
+              />
             ))}
           </ul>
         </Card>
@@ -526,6 +591,8 @@ const LinksPage = () => {
   const groupsLoaded = useLoaded(unitId, (id) => api.groups(id).then((answer) => answer.groups));
   const groups = groupsLoaded.data ?? [];
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [zipping, setZipping] = useState(false);
   const [groupTask, setGroupTask] = useState<GroupTask | null>(null);
   const [moved, setMoved] = useState<Moved | null>(null);
   const [moveError, setMoveError] = useState("");
@@ -536,7 +603,8 @@ const LinksPage = () => {
   const openGroup = groups.find((group) => group.id === filter.group) ?? null;
   const shown = useMemo(() => (data ? applyFilter(data, filter) : []), [data, filter]);
   const atTop = filter.group === "root";
-  const total = data?.length ?? 0;
+  // The Links in use: archived ones are counted only where they are listed.
+  const total = data?.filter((link) => !link.archived).length ?? 0;
 
   // A Nhóm belongs to one Đơn vị: switching Đơn vị goes back to the top.
   const shownFor = useRef(unitId);
@@ -558,6 +626,11 @@ const LinksPage = () => {
 
   const replaceLink = (changed: Link) => {
     setData((links) => (links ?? []).map((other) => (other.code === changed.code ? changed : other)));
+    groupsLoaded.reload();
+  };
+
+  const dropLink = (code: string) => {
+    setData((links) => (links ?? []).filter((other) => other.code !== code));
     groupsLoaded.reload();
   };
 
@@ -594,23 +667,22 @@ const LinksPage = () => {
           openGroup={openGroup}
           summary={summary}
         />
-        {total > 0 && <DownloadMenu unitId={unitId} />}
-        {atTop && (
-          <Button onClick={() => setGroupTask({ kind: "create" })}>
-            <FolderPlusIcon />
-            Tạo nhóm
-          </Button>
-        )}
-        <Button onClick={() => setCreating(true)} variant='primary'>
-          <PlusIcon />
-          Tạo link
-        </Button>
+        <HeaderActions
+          atTop={atTop}
+          hasLinks={(data?.length ?? 0) > 0}
+          onCreate={() => setCreating(true)}
+          onCreateGroup={() => setGroupTask({ kind: "create" })}
+          onImport={() => setImporting(true)}
+          onQrZip={() => setZipping(true)}
+          shownCount={shown.length}
+          unitId={unitId}
+        />
       </div>
 
       <ErrorText>{error || moveError}</ErrorText>
       {!(data || error) && <p className='text-muted-foreground'>Đang tải...</p>}
 
-      {data && total === 0 && groups.length === 0 && (
+      {data && data.length === 0 && groups.length === 0 && (
         <EmptyState
           action={
             <Button onClick={() => setCreating(true)} variant='primary'>
@@ -624,7 +696,7 @@ const LinksPage = () => {
         </EmptyState>
       )}
 
-      {data && (total > 0 || groups.length > 0) && (
+      {data && (data.length > 0 || groups.length > 0) && (
         <>
           <Toolbar filter={filter} inGroup={openGroup} onChange={(next) => setFilter(next)} />
           <MovedNotice moved={moved} onClose={() => setMoved(null)} onUndo={undoMove} />
@@ -653,6 +725,7 @@ const LinksPage = () => {
             onChanged={replaceLink}
             onClear={() => setFilter({ ...DEFAULT_FILTER, group: filter.group, sort: filter.sort })}
             onCreate={() => setCreating(true)}
+            onDeleted={dropLink}
             openGroup={openGroup}
             shown={shown}
           />
@@ -671,6 +744,30 @@ const LinksPage = () => {
         unitId={unitId}
         unitName={unit?.unitName ?? ""}
       />
+
+      <BulkCreateDialog
+        groups={groups}
+        onClose={() => setImporting(false)}
+        onCreated={(links) => {
+          if (links.length > 0) {
+            setData((current) => [...links, ...(current ?? [])]);
+          } else {
+            groupsLoaded.reload();
+          }
+        }}
+        open={importing}
+        unitId={unitId}
+        unitName={unit?.unitName ?? ""}
+      />
+
+      <Modal
+        description='Mỗi mã QR mang link, không mang đích, kèm logo đã chọn cho từng link.'
+        onClose={() => setZipping(false)}
+        open={zipping}
+        title={`Tải QR của ${shown.length} link đang hiện`}
+      >
+        {zipping && <ZipButtons codes={shown.map((link) => link.code)} />}
+      </Modal>
 
       <GroupDialogs
         onChanged={groupsLoaded.reload}

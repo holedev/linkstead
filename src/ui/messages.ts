@@ -12,9 +12,11 @@ const BY_CODE: Record<string, string> = {
   "bad-note": "Ghi chú quá dài (tối đa 1000 ký tự).",
   "bad-password-key": "Trình duyệt không xử lý được mật khẩu. Hãy tải lại trang và thử lại.",
   "bad-style": "Kiểu QR này không có. Hãy chọn một kiểu trong danh sách.",
-  "code-taken": "Mã này đã có link khác dùng. Mã đã dùng không bao giờ được cấp lại.",
+  "code-taken": "Mã này đã có link khác dùng. Mã đã dùng không bao giờ được cấp lại, kể cả khi link đã bị xóa.",
+  "confirm-code": "Mã link gõ lại chưa khớp.",
   "cross-site": "Yêu cầu bị từ chối. Hãy tải lại trang và thử lại.",
   "disabled-by-system": "Link này do Quản trị hệ thống tắt, chỉ Quản trị hệ thống bật lại được.",
+  "duplicate-code": "Mã này trùng với một dòng phía trên trong tệp.",
   forbidden: "Bạn không có quyền làm việc này.",
   "group-name-taken": "Đơn vị đã có nhóm mang tên này.",
   "invalid-credentials": "Email hoặc mật khẩu không đúng.",
@@ -58,7 +60,9 @@ const BY_PROBLEM: Record<string, string> = {
   "bad-target:not-https": "Đích phải là địa chỉ https.",
   "bad-target:points-at-self": "Đích không được trỏ về chính hệ thống này.",
   "bad-target:too-long": "Địa chỉ đích quá dài.",
-  "bad-target:unchanged": "Đích mới trùng với đích hiện tại."
+  "bad-target:unchanged": "Đích mới trùng với đích hiện tại.",
+  "bad-target:unsafe":
+    "Google Safe Browsing xếp địa chỉ này vào danh sách không an toàn (lừa đảo hoặc mã độc). Hãy dùng một đích khác."
 };
 
 const isReason = (value: unknown): value is { code: string; problem?: string } =>

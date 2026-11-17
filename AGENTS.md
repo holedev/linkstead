@@ -13,20 +13,24 @@ These were decided before the first line of code. Each is a rule, not a default.
 
 **Links**
 
-- A Link is permanent: its Mã link is never changed, never reused and never deleted. A Link can
-  only be switched off (ADR-0002).
+- A Link's Mã link is never changed and never reused (ADR-0002). A Link can be switched off,
+  archived (hidden from the list, still opens) or deleted. Deleting keeps the row, so the code stays
+  taken for good. Only a Quản lý đơn vị or a Quản trị hệ thống deletes, and never through the API
+  (ADR-0004).
 - One flat namespace for the whole university. A Mã link is lowercase unaccented letters, digits
   and hyphens, 3 to 50 characters, matched case-insensitively. A generated one is 6 characters and
   avoids look-alikes (`0`/`o`, `1`/`l`).
 - Mã dành riêng cover the system's own paths (`app`, `api`, ...) and names only a Quản trị hệ thống
   may hand out.
 - A Link has exactly one Đích at a time: any `https` address that does not point back at this
-  system. No expiry, no schedule, no per-device target.
+  system and that Google Safe Browsing does not list as unsafe. No expiry, no schedule, no
+  per-device target. Every Đích is checked again daily. A Link whose Đích is newly listed shows
+  visitors a warning instead of redirecting (`worker/safety.ts`).
 - Changing a Đích goes through a confirmation showing the old and the new one, and is logged with
   who made it. Every Thành viên of the owning Đơn vị can read that history.
 - An open Link answers with a **temporary** redirect - a permanent one is cached by browsers and
-  keeps sending people to the old Đích. An unknown Mã link and a Link bị tắt both show a notice
-  page, in Vietnamese and English; neither falls back to a home page.
+  keeps sending people to the old Đích. An unknown Mã link, a Link bị tắt and a Link đã xóa show a
+  notice page, in Vietnamese and English; none falls back to a home page.
 
 **QR**
 
@@ -64,8 +68,9 @@ These were decided before the first line of code. Each is a rule, not a default.
 
 **Lượt mở**
 
-- Counted per Link per day and kept forever. Nothing about the visitor is stored - no IP, no
-  device.
+- Counted per Link per day, and per day by country and by referring site (host only), and kept
+  forever. Nothing identifying the visitor is stored - no IP, no device, no full address
+  (ADR-0005).
 - Openings made by preview fetchers (Zalo, Facebook, Messenger) are skipped where recognisable, and
   the UI presents the number as an estimate.
 
@@ -102,7 +107,7 @@ by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts
 
 | Route | Who | Does |
 | --- | --- | --- |
-| `GET /:code` | anyone | opens a Link, or shows a notice page naming the address opened (`worker/notice.tsx`); a preview fetcher (Zalo, Facebook...) gets a page of Open Graph tags instead of the redirect (`domain/preview.ts`) |
+| `GET /:code` | anyone | opens a Link, counting it by day, country and referring site; or shows a notice page naming the address opened (`worker/notice.tsx`) - a warning with the Đích for a Link whose Đích is listed unsafe; a preview fetcher (Zalo, Facebook...) gets a page of Open Graph tags instead of the redirect (`domain/preview.ts`) |
 | `GET /` | anyone | what OU Link is, and the way in to `/app` (`worker/landing.tsx`); a notice page links here but never falls back to it |
 | `GET /robots.txt` | anyone | keeps crawlers out of `/app` and `/api` |
 | `GET /app/*` | anyone | the UI |
@@ -112,12 +117,15 @@ by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts
 | `POST /api/links`, `GET /api/links` | a Thành viên, or a Khóa API | creates a Link, lists a Đơn vị's Links |
 | `PUT /api/links/:code/target` | a Thành viên, or a Khóa API | changes the Đích, logged |
 | `POST /api/links/:code/disable`, `.../enable` | a Thành viên, a Khóa API, or a Quản trị hệ thống | switches a Link off and on, logged |
-| `GET /api/links/:code/visits`, `GET /api/links/:code/qr` | a Thành viên, or a Khóa API | Lượt mở per day; the QR as SVG, `?style=` one of the fixed looks in `domain/qr-style.ts` |
+| `GET /api/links/:code/visits`, `GET /api/links/:code/qr` | a Thành viên, or a Khóa API | Lượt mở per day, country and referring site; the QR as SVG, `?style=` one of the fixed looks in `domain/qr-style.ts` |
 | `GET /api/links/:code/history` | a Thành viên | every change of Đích, state and Đơn vị |
+| `POST /api/links/:code/archive`, `.../unarchive` | a Thành viên | puts a Link away from the list, or back; it keeps opening |
+| `DELETE /api/links/:code` | Quản lý đơn vị, or a Quản trị hệ thống | deletes a Link, with `{"confirmCode"}` the Mã link typed back; the code stays taken (ADR-0004) |
+| `GET /api/units/:unitId/visits?days=` | a Thành viên | the Đơn vị's Lượt mở at a glance: per day, most opened Links, countries, referring sites |
 | `PUT /api/links/:code/details`, `PUT /api/links/:code/qr-logo` | a Thành viên | rewords Tên link and note; the Link's logo choice |
 | `PUT /api/links/:code/group`, `/api/units/:unitId/groups...` | a Thành viên | sorts a Link into a Nhóm; makes, renames and deletes the Đơn vị's Nhóm |
 | `GET`, `PUT /api/links/:code/preview` | a Thành viên | the share preview: what the Đích says, and the Link's own title, description and image |
-| `GET /api/units/:unitId/links.csv`, `.../visits.csv` | a Thành viên | the Đơn vị's CSV downloads |
+| `GET /api/units/:unitId/links.csv`, `.../visits.csv`, `.../visit-sources.csv` | a Thành viên | the Đơn vị's CSV downloads |
 | `/api/units/:unitId/members...`, `.../keys...`, `.../qr-logo`, `.../qr-preview` | Quản lý đơn vị | members and their roles, Khóa API, the Đơn vị's logo |
 | `/api/admin/admins`, `/units`, `/reserved-codes`, `/links...`, `/qr-logo`, `/export` | Quản trị hệ thống | other administrators, Đơn vị, Mã dành riêng, any Link (find, move, hand out a reserved code), the university's logo, the whole export |
 | `GET /api/openapi.json`, `GET /app/api-docs` | anyone | the Khóa API's six operations as OpenAPI 3.1 (`worker/openapi.ts`), and the Swagger page that reads it |
@@ -125,6 +133,10 @@ by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts
 
 A Khóa API is refused past 120 calls a minute. A Quản trị hệ thống outside a Đơn vị can switch its
 Links off and on and move them, but cannot change a Đích or read a history.
+
+**Checking every Đích.** With the secret `SAFE_BROWSING_KEY` set (a Google Safe Browsing key), a
+new or changed Đích that Google lists as unsafe is refused, and the Worker's daily cron
+(`wrangler.jsonc`) checks every Đích again. Without the key, nothing is checked.
 
 **Starting a fresh deployment.** Set the secret, create the administrator, then remove the secret:
 

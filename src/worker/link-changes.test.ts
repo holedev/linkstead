@@ -239,19 +239,29 @@ describe("switching a Link off and on", () => {
 });
 
 describe("reading Lượt mở", () => {
-  it("answers per Vietnamese day with the total, to a member and to the Đơn vị's key", async () => {
+  it("answers per Vietnamese day, country and referring site, to a member and to the Đơn vị's key", async () => {
     const admin = await withLink();
     const key = await keyOf(admin, 1, "CRM");
     const visitor = h.client();
-    await visitor.get("/cfp-2027");
-    await visitor.get("/cfp-2027");
+    const fromFacebook = { headers: { "cf-ipcountry": "VN", referer: "https://l.facebook.com/l.php?u=x" } };
+    await visitor.get("/cfp-2027", fromFacebook);
+    await visitor.get("/cfp-2027", fromFacebook);
     h.advance(15 * 60 * 60 * 1000);
+    // A scanned QR: no site, and here no country either.
     await visitor.get("/cfp-2027");
 
     const expected = {
+      countries: [
+        { count: 2, value: "VN" },
+        { count: 1, value: "" }
+      ],
       days: [
         { count: 2, day: "2027-03-01" },
         { count: 1, day: "2027-03-02" }
+      ],
+      referrers: [
+        { count: 2, value: "facebook.com" },
+        { count: 1, value: "" }
       ],
       total: 3
     };

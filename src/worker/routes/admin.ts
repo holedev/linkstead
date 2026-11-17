@@ -27,7 +27,7 @@ const linkInPath = async (c: AppContext, store: Store): Promise<LinkRecord | nul
   return isWellFormedCode(code) ? await store.findLink(code) : null;
 };
 
-const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }: AppDeps) => {
+const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(), checkSafety }: AppDeps) => {
   // ── Quản trị hệ thống ─────────────────────────────────────────────────────
   app.get("/api/admin/admins", async (c) => {
     const admin = systemAdmin(c);
@@ -220,7 +220,7 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() 
     if (!(unitId && (await store.unitExists(unitId)))) {
       return c.json({ error: "unknown-unit" }, 404);
     }
-    return createLink(c, store, { accountId: admin.accountId, apiKeyId: null, unitId }, body, true);
+    return createLink(c, { checkSafety, store }, { accountId: admin.accountId, apiKeyId: null, unitId }, body, true);
   });
 
   /** Looks a Link up by its Mã link, whichever Đơn vị owns it, with its history. */
@@ -236,6 +236,7 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() 
     const unit = await store.findUnit(link.unitId);
     return c.json({
       ...present(link, new URL(c.req.url).origin),
+      deletedAt: link.deletedAt?.toISOString() ?? null,
       history: (await store.listHistory(link.id)).map(presentEntry),
       unitName: unit?.name ?? ""
     });
@@ -249,6 +250,9 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() 
     }
     const link = await linkInPath(c, store);
     if (!link) {
+      return c.json({ error: "unknown-link" }, 404);
+    }
+    if (link.deletedAt) {
       return c.json({ error: "unknown-link" }, 404);
     }
     const unitId = positiveInt(String((await readJson(c))?.unitId ?? ""));

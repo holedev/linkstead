@@ -4,7 +4,8 @@
  * be bookmarked or sent to a colleague.
  */
 
-type Status = "all" | "on" | "off";
+/** Switched on or off - among the Links in use - or the archived ones, which are listed only here. */
+type Status = "all" | "on" | "off" | "archived";
 type Sort = "new" | "old" | "visits" | "name";
 /**
  * Where on the Links screen: inside one Nhóm, by its id, or at the top - "root" - where the Nhóm
@@ -20,6 +21,7 @@ type Filterable = {
   note: string;
   target: string;
   enabled: boolean;
+  archived: boolean;
   groupId: number | null;
   visits: number;
   createdAt: string;
@@ -27,7 +29,7 @@ type Filterable = {
 
 const DEFAULT_FILTER: LinkFilter = { group: "root", query: "", sort: "new", status: "all" };
 
-const STATUSES: readonly Status[] = ["all", "on", "off"];
+const STATUSES: readonly Status[] = ["all", "on", "off", "archived"];
 const SORTS: readonly Sort[] = ["new", "old", "visits", "name"];
 
 const MARKS = /\p{Diacritic}/gu;
@@ -52,17 +54,22 @@ const matchesQuery = (link: Filterable, query: string): boolean => {
 
 /**
  * Inside a Nhóm, its Links. At the top, the Links in no Nhóm - unless something is searched for,
- * which looks through every Link, wherever it is sorted.
+ * or the archive is open, either of which looks through every Link, wherever it is sorted.
  */
-const matchesGroup = (link: Filterable, group: GroupFilter, query: string): boolean => {
-  if (group !== "root") {
-    return link.groupId === group;
+const matchesGroup = (link: Filterable, filter: LinkFilter): boolean => {
+  if (filter.group !== "root") {
+    return link.groupId === filter.group;
   }
-  return Boolean(query.trim()) || link.groupId === null;
+  return Boolean(filter.query.trim()) || filter.status === "archived" || link.groupId === null;
 };
 
-const matchesStatus = (link: Filterable, status: Status): boolean =>
-  status === "all" || (status === "on") === link.enabled;
+/** The archived Links show only when asked for; the others, by whether they are switched on. */
+const matchesStatus = (link: Filterable, status: Status): boolean => {
+  if (status === "archived") {
+    return link.archived;
+  }
+  return !link.archived && (status === "all" || (status === "on") === link.enabled);
+};
 
 const COLLATOR = new Intl.Collator("vi");
 
@@ -76,10 +83,7 @@ const ORDER: Record<Sort, (a: Filterable, b: Filterable) => number> = {
 const applyFilter = <T extends Filterable>(links: readonly T[], filter: LinkFilter): T[] =>
   links
     .filter(
-      (link) =>
-        matchesQuery(link, filter.query) &&
-        matchesGroup(link, filter.group, filter.query) &&
-        matchesStatus(link, filter.status)
+      (link) => matchesQuery(link, filter.query) && matchesGroup(link, filter) && matchesStatus(link, filter.status)
     )
     .sort(ORDER[filter.sort]);
 

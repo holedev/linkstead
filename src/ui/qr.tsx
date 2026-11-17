@@ -50,7 +50,7 @@ const save = (blob: Blob, filename: string) => {
  * PNG from the server's SVG, drawn at a whole number of pixels per module so every edge stays
  * sharp. The server never makes PNG (AGENTS.md).
  */
-const savePng = (svgUrl: string, filename: string): Promise<void> =>
+const pngOf = (svgUrl: string): Promise<Blob> =>
   new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
@@ -65,18 +65,13 @@ const savePng = (svgUrl: string, filename: string): Promise<void> =>
       }
       context.imageSmoothingEnabled = false;
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob((blob) => {
-        if (blob) {
-          save(blob, filename);
-          resolve();
-        } else {
-          reject(new Error("no png"));
-        }
-      }, "image/png");
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("no png"))), "image/png");
     };
     image.onerror = () => reject(new Error("no image"));
     image.src = svgUrl;
   });
+
+const savePng = async (svgUrl: string, filename: string): Promise<void> => save(await pngOf(svgUrl), filename);
 
 /** The picture itself, with its two downloads. `name` is the file's name without an extension. */
 const QrPicture = ({
@@ -218,4 +213,4 @@ const LogoUpload = ({
   );
 };
 
-export { LogoUpload, QrPicture, useQr };
+export { LogoUpload, pngOf, QrPicture, save, useQr };

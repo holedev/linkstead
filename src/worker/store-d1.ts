@@ -1,9 +1,10 @@
-import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { alias, getTableConfig } from "drizzle-orm/sqlite-core";
 import {
   accounts,
   apiKeys,
+  dailyVisitSources,
   dailyVisits,
   linkGroups,
   links,
@@ -16,7 +17,7 @@ import {
   unitChanges,
   units
 } from "../db/schema";
-import type { AuthorName, HistoryEntry, MembershipOutcome, Snapshot, Store } from "./store";
+import type { AuthorName, HistoryEntry, MembershipOutcome, Snapshot, Store, VisitScope } from "./store";
 
 const ACCOUNT_COLUMNS = {
   email: accounts.email,
@@ -27,8 +28,10 @@ const ACCOUNT_COLUMNS = {
 };
 
 const NEW_LINK_COLUMNS = {
+  archivedAt: links.archivedAt,
   code: links.code,
   createdAt: links.createdAt,
+  deletedAt: links.deletedAt,
   disabledBySystem: links.disabledBySystem,
   enabled: links.enabled,
   groupId: links.groupId,
@@ -42,7 +45,8 @@ const NEW_LINK_COLUMNS = {
   previewImage: links.previewImage,
   previewTitle: links.previewTitle,
   target: links.target,
-  unitId: links.unitId
+  unitId: links.unitId,
+  unsafeSince: links.unsafeSince
 };
 
 const LINK_COLUMNS = {
@@ -63,11 +67,15 @@ const SNAPSHOT_TABLES = [
   targetChanges,
   statusChanges,
   unitChanges,
-  dailyVisits
+  dailyVisits,
+  dailyVisitSources
 ].map((table) => {
   const config = getTableConfig(table);
   return { columns: config.columns.map((column) => column.name), name: config.name };
 });
+
+/** Tables added after the first snapshots were made: one without them is still read, as empty. */
+const LATER_TABLES: ReadonlySet<string> = new Set(["daily_visit_sources"]);
 
 /** D1 takes a limited number of statements in one batch. */
 const IMPORT_BATCH = 50;
@@ -75,11 +83,38 @@ const IMPORT_BATCH = 50;
 const isCell = (value: unknown): value is string | number | null =>
   value === null || typeof value === "string" || typeof value === "number";
 
+/**
+ * The inserts that put a snapshot's rows back, or null when it cannot be read. Only columns this
+ * version knows, and only plain values: a snapshot is data, never SQL.
+ */
+const snapshotInserts = (database: D1Database, snapshot: Snapshot): D1PreparedStatement[] | null => {
+  const statements: D1PreparedStatement[] = [];
+  for (const table of SNAPSHOT_TABLES) {
+    const rows = snapshot.tables[table.name] ?? (LATER_TABLES.has(table.name) ? [] : undefined);
+    if (!Array.isArray(rows)) {
+      return null;
+    }
+    const insert = `INSERT INTO ${table.name} (${table.columns.join(", ")}) VALUES (${table.columns.map(() => "?").join(", ")})`;
+    for (const row of rows) {
+      const values = table.columns.map((column) => row?.[column] ?? null);
+      if (!values.every(isCell)) {
+        return null;
+      }
+      statements.push(database.prepare(insert).bind(...values));
+    }
+  }
+  return statements;
+};
+
 const oldUnits = alias(units, "old_units");
 const newUnits = alias(units, "new_units");
 
 /** True when that Đơn vị would still have a Quản lý đơn vị without this membership as one. */
 const KEEPS_A_MANAGER = `(role != 'manager' OR (SELECT count(*) FROM memberships WHERE unit_id = ?2 AND role = 'manager') > 1)`;
+
+/** One Link's rows, or every Link a Đơn vị owns that is not deleted. */
+const scopeOf = (scope: VisitScope) =>
+  "linkId" in scope ? eq(links.id, scope.linkId) : and(eq(links.unitId, scope.unitId), isNull(links.deletedAt));
 
 const authorName = (row: { email: string | null; keyName: string | null }): AuthorName => {
   if (row.email) {
@@ -144,7 +179,8 @@ const createD1Store = (database: D1Database): Store => {
           )
           .bind(newTarget, by.accountId, by.apiKeyId, at.getTime(), linkId, oldTarget),
         database
-          .prepare("UPDATE links SET target = ?1 WHERE id = ?2 AND target = ?3")
+          // A new Đích was checked on its way in: whatever the daily check said of the old one goes.
+          .prepare("UPDATE links SET target = ?1, unsafe_since = NULL WHERE id = ?2 AND target = ?3")
           .bind(newTarget, linkId, oldTarget)
       ]);
       return (updated?.meta.changes ?? 0) > 0;
@@ -237,6 +273,15 @@ const createD1Store = (database: D1Database): Store => {
       return (removed?.meta.changes ?? 0) > 0;
     },
 
+    deleteLink: async ({ linkId, byAccountId, at }) => {
+      const deleted = await db
+        .update(links)
+        .set({ deletedAt: at, deletedByAccountId: byAccountId })
+        .where(and(eq(links.id, linkId), isNull(links.deletedAt)))
+        .returning({ id: links.id });
+      return deleted.length > 0;
+    },
+
     deleteSession: async (tokenHash) => {
       await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
     },
@@ -251,7 +296,7 @@ const createD1Store = (database: D1Database): Store => {
         database
           .prepare(
             `UPDATE units SET dissolved_at = ?1 WHERE id = ?2 AND dissolved_at IS NULL
-             AND NOT EXISTS (SELECT 1 FROM links WHERE unit_id = ?2)`
+             AND NOT EXISTS (SELECT 1 FROM links WHERE unit_id = ?2 AND deleted_at IS NULL)`
           )
           .bind(at.getTime(), unitId),
         database
@@ -309,12 +354,14 @@ const createD1Store = (database: D1Database): Store => {
     findLinkByCode: async (code) =>
       (await db
         .select({
+          deleted: sql<boolean>`${links.deletedAt} IS NOT NULL`.mapWith(Boolean),
           enabled: links.enabled,
           id: links.id,
           previewDescription: links.previewDescription,
           previewImage: links.previewImage,
           previewTitle: links.previewTitle,
-          target: links.target
+          target: links.target,
+          unsafe: sql<boolean>`${links.unsafeSince} IS NOT NULL`.mapWith(Boolean)
         })
         .from(links)
         .where(eq(links.code, code))
@@ -371,21 +418,9 @@ const createD1Store = (database: D1Database): Store => {
         return "not-empty";
       }
 
-      // Only columns this version knows, and only plain values: a snapshot is data, never SQL.
-      const statements: D1PreparedStatement[] = [];
-      for (const table of SNAPSHOT_TABLES) {
-        const rows = snapshot.tables[table.name];
-        if (!Array.isArray(rows)) {
-          return "bad-snapshot";
-        }
-        const insert = `INSERT INTO ${table.name} (${table.columns.join(", ")}) VALUES (${table.columns.map(() => "?").join(", ")})`;
-        for (const row of rows) {
-          const values = table.columns.map((column) => row?.[column] ?? null);
-          if (!values.every(isCell)) {
-            return "bad-snapshot";
-          }
-          statements.push(database.prepare(insert).bind(...values));
-        }
+      const statements = snapshotInserts(database, snapshot);
+      if (!statements) {
+        return "bad-snapshot";
       }
 
       const wipe = [...SNAPSHOT_TABLES].reverse().map((table) => database.prepare(`DELETE FROM ${table.name}`));
@@ -424,7 +459,8 @@ const createD1Store = (database: D1Database): Store => {
       db
         .select({
           id: linkGroups.id,
-          linkCount: sql<number>`(select count(*) from links where links.group_id = link_groups.id)`,
+          // What the folder shows: archived and deleted Links are not in it.
+          linkCount: sql<number>`(select count(*) from links where links.group_id = link_groups.id and links.archived_at is null and links.deleted_at is null)`,
           name: linkGroups.name
         })
         .from(linkGroups)
@@ -475,7 +511,16 @@ const createD1Store = (database: D1Database): Store => {
         .where(eq(unitChanges.linkId, linkId))
         .orderBy(desc(unitChanges.id))
         .all();
+      const deletion = await db
+        .select({ at: links.deletedAt, email: accounts.email })
+        .from(links)
+        .leftJoin(accounts, eq(accounts.id, links.deletedByAccountId))
+        .where(eq(links.id, linkId))
+        .get();
       const entries: HistoryEntry[] = [
+        ...(deletion?.at
+          ? [{ at: deletion.at, by: authorName({ email: deletion.email, keyName: null }), kind: "deleted" as const }]
+          : []),
         ...moves.map((row) => ({
           at: row.at,
           by: authorName({ email: row.email, keyName: null }),
@@ -503,7 +548,20 @@ const createD1Store = (database: D1Database): Store => {
     },
 
     listLinksByUnit: (unitId) =>
-      db.select(LINK_COLUMNS).from(links).where(eq(links.unitId, unitId)).orderBy(desc(links.id)).all(),
+      db
+        .select(LINK_COLUMNS)
+        .from(links)
+        .where(and(eq(links.unitId, unitId), isNull(links.deletedAt)))
+        .orderBy(desc(links.id))
+        .all(),
+
+    listLinksToCheck: () =>
+      db
+        .select({ id: links.id, target: links.target, unsafeSince: links.unsafeSince })
+        .from(links)
+        .where(isNull(links.deletedAt))
+        .orderBy(links.id)
+        .all(),
 
     listLogoKeys: async () => {
       const rows = await database
@@ -556,7 +614,7 @@ const createD1Store = (database: D1Database): Store => {
       const rows = await db
         .select({
           id: units.id,
-          linkCount: sql<number>`(select count(*) from links where links.unit_id = units.id)`,
+          linkCount: sql<number>`(select count(*) from links where links.unit_id = units.id and links.deleted_at is null)`,
           name: units.name
         })
         .from(units)
@@ -584,6 +642,58 @@ const createD1Store = (database: D1Database): Store => {
         .orderBy(units.id)
         .all(),
 
+    listUnitTopLinks: (unitId, since, limit) =>
+      db
+        .select({ code: links.code, count: sql<number>`sum(${dailyVisits.count})`.mapWith(Number), name: links.name })
+        .from(dailyVisits)
+        .innerJoin(links, eq(links.id, dailyVisits.linkId))
+        .where(and(eq(links.unitId, unitId), isNull(links.deletedAt), since ? gte(dailyVisits.day, since) : undefined))
+        .groupBy(links.id)
+        .orderBy(desc(sql`sum(${dailyVisits.count})`), links.code)
+        .limit(limit)
+        .all(),
+
+    listUnitVisitDays: (unitId, since) =>
+      db
+        .select({ count: sql<number>`sum(${dailyVisits.count})`.mapWith(Number), day: dailyVisits.day })
+        .from(dailyVisits)
+        .innerJoin(links, eq(links.id, dailyVisits.linkId))
+        .where(and(eq(links.unitId, unitId), isNull(links.deletedAt), since ? gte(dailyVisits.day, since) : undefined))
+        .groupBy(dailyVisits.day)
+        .orderBy(dailyVisits.day)
+        .all(),
+
+    listVisitSources: async (scope) => {
+      const rows = await db
+        .select({
+          count: sql<number>`sum(${dailyVisitSources.count})`.mapWith(Number),
+          kind: dailyVisitSources.kind,
+          value: dailyVisitSources.value
+        })
+        .from(dailyVisitSources)
+        .innerJoin(links, eq(links.id, dailyVisitSources.linkId))
+        .where(and(scopeOf(scope), scope.since ? gte(dailyVisitSources.day, scope.since) : undefined))
+        .groupBy(dailyVisitSources.kind, dailyVisitSources.value)
+        .orderBy(desc(sql`sum(${dailyVisitSources.count})`), dailyVisitSources.value)
+        .all();
+      return rows;
+    },
+
+    listVisitSourcesByUnit: (unitId) =>
+      db
+        .select({
+          code: links.code,
+          count: dailyVisitSources.count,
+          day: dailyVisitSources.day,
+          kind: dailyVisitSources.kind,
+          value: dailyVisitSources.value
+        })
+        .from(dailyVisitSources)
+        .innerJoin(links, eq(links.id, dailyVisitSources.linkId))
+        .where(and(eq(links.unitId, unitId), isNull(links.deletedAt)))
+        .orderBy(links.code, dailyVisitSources.day, dailyVisitSources.kind, desc(dailyVisitSources.count))
+        .all(),
+
     listVisits: (linkId) =>
       db
         .select({ count: dailyVisits.count, day: dailyVisits.day })
@@ -597,7 +707,7 @@ const createD1Store = (database: D1Database): Store => {
         .select({ code: links.code, count: dailyVisits.count, day: dailyVisits.day })
         .from(dailyVisits)
         .innerJoin(links, eq(links.id, dailyVisits.linkId))
-        .where(eq(links.unitId, unitId))
+        .where(and(eq(links.unitId, unitId), isNull(links.deletedAt)))
         .orderBy(links.code, dailyVisits.day)
         .all(),
 
@@ -688,14 +798,24 @@ const createD1Store = (database: D1Database): Store => {
       return (moved?.meta.changes ?? 0) > 0;
     },
 
-    recordVisit: async (linkId, day) => {
-      await db
-        .insert(dailyVisits)
-        .values({ count: 1, day, linkId })
-        .onConflictDoUpdate({
-          set: { count: sql`${dailyVisits.count} + 1` },
-          target: [dailyVisits.linkId, dailyVisits.day]
-        });
+    recordVisit: async (linkId, day, source) => {
+      const countSource = (kind: "country" | "referrer", value: string) =>
+        database
+          .prepare(
+            `INSERT INTO daily_visit_sources (link_id, day, kind, value, count) VALUES (?1, ?2, ?3, ?4, 1)
+             ON CONFLICT (link_id, day, kind, value) DO UPDATE SET count = count + 1`
+          )
+          .bind(linkId, day, kind, value);
+      await database.batch([
+        database
+          .prepare(
+            `INSERT INTO daily_visits (link_id, day, count) VALUES (?1, ?2, 1)
+             ON CONFLICT (link_id, day) DO UPDATE SET count = count + 1`
+          )
+          .bind(linkId, day),
+        countSource("country", source.country),
+        countSource("referrer", source.referrer)
+      ]);
     },
 
     removeMembership: async (accountId, unitId) => {
@@ -756,6 +876,10 @@ const createD1Store = (database: D1Database): Store => {
       return row?.is ? "last-admin" : "not-an-admin";
     },
 
+    setLinkArchived: async (linkId, at) => {
+      await db.update(links).set({ archivedAt: at }).where(eq(links.id, linkId));
+    },
+
     setLinkGroup: async (linkId, groupId) => {
       await db.update(links).set({ groupId }).where(eq(links.id, linkId));
     },
@@ -786,6 +910,10 @@ const createD1Store = (database: D1Database): Store => {
           .bind(Number(enabled), Number(bySystem), linkId)
       ]);
       return (updated?.meta.changes ?? 0) > 0;
+    },
+
+    setLinkUnsafe: async (linkId, since) => {
+      await db.update(links).set({ unsafeSince: since }).where(eq(links.id, linkId));
     },
 
     setMembershipRole: async (accountId, unitId, role) => {

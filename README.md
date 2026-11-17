@@ -10,15 +10,23 @@ trang đích chuyển chỗ vào năm sau.
 
 ## Hệ thống làm gì
 
-- **Link cố định.** Mỗi link có một Mã link (`/hoi-thao-2027`) không bao giờ đổi, không cấp lại và
-  không bị xóa; link chỉ có thể bị tắt. Mã tự chọn, hoặc để hệ thống sinh 6 ký tự.
+- **Link cố định.** Mỗi link có một Mã link (`/hoi-thao-2027`) không bao giờ đổi và không bao giờ
+  cấp lại. Link có thể bị tắt, được lưu trữ (ẩn khỏi danh sách, vẫn mở được) hoặc bị xóa. Link đã
+  xóa vẫn giữ mã, để QR đã in không bao giờ dẫn tới nơi khác. Mã tự chọn, hoặc để hệ thống sinh 6
+  ký tự.
+- **Tạo nhiều link một lần.** Nhập tệp CSV (Tên link, Đích, Mã link, Nhóm, Ghi chú), xem trước lỗi
+  từng dòng, rồi tải QR của mọi link vừa tạo thành một tệp zip.
 - **Đổi đích có kiểm soát.** Đổi đích phải qua bước xác nhận hiện đích cũ và đích mới, và được ghi
   vào lịch sử cùng người đổi.
 - **QR.** QR luôn chứa địa chỉ link, không chứa đích. Logo chọn theo ba cấp: của Trường, của đơn vị,
   của riêng từng link (hoặc không logo). Tải về dạng SVG hoặc PNG.
 - **Theo đơn vị.** Link thuộc về đơn vị (tạp chí, khoa, phòng), không thuộc về cá nhân, nên vẫn còn
   khi người tạo rời đi. Một tài khoản có thể thuộc nhiều đơn vị.
-- **Lượt mở.** Đếm theo link theo ngày, không lưu gì về người mở. Là con số ước tính.
+- **Lượt mở.** Đếm theo link theo ngày, theo quốc gia và theo trang giới thiệu (chỉ tên miền).
+  Không lưu gì nhận ra được người mở. Có trang tổng quan cho cả đơn vị. Là con số ước tính.
+- **Kiểm tra đích.** Đích bị Google Safe Browsing xếp là lừa đảo hay mã độc thì không đặt được. Mỗi
+  ngày hệ thống kiểm tra lại mọi đích; link có đích mới bị xếp như vậy sẽ hiện trang cảnh báo thay
+  vì chuyển đi.
 - **API cho ứng dụng.** Mỗi đơn vị cấp Khóa API để ứng dụng của mình tạo link, đổi đích, tắt/bật,
   liệt kê, đọc lượt mở và lấy QR.
 - **Mang dữ liệu đi được.** Đơn vị tải CSV; Quản trị hệ thống xuất toàn bộ thành một tệp mà bản cài
@@ -161,6 +169,21 @@ deploy; những người sau do người đã ở trong hệ thống thêm vào.
 Bước 2 chỉ chạy được khi chưa có Quản trị hệ thống nào. Người này tự động là Quản lý của hai đơn vị
 có sẵn (Tạp chí Khoa học, Nhà xuất bản). Thêm đơn vị, thành viên và Quản trị hệ thống khác đều làm
 trong giao diện.
+
+## Bật kiểm tra đích an toàn
+
+Kiểm tra đích dùng Google Safe Browsing, miễn phí nhưng cần một khóa:
+
+1. Ở [Google Cloud Console](https://console.cloud.google.com/), tạo (hoặc chọn) một project, bật
+   **Safe Browsing API**, rồi tạo một API key ở **APIs & Services → Credentials**.
+2. Đặt khóa cho Worker:
+
+   ```bash
+   pnpm exec wrangler secret put SAFE_BROWSING_KEY
+   ```
+
+Chưa đặt khóa thì hệ thống vẫn chạy, chỉ là không kiểm tra đích. Lượt kiểm tra hằng ngày chạy lúc
+03:17 giờ Việt Nam (`triggers.crons` trong `wrangler.jsonc`).
 
 ## Dùng API
 

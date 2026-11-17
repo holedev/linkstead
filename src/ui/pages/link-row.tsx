@@ -1,4 +1,6 @@
 import {
+  ArchiveIcon,
+  ArchiveRestoreIcon,
   ArrowRightLeftIcon,
   ChartNoAxesColumnIcon,
   CornerDownRightIcon,
@@ -11,7 +13,9 @@ import {
   PowerIcon,
   PowerOffIcon,
   QrCodeIcon,
-  Share2Icon
+  Share2Icon,
+  ShieldAlertIcon,
+  Trash2Icon
 } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
@@ -41,6 +45,7 @@ import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { PreviewPanel } from "./preview-panel";
 import { QrPanel } from "./qr-panel";
+import { VisitSources } from "./visit-sources";
 
 const RECENT_DAYS = 30;
 const number = new Intl.NumberFormat("vi-VN");
@@ -83,10 +88,16 @@ const usePanel = <T,>(stamp: string, load: () => Promise<T>) => {
 };
 
 const entryKey = (entry: HistoryEntry): string => {
-  if (entry.kind === "target") {
-    return `${entry.at}-target-${entry.newTarget}`;
+  switch (entry.kind) {
+    case "target":
+      return `${entry.at}-target-${entry.newTarget}`;
+    case "unit":
+      return `${entry.at}-unit-${entry.newUnitName}`;
+    case "status":
+      return `${entry.at}-status-${entry.enabled}`;
+    default:
+      return `${entry.at}-${entry.kind}`;
   }
-  return entry.kind === "unit" ? `${entry.at}-unit-${entry.newUnitName}` : `${entry.at}-status-${entry.enabled}`;
 };
 
 const EntryText = ({ entry }: { entry: HistoryEntry }) => {
@@ -104,6 +115,9 @@ const EntryText = ({ entry }: { entry: HistoryEntry }) => {
         Chuyển link từ {entry.oldUnitName} sang <span className='font-medium'>{entry.newUnitName}</span>
       </p>
     );
+  }
+  if (entry.kind === "deleted") {
+    return <p className='font-medium text-destructive'>Xóa link</p>;
   }
   return <p>{statusText(entry)}</p>;
 };
@@ -186,6 +200,11 @@ const VisitsPanel = ({ link }: { link: Link }) => {
             ))}
           </tbody>
         </table>
+      )}
+      {data && (
+        <div className='mt-5 border-t pt-4'>
+          <VisitSources countries={data.countries} referrers={data.referrers} />
+        </div>
       )}
     </div>
   );
@@ -447,7 +466,7 @@ const GroupBadge = ({ groupId, groups }: { groupId: number | null; groups: LinkG
   ) : null;
 };
 
-const StatusBadge = ({ link }: { link: Link }) => {
+const EnabledBadge = ({ link }: { link: Link }) => {
   if (link.enabled) {
     return <Badge tone='ok'>Đang bật</Badge>;
   }
@@ -458,7 +477,110 @@ const StatusBadge = ({ link }: { link: Link }) => {
   );
 };
 
-type Task = "target" | "details" | "group" | "preview" | "history" | "visits" | "qr" | "disable" | null;
+const StatusBadge = ({ link }: { link: Link }) => (
+  <>
+    <EnabledBadge link={link} />
+    {link.unsafeSince && <Badge tone='danger'>Đích không an toàn</Badge>}
+    {link.archived && <Badge tone='muted'>Đã lưu trữ</Badge>}
+  </>
+);
+
+/** What a visitor meets instead of the Đích, said under the Link where it is not simply sent on. */
+const LinkNotices = ({ link, lockedBySystem }: { link: Link; lockedBySystem: boolean }) => (
+  <>
+    {link.unsafeSince && (
+      <p className='flex items-start gap-1.5 rounded-md bg-destructive/10 p-2 text-destructive text-xs'>
+        <ShieldAlertIcon aria-hidden='true' className='mt-px size-3.5 shrink-0' />
+        <span>
+          Từ {formatDate(link.unsafeSince)}, Google Safe Browsing xếp đích này vào danh sách không an toàn (lừa đảo hoặc
+          mã độc). Người mở link đang gặp trang cảnh báo thay vì được chuyển đi. Hãy kiểm tra trang đích, hoặc đổi sang
+          đích khác.
+        </span>
+      </p>
+    )}
+    {!link.enabled && (
+      <p className='text-muted-foreground text-xs'>
+        Người mở link này đang thấy trang thông báo link đã bị tắt.
+        {lockedBySystem && " Link do Quản trị hệ thống tắt nên chỉ Quản trị hệ thống bật lại được."}
+      </p>
+    )}
+  </>
+);
+
+/**
+ * Deleting, confirmed by typing the Mã link back - the one step here that cannot be undone. The
+ * code stays taken for good (ADR-0004), so what is printed never leads anywhere new.
+ */
+const DeleteLinkDialog = ({
+  link,
+  open,
+  onClose,
+  onDeleted
+}: {
+  link: Link;
+  open: boolean;
+  onClose: () => void;
+  onDeleted: (code: string) => void;
+}) => {
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const matches = typed.trim().toLowerCase() === link.code;
+
+  const remove = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await api.deleteLink(link.code, typed.trim());
+      onDeleted(link.code);
+    } catch (failure) {
+      setError(messageOf(failure));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal description={link.name} onClose={onClose} open={open} title='Xóa link'>
+      <form className='space-y-4 text-sm' onSubmit={remove}>
+        <div className='space-y-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3'>
+          <p>
+            Người mở <span className='break-all font-mono'>{link.url}</span> - kể cả từ QR đã in - sẽ thấy trang báo
+            liên kết đã bị xóa.
+          </p>
+          <p>
+            Link biến khỏi danh sách, khỏi số liệu và tệp CSV của đơn vị. Mã <strong>{link.code}</strong> không bao giờ
+            được cấp lại cho link khác. Không hoàn tác được.
+          </p>
+          <p className='text-muted-foreground'>
+            Chỉ muốn link biến khỏi danh sách mà vẫn mở được? Hãy dùng "Lưu trữ". Chỉ muốn tạm ngưng? Hãy "Tắt link".
+          </p>
+        </div>
+        <Field label={`Gõ lại mã link "${link.code}" để xác nhận`}>
+          {(props) => (
+            <input
+              {...props}
+              autoCapitalize='off'
+              autoComplete='off'
+              onChange={(event) => setTyped(event.target.value)}
+              spellCheck={false}
+              value={typed}
+            />
+          )}
+        </Field>
+        <ErrorText>{error}</ErrorText>
+        <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
+          <Button onClick={onClose}>Hủy</Button>
+          <Button disabled={busy || !matches} type='submit' variant='danger'>
+            {busy ? "Đang xóa..." : "Xóa vĩnh viễn"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+type Task = "target" | "details" | "group" | "preview" | "history" | "visits" | "qr" | "disable" | "delete" | null;
 
 const TASK_TITLE = {
   details: "Sửa tên, ghi chú",
@@ -474,15 +596,20 @@ const TASK_TITLE = {
 const LinkActions = ({
   link,
   canEnable,
+  canDelete,
   busy,
   onTask,
-  onEnable
+  onEnable,
+  onArchive
 }: {
   link: Link;
   canEnable: boolean;
+  /** A Quản lý đơn vị of the Link's Đơn vị, or a Quản trị hệ thống. */
+  canDelete: boolean;
   busy: boolean;
   onTask: (task: Task) => void;
   onEnable: () => void;
+  onArchive: () => void;
 }) => (
   <DropdownMenu>
     <DropdownMenuTrigger asChild>
@@ -539,6 +666,16 @@ const LinkActions = ({
           Bật lại link
         </DropdownMenuItem>
       )}
+      <DropdownMenuItem onSelect={onArchive}>
+        {link.archived ? <ArchiveRestoreIcon /> : <ArchiveIcon />}
+        {link.archived ? "Bỏ lưu trữ" : "Lưu trữ"}
+      </DropdownMenuItem>
+      {canDelete && (
+        <DropdownMenuItem onSelect={() => onTask("delete")} variant='destructive'>
+          <Trash2Icon />
+          Xóa link
+        </DropdownMenuItem>
+      )}
     </DropdownMenuContent>
   </DropdownMenu>
 );
@@ -551,7 +688,8 @@ const LinkRow = ({
   link,
   groups,
   showGroup = true,
-  onChanged
+  onChanged,
+  onDeleted
 }: {
   link: Link;
   /** The Đơn vị's Nhóm, to name the Link's and to offer the others. */
@@ -559,6 +697,8 @@ const LinkRow = ({
   /** Off inside a Nhóm, where every Link shown is in it. */
   showGroup?: boolean;
   onChanged: (link: Link) => void;
+  /** The Link was deleted: it leaves the list. */
+  onDeleted: (code: string) => void;
 }) => {
   const row = useRef<HTMLLIElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -570,6 +710,8 @@ const LinkRow = ({
   // Counts what may have changed the picture, so the small QR is fetched again.
   const [qrVersion, setQrVersion] = useState(0);
   const lockedBySystem = !link.enabled && link.disabledBySystem && !isSystemAdmin;
+  const role = me?.units.find((unit) => unit.unitId === link.unitId)?.role;
+  const canDelete = isSystemAdmin || role === "manager";
   const close = () => setTask(null);
 
   const setStatus = async (change: () => Promise<Link>) => {
@@ -625,8 +767,12 @@ const LinkRow = ({
           </div>
           <LinkActions
             busy={busy}
+            canDelete={canDelete}
             canEnable={!lockedBySystem}
             link={link}
+            onArchive={() =>
+              setStatus(() => (link.archived ? api.unarchiveLink(link.code) : api.archiveLink(link.code)))
+            }
             onEnable={() => setStatus(() => api.enableLink(link.code))}
             onTask={setTask}
           />
@@ -661,20 +807,15 @@ const LinkRow = ({
         <p className='text-muted-foreground text-xs'>
           Khoảng {number.format(link.visits)} lượt mở - tạo ngày {formatDate(link.createdAt)}
         </p>
-        {!link.enabled && (
-          <p className='text-muted-foreground text-xs'>
-            Người mở link này đang thấy trang thông báo link đã bị tắt.
-            {lockedBySystem && " Link do Quản trị hệ thống tắt nên chỉ Quản trị hệ thống bật lại được."}
-          </p>
-        )}
+        <LinkNotices link={link} lockedBySystem={lockedBySystem} />
         <ErrorText>{error}</ErrorText>
       </div>
 
       <Modal
         description={link.name}
         onClose={close}
-        open={task !== null && task !== "disable"}
-        title={task && task !== "disable" ? TASK_TITLE[task] : ""}
+        open={task !== null && task !== "disable" && task !== "delete"}
+        title={task && task !== "disable" && task !== "delete" ? TASK_TITLE[task] : ""}
         wide={task === "qr"}
       >
         {task === "target" && <TargetForm link={link} onChanged={onChanged} onDone={close} />}
@@ -693,6 +834,8 @@ const LinkRow = ({
           />
         )}
       </Modal>
+
+      {task === "delete" && <DeleteLinkDialog link={link} onClose={close} onDeleted={onDeleted} open />}
 
       <ConfirmDialog
         busy={busy}

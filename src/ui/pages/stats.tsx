@@ -1,0 +1,262 @@
+import { useState } from "react";
+import { Link as RouterLink, useSearchParams } from "react-router";
+import { Card, ErrorText } from "@/components/app";
+import { cn } from "@/lib/utils";
+import { api, type UnitVisits } from "../api";
+import { useSession } from "../session";
+import { useLoaded } from "../use-loaded";
+import { VisitSources } from "./visit-sources";
+
+/**
+ * A Đơn vị's Lượt mở at a glance: how many over a stretch of days, how they spread over the days,
+ * which Links were opened most, and where the openings came from. Estimates, and said to be.
+ */
+
+const RANGES = [
+  { days: 7, label: "7 ngày" },
+  { days: 30, label: "30 ngày" },
+  { days: 90, label: "90 ngày" },
+  { days: 365, label: "1 năm" },
+  { days: null, label: "Từ đầu" }
+] as const;
+
+type RangeDays = (typeof RANGES)[number]["days"];
+
+const number = new Intl.NumberFormat("vi-VN");
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Past this many days a bar per day is too thin to read, and the chart shows months. */
+const MAX_DAY_BARS = 92;
+
+const readRange = (raw: string | null): RangeDays => {
+  if (raw === "all") {
+    return null;
+  }
+  const days = Number(raw);
+  return RANGES.find((range) => range.days === days)?.days ?? 30;
+};
+
+const formatDay = (day: string): string => day.split("-").reverse().join("/");
+
+/** Every day from `first` to `last`, `yyyy-mm-dd`, so a day nobody opened anything shows as 0. */
+const daysBetween = (first: string, last: string): string[] => {
+  const out: string[] = [];
+  for (let at = Date.parse(`${first}T00:00:00Z`); at <= Date.parse(`${last}T00:00:00Z`); at += DAY_MS) {
+    out.push(new Date(at).toISOString().slice(0, 10));
+  }
+  return out;
+};
+
+type Bar = { key: string; label: string; count: number };
+
+/** One bar per day, or per month when the stretch is long. */
+const barsOf = (data: UnitVisits): Bar[] => {
+  const first = data.since ?? data.days[0]?.day;
+  if (!first) {
+    return [];
+  }
+  const counts = new Map(data.days.map((day) => [day.day, day.count]));
+  const days = daysBetween(first, data.today);
+  if (days.length <= MAX_DAY_BARS) {
+    return days.map((day) => ({ count: counts.get(day) ?? 0, key: day, label: formatDay(day) }));
+  }
+  const months = new Map<string, number>();
+  for (const day of days) {
+    const month = day.slice(0, 7);
+    months.set(month, (months.get(month) ?? 0) + (counts.get(day) ?? 0));
+  }
+  return [...months].map(([month, count]) => ({
+    count,
+    key: month,
+    label: `tháng ${month.slice(5)}/${month.slice(0, 4)}`
+  }));
+};
+
+const Tile = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
+  <Card>
+    <p className='text-muted-foreground text-sm'>{label}</p>
+    <p className='mt-1 font-semibold text-3xl tabular-nums tracking-tight'>{value}</p>
+    {hint && <p className='mt-1 text-muted-foreground text-xs'>{hint}</p>}
+  </Card>
+);
+
+/** The bars, each with its own hover label; a table says the same to a screen reader. */
+const BarChart = ({ bars, unit }: { bars: Bar[]; unit: "day" | "month" }) => {
+  const [active, setActive] = useState<Bar | null>(null);
+  const peak = Math.max(1, ...bars.map((bar) => bar.count));
+  const [first] = bars;
+  const last = bars.at(-1);
+  return (
+    <div>
+      <p aria-hidden='true' className='h-5 text-muted-foreground text-sm'>
+        {active ? (
+          <>
+            {active.label}: <span className='font-medium text-foreground'>{number.format(active.count)}</span> lượt mở
+          </>
+        ) : (
+          `Rê chuột lên một cột để xem số lượt mở ${unit === "day" ? "của ngày" : "của tháng"} đó.`
+        )}
+      </p>
+      <div
+        aria-hidden='true'
+        className='mt-3 flex h-48 items-end gap-0.5 border-b'
+        onMouseLeave={() => setActive(null)}
+      >
+        {bars.map((bar) => (
+          <div
+            aria-hidden='true'
+            className='group flex h-full min-w-0 flex-1 items-end'
+            key={bar.key}
+            onMouseEnter={() => setActive(bar)}
+          >
+            <div
+              className={cn(
+                "w-full rounded-t-[4px] bg-primary/80 transition-colors group-hover:bg-primary",
+                bar.count === 0 && "bg-transparent"
+              )}
+              style={{ height: `${(bar.count / peak) * 100}%` }}
+            />
+          </div>
+        ))}
+      </div>
+      <div aria-hidden='true' className='mt-1 flex justify-between text-muted-foreground text-xs'>
+        <span>{first?.label}</span>
+        <span>{last?.label}</span>
+      </div>
+      <table className='sr-only'>
+        <caption>Lượt mở theo {unit === "day" ? "ngày" : "tháng"}</caption>
+        <tbody>
+          {bars.map((bar) => (
+            <tr key={bar.key}>
+              <th>{bar.label}</th>
+              <td>{bar.count}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const TopLinks = ({ links }: { links: UnitVisits["topLinks"] }) => {
+  const peak = Math.max(1, ...links.map((link) => link.count));
+  if (links.length === 0) {
+    return <p className='text-muted-foreground text-sm'>Chưa có link nào được mở trong khoảng này.</p>;
+  }
+  return (
+    <ol className='space-y-2.5'>
+      {links.map((link, index) => (
+        <li className='text-sm' key={link.code}>
+          <div className='flex items-baseline gap-2'>
+            <span className='w-5 shrink-0 text-muted-foreground tabular-nums'>{index + 1}.</span>
+            <RouterLink
+              className='min-w-0 flex-1 truncate underline-offset-4 hover:underline'
+              to={`/?q=${encodeURIComponent(link.code)}`}
+            >
+              {link.name} <span className='font-mono text-muted-foreground text-xs'>/{link.code}</span>
+            </RouterLink>
+            <span className='shrink-0 tabular-nums'>{number.format(link.count)}</span>
+          </div>
+          <div aria-hidden='true' className='mt-1 ml-7 h-1.5 rounded-full bg-muted'>
+            <div className='h-full rounded-full bg-primary' style={{ width: `${(link.count / peak) * 100}%` }} />
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+};
+
+const busiestOf = (data: UnitVisits) =>
+  data.days.reduce<{ day: string; count: number } | null>(
+    (best, day) => (best && best.count >= day.count ? best : day),
+    null
+  );
+
+const StatsPage = () => {
+  const { unit } = useSession();
+  const unitId = unit?.unitId ?? 0;
+  const [params, setParams] = useSearchParams();
+  const range = readRange(params.get("days"));
+  // Keyed by the range too: another stretch is another answer, not a reload of this one.
+  const { data, error } = useLoaded(`${unitId}:${range}`, () => api.unitVisits(unitId, range));
+  const bars = data ? barsOf(data) : [];
+  const busiest = data ? busiestOf(data) : null;
+  const dayCount = data?.since ? daysBetween(data.since, data.today).length : bars.length;
+
+  return (
+    <>
+      <div className='flex flex-wrap items-end justify-between gap-3'>
+        <div>
+          <h1 className='font-semibold text-xl tracking-tight'>Lượt mở</h1>
+          <p className='text-muted-foreground text-sm'>
+            Mọi link của {unit?.unitName}. Con số ước tính: lượt xem trước của Zalo, Facebook được bỏ qua khi nhận ra.
+          </p>
+        </div>
+        <fieldset className='flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-1'>
+          <legend className='sr-only'>Khoảng thời gian</legend>
+          {RANGES.map((option) => (
+            <button
+              aria-pressed={option.days === range}
+              className={cn(
+                "h-9 rounded-md px-3 font-medium text-sm transition md:h-8",
+                option.days === range ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+              key={option.label}
+              onClick={() => setParams(option.days === 30 ? {} : { days: String(option.days ?? "all") })}
+              type='button'
+            >
+              {option.label}
+            </button>
+          ))}
+        </fieldset>
+      </div>
+
+      <ErrorText>{error}</ErrorText>
+      {!(data || error) && <p className='text-muted-foreground'>Đang tải...</p>}
+
+      {data && (
+        <>
+          <div className='grid gap-3 sm:grid-cols-3'>
+            <Tile
+              hint={data.since ? `Từ ${formatDay(data.since)} đến hôm nay` : "Từ khi có link đầu tiên"}
+              label='Tổng lượt mở'
+              value={number.format(data.total)}
+            />
+            <Tile
+              label='Trung bình mỗi ngày'
+              value={number.format(dayCount ? Math.round((data.total / dayCount) * 10) / 10 : 0)}
+            />
+            <Tile
+              hint={busiest ? formatDay(busiest.day) : undefined}
+              label='Ngày nhiều nhất'
+              value={busiest ? number.format(busiest.count) : "0"}
+            />
+          </div>
+
+          <Card>
+            <h2 className='font-medium'>Theo {bars.length > 0 && bars[0]?.key.length === 7 ? "tháng" : "ngày"}</h2>
+            {bars.length > 0 ? (
+              <div className='mt-3'>
+                <BarChart bars={bars} unit={bars[0]?.key.length === 7 ? "month" : "day"} />
+              </div>
+            ) : (
+              <p className='mt-2 text-muted-foreground text-sm'>Chưa có lượt mở nào.</p>
+            )}
+          </Card>
+
+          <div className='grid gap-4'>
+            <Card>
+              <h2 className='mb-3 font-medium'>Link được mở nhiều nhất</h2>
+              <TopLinks links={data.topLinks} />
+            </Card>
+            <Card>
+              <h2 className='mb-3 font-medium'>Mở từ đâu</h2>
+              <VisitSources countries={data.countries} referrers={data.referrers} />
+            </Card>
+          </div>
+        </>
+      )}
+    </>
+  );
+};
+
+export { StatsPage };

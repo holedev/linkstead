@@ -19,6 +19,7 @@ import { LoginPage } from "./pages/login";
 import { LogoPage } from "./pages/logo";
 import { MembersPage } from "./pages/members";
 import { SetupPage } from "./pages/setup";
+import { StatsPage } from "./pages/stats";
 import { SessionProvider, useSession } from "./session";
 import "./styles.css";
 
@@ -44,6 +45,7 @@ if (root) {
             <Route element={<ApiDocsPage />} path='/api-docs' />
             <Route element={<SignedIn />}>
               <Route element={<LinksPage />} index />
+              <Route element={<StatsPage />} path='/stats' />
               <Route element={<MembersPage />} path='/members' />
               <Route element={<KeysPage />} path='/keys' />
               <Route element={<LogoPage />} path='/logo' />

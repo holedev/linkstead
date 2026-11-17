@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import type { SafetyCheck } from "./safety";
 import type { LogoFiles, Store } from "./store";
 
 /**
@@ -22,6 +23,11 @@ type AppDeps = {
    * need not reach the internet; unset means the real one.
    */
   fetchPage?: (url: string) => Promise<{ html: string; url: string } | null>;
+  /**
+   * Looks a Đích up in a list of unsafe sites (`safety.ts`). Unset where none is set up: then
+   * nothing is refused for being unsafe.
+   */
+  checkSafety?: SafetyCheck;
   /** Where logo files are kept. Unset where no file storage is attached: QR then carry no logo. */
   logos?: LogoFiles;
   /**

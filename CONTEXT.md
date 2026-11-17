@@ -72,16 +72,36 @@ A **Mã link** nobody may take by being first - the names of faculties, of the u
 programmes, of the system's own pages. Only a **Quản trị hệ thống** hands one out.
 
 **Lượt mở** (En: Visit):
-One opening of a **Link**, counted per Link per day. Nothing about the visitor is kept. It is an
-estimate of interest, not a number of people: openings a machine makes to build a preview are left
-out where they can be recognised.
+One opening of a **Link**, counted per Link per day, and per day by **Quốc gia** and **Nguồn giới
+thiệu**. Nothing that identifies the visitor is kept. It is an estimate of interest, not a number of
+people: openings a machine makes to build a preview are left out where they can be recognised.
 _Avoid_: click, scan, hit.
+
+**Quốc gia** (En: Country):
+The country a **Lượt mở** came from, as the network in front of the system reports it. Only ever a
+count (ADR-0005).
+
+**Nguồn giới thiệu** (En: Referring Site):
+The site a **Lượt mở** came from - its host name and nothing else of the address. Usually unknown:
+a scanned **QR**, a typed address and most chat apps send none (ADR-0005).
+_Avoid_: referrer URL, traffic source.
 
 **Link bị tắt** (En: Disabled Link):
 A **Link** that shows the university's notice instead of sending its visitor on. Its **Mã link**
 stays taken. A Unit may switch its own Links off and on; one switched off by a **Quản trị hệ thống**
 only a Quản trị hệ thống switches back on.
-_Distinct from_: a deleted Link, which does not exist - a Link is never removed.
+_Distinct from_: a **Link đã xóa**, which is gone for good; a **Link lưu trữ**, which still opens.
+
+**Link lưu trữ** (En: Archived Link):
+A **Link** put away from its Unit's list because nobody works on it any more. It still opens and
+counts - archiving is tidying, not switching off.
+_Avoid_: hidden, inactive.
+
+**Link đã xóa** (En: Deleted Link):
+A **Link** a **Quản lý đơn vị** or a **Quản trị hệ thống** deleted. It opens nowhere and is listed
+nowhere, but its **Mã link** stays taken for ever: what is printed must never lead somewhere new
+(ADR-0004).
+_Avoid_: removed, freed code.
 
 **Quản trị hệ thống** (En: System Administrator):
 The role that may disable any **Link** of any **Đơn vị**, without that Unit's agreement.

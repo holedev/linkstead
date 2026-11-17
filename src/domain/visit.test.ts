@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMachineAgent, visitDay } from "./visit";
+import { isMachineAgent, referrerSite, visitCountry, visitDay } from "./visit";
 
 describe("isMachineAgent", () => {
   it("recognises the preview fetchers a shared Link meets first", () => {
@@ -28,5 +28,32 @@ describe("visitDay", () => {
     // 06:00 on 2 March in Vietnam is 23:00 on 1 March UTC.
     expect(visitDay(new Date("2027-03-01T23:00:00Z"))).toBe("2027-03-02");
     expect(visitDay(new Date("2027-03-01T16:59:59Z"))).toBe("2027-03-01");
+  });
+});
+
+describe("where a Lượt mở came from", () => {
+  it("keeps the country the network reports, and nothing for a placeholder", () => {
+    expect(visitCountry("VN")).toBe("VN");
+    expect(visitCountry("jp")).toBe("JP");
+    expect(visitCountry("XX")).toBe("");
+    expect(visitCountry("T1")).toBe("");
+    expect(visitCountry(undefined)).toBe("");
+    expect(visitCountry("VNM")).toBe("");
+  });
+
+  it("keeps only the referring site's host, folded into the site people know", () => {
+    expect(referrerSite("https://www.ou.edu.vn/tin-tuc/bai-1?user=an", "go.test")).toBe("ou.edu.vn");
+    expect(referrerSite("https://l.facebook.com/l.php?u=abc", "go.test")).toBe("facebook.com");
+    expect(referrerSite("https://lm.facebook.com/", "go.test")).toBe("facebook.com");
+    expect(referrerSite("https://t.co/xyz", "go.test")).toBe("x.com");
+    expect(referrerSite("android-app://com.google.android.gm/", "go.test")).toBe("com.google.android.gm");
+  });
+
+  it("says nothing for a scan, a typed address, its own pages or anything odd", () => {
+    expect(referrerSite(null, "go.test")).toBe("");
+    expect(referrerSite("", "go.test")).toBe("");
+    expect(referrerSite("not a url", "go.test")).toBe("");
+    expect(referrerSite("https://go.test/app/", "go.test")).toBe("");
+    expect(referrerSite("ftp://files.example/", "go.test")).toBe("");
   });
 });

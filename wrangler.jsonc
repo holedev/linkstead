@@ -4,6 +4,8 @@
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-11-01",
   "observability": { "enabled": true },
+  // The daily safety check of every Đích (`src/worker/safety.ts`), at 03:17 in Vietnam.
+  "triggers": { "crons": ["17 20 * * *"] },
   "assets": {
     // The built UI: `dist/client/app/**`, so its files are served under `/app`.
     "directory": "./dist/client",

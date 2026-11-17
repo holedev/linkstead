@@ -2,18 +2,28 @@ import { raw } from "hono/html";
 import { ArrowRightIcon, Brand, Footer, Icon, VisitorPage } from "./visitor-page";
 
 /**
- * The two pages a visitor can meet instead of a redirect. Vietnamese and English on the same
+ * The pages a visitor can meet instead of a redirect. Vietnamese and English on the same
  * page: whoever scans a QR on a conference poster may read neither the other. Each says which
  * address was opened and what OU Link is, and offers the introduction - but never sends the
- * visitor there by itself: an unknown or switched-off Link does not fall back to a home page.
+ * visitor there by itself: an unknown, switched-off or deleted Link does not fall back to a home
+ * page. A Link whose Đích the daily check found unsafe warns, and leaves going on to the visitor.
  */
 
-type NoticeKind = "unknown" | "disabled";
+type NoticeKind = "unknown" | "disabled" | "deleted" | "unsafe";
 
 const TEXT: Record<
   NoticeKind,
   { title: string; titleEn: string; vi: string; en: string; advice: string; adviceEn: string }
 > = {
+  deleted: {
+    advice:
+      "Đơn vị phát hành đã xóa liên kết này. Nếu bạn cần nội dung của nó, hãy liên hệ đơn vị đã in hoặc gửi liên kết cho bạn.",
+    adviceEn: "The unit that published it has deleted it. If you need its content, please contact them.",
+    en: "This link has been deleted and no longer leads anywhere.",
+    title: "Liên kết đã bị xóa",
+    titleEn: "This link was deleted",
+    vi: "Liên kết này đã bị xóa và không còn dẫn tới đâu."
+  },
   disabled: {
     advice:
       "Đơn vị phát hành đã tắt liên kết này. Nếu bạn cần nội dung của nó, hãy liên hệ đơn vị đã in hoặc gửi liên kết cho bạn.",
@@ -31,6 +41,15 @@ const TEXT: Record<
     title: "Không tìm thấy liên kết",
     titleEn: "Link not found",
     vi: "Liên kết này không tồn tại. Vui lòng kiểm tra lại địa chỉ bạn đã gõ hoặc quét."
+  },
+  unsafe: {
+    advice:
+      "Liên kết đã được đánh dấu để đơn vị quản lý kiểm tra. Chỉ tiếp tục nếu bạn tin trang này, và đừng nhập mật khẩu hay thông tin cá nhân ở đó.",
+    adviceEn: "Only go on if you trust this page, and do not enter a password or personal details there.",
+    en: "Google Safe Browsing lists the page this link leads to as possibly harmful - phishing or malware.",
+    title: "Trang đích có thể không an toàn",
+    titleEn: "The destination may be unsafe",
+    vi: "Google Safe Browsing xếp trang mà liên kết này dẫn tới vào danh sách có thể gây hại - lừa đảo hoặc mã độc."
   }
 };
 
@@ -40,6 +59,7 @@ const STYLE = `
 .notice h1{font-size:1.5rem;line-height:1.3}
 .notice .sub{margin-top:.15rem}
 .notice .stack>*+*{margin-top:1rem}
+.danger{background:var(--danger-soft);color:var(--danger)}
 .hint{padding:.85rem 1rem;border-left:3px solid var(--warn);border-radius:.4rem;background:var(--warn-soft);font-size:.92rem}
 .about{display:flex;gap:.8rem;max-width:38rem;margin:1rem auto 0;padding:1rem 1.25rem;font-size:.92rem}
 .about b{display:block}
@@ -54,6 +74,29 @@ const UnknownIcon = () => (
     <path d='m8.5 8.5 5 5' />
   </Icon>
 );
+
+const DeletedIcon = () => (
+  <Icon size={24}>
+    <path d='M3 6h18' />
+    <path d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6' />
+    <path d='M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2' />
+  </Icon>
+);
+
+const WarningIcon = () => (
+  <Icon size={24}>
+    <path d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3' />
+    <path d='M12 9v4' />
+    <path d='M12 17h.01' />
+  </Icon>
+);
+
+const ICONS: Record<NoticeKind, () => unknown> = {
+  deleted: () => <DeletedIcon />,
+  disabled: () => <DisabledIcon />,
+  unknown: () => <UnknownIcon />,
+  unsafe: () => <WarningIcon />
+};
 
 const DisabledIcon = () => (
   <Icon size={24}>
@@ -83,7 +126,20 @@ const shownAddress = (url: string): string => {
   return address.length > MAX_SHOWN ? `${address.slice(0, MAX_SHOWN - 1)}…` : address;
 };
 
-const Notice = ({ kind, url }: { kind: NoticeKind; url: string }) => {
+/** Going on anyway, for the one kind that allows it: the Đích shown in full, never a hidden hop. */
+const GoOn = ({ target }: { target: string }) => (
+  <div>
+    <span class='label'>Trang đích · Destination</span>
+    <code class='address'>{target}</code>
+    <p style='margin-top:.6rem'>
+      <a href={target} rel='noreferrer nofollow'>
+        Tôi hiểu rủi ro, vẫn tiếp tục · Continue anyway
+      </a>
+    </p>
+  </div>
+);
+
+const Notice = ({ kind, url, target }: { kind: NoticeKind; url: string; target?: string }) => {
   const text = TEXT[kind];
   return (
     <VisitorPage
@@ -98,7 +154,7 @@ const Notice = ({ kind, url }: { kind: NoticeKind; url: string }) => {
       </header>
       <main class='wrap'>
         <section class='card notice'>
-          <div class='badge'>{kind === "unknown" ? <UnknownIcon /> : <DisabledIcon />}</div>
+          <div class={kind === "unsafe" ? "badge danger" : "badge"}>{ICONS[kind]()}</div>
           <div class='stack'>
             <div>
               <h1>{text.title}</h1>
@@ -120,6 +176,7 @@ const Notice = ({ kind, url }: { kind: NoticeKind; url: string }) => {
                 {text.adviceEn}
               </p>
             </div>
+            {kind === "unsafe" && target ? <GoOn target={target} /> : null}
             <div class='actions'>
               <a class='btn primary' href='/'>
                 Tìm hiểu về OU Link

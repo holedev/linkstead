@@ -65,7 +65,18 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
     const links = await store.listLinksByUnit(unit.id);
     const groupNames = new Map((await store.listGroups(unit.id)).map((group) => [group.id, group.name]));
     const csv = toCsv(
-      ["Mã link", "Link", "Tên link", "Nhóm", "Đích", "Ghi chú", "Trạng thái", "Ngày tạo", "Lượt mở (ước tính)"],
+      [
+        "Mã link",
+        "Link",
+        "Tên link",
+        "Nhóm",
+        "Đích",
+        "Ghi chú",
+        "Trạng thái",
+        "Lưu trữ",
+        "Ngày tạo",
+        "Lượt mở (ước tính)"
+      ],
       links.map((link) => [
         link.code,
         `${origin}/${link.code}`,
@@ -74,6 +85,7 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
         link.target,
         link.note,
         status(link),
+        link.archivedAt ? "Có" : "",
         link.createdAt.toISOString(),
         link.visits
       ])
@@ -93,6 +105,26 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
       visits.map((visit) => [visit.code, visit.day, visit.count])
     );
     return download(c, csv, "text/csv; charset=utf-8", `ou-link-don-vi-${unit.id}-luot-mo.csv`);
+  });
+
+  /** Where a Đơn vị's Lượt mở came from: one row per Link, day, and country or referring site. */
+  app.get("/api/units/:unitId/visit-sources.csv", async (c) => {
+    const unit = await memberUnit(c, store);
+    if (unit instanceof Response) {
+      return unit;
+    }
+    const rows = await store.listVisitSourcesByUnit(unit.id);
+    const csv = toCsv(
+      ["Mã link", "Ngày", "Loại", "Giá trị", "Lượt mở (ước tính)"],
+      rows.map((row) => [
+        row.code,
+        row.day,
+        row.kind === "country" ? "Quốc gia" : "Nguồn giới thiệu",
+        row.value || "Không rõ",
+        row.count
+      ])
+    );
+    return download(c, csv, "text/csv; charset=utf-8", `ou-link-don-vi-${unit.id}-nguon-luot-mo.csv`);
   });
 
   /** Everything, for moving to another installation (ADR-0001). It holds password and key hashes. */
@@ -141,4 +173,4 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
   });
 };
 
-export { registerExportRoutes };
+export { memberUnit, registerExportRoutes };

@@ -33,4 +33,59 @@ const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
  */
 const visitDay = (at: Date): string => new Date(at.getTime() + VN_OFFSET_MS).toISOString().slice(0, 10);
 
-export { isMachineAgent, isPreviewFetcher, visitDay };
+/**
+ * The country a Lượt mở came from, as the network in front of the system reports it - two capital
+ * letters - or "" when it does not, or reports a placeholder (`XX` unknown, `T1` Tor). Read from a
+ * header, so a server without such a network simply counts every opening as unknown.
+ */
+const COUNTRY = /^[A-Z]{2}$/;
+const NOT_A_COUNTRY = new Set(["XX", "T1"]);
+
+const visitCountry = (header: string | null | undefined): string => {
+  const code = (header ?? "").trim().toUpperCase();
+  return COUNTRY.test(code) && !NOT_A_COUNTRY.has(code) ? code : "";
+};
+
+/**
+ * Sites that send their visitors on through a host of their own, folded into the site people
+ * know. Anything else keeps its own host.
+ */
+const SITE_ALIASES: Record<string, string> = {
+  "l.facebook.com": "facebook.com",
+  "l.instagram.com": "instagram.com",
+  "l.messenger.com": "messenger.com",
+  "lm.facebook.com": "facebook.com",
+  "m.facebook.com": "facebook.com",
+  "mobile.facebook.com": "facebook.com",
+  "t.co": "x.com",
+  "web.facebook.com": "facebook.com"
+};
+
+const WWW = /^www\./;
+
+/**
+ * The site a Lượt mở came from: the host of the `Referer`, without `www.`, or "" when there is
+ * none - a scanned QR, a typed address and most chat apps send nothing. Only the host is kept: the
+ * rest of the address can name a person or a private page. `ownHost` is this system: a Link opened
+ * from its own pages did not come from anywhere else.
+ */
+const referrerSite = (referer: string | null | undefined, ownHost: string): string => {
+  if (!(referer && URL.canParse(referer))) {
+    return "";
+  }
+  const url = new URL(referer);
+  // An Android app that opened the Link names itself as `android-app://<package>/`.
+  if (url.protocol === "android-app:") {
+    return url.hostname.toLowerCase();
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    return "";
+  }
+  const host = url.hostname.toLowerCase().replace(WWW, "");
+  if (host === ownHost.toLowerCase().replace(WWW, "")) {
+    return "";
+  }
+  return SITE_ALIASES[host] ?? host;
+};
+
+export { isMachineAgent, isPreviewFetcher, referrerSite, visitCountry, visitDay };

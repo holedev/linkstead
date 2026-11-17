@@ -24,17 +24,22 @@ type Link = {
   preview: Preview;
   visits: number;
   createdAt: string;
+  /** Put away from the list. It still opens. */
+  archived: boolean;
+  /** Since when the daily check has found the Đích listed as unsafe, or null. */
+  unsafeSince: string | null;
 };
 type Author = { kind: "account"; email: string } | { kind: "key"; name: string } | null;
 type HistoryEntry = { at: string; by: Author } & (
   | { kind: "target"; oldTarget: string; newTarget: string }
   | { kind: "unit"; oldUnitName: string; newUnitName: string }
   | { kind: "status"; enabled: boolean; bySystem: boolean }
+  | { kind: "deleted" }
 );
 type UnitOverview = { id: number; name: string; linkCount: number; managers: string[] };
 type ReservedCode = { code: string; note: string; createdAt: string };
 /** A Link as a Quản trị hệ thống finds it: with the Đơn vị that owns it and its history. */
-type FoundLink = Link & { unitName: string; history: HistoryEntry[] };
+type FoundLink = Link & { unitName: string; history: HistoryEntry[]; deletedAt: string | null };
 type NewLinkInput = {
   unitId: number;
   name: string;
@@ -46,7 +51,20 @@ type NewLinkInput = {
 /** A Nhóm: a Đơn vị's own way of sorting its Links. */
 type LinkGroup = { id: number; name: string; linkCount: number };
 type Preview = { title: string; description: string; image: string };
-type Visits = { total: number; days: { day: string; count: number }[] };
+/** A country (two letters) or a referring site, and its Lượt mở. "" is "not known". */
+type VisitSource = { value: string; count: number };
+type Visits = {
+  total: number;
+  days: { day: string; count: number }[];
+  countries: VisitSource[];
+  referrers: VisitSource[];
+};
+/** A Đơn vị's Lượt mở over a stretch of days, or since the start when `since` is null. */
+type UnitVisits = Visits & {
+  since: string | null;
+  today: string;
+  topLinks: { code: string; name: string; count: number }[];
+};
 type LogoChoice = "inherit" | "none" | "custom";
 type Member = { email: string; role: Role; hasPassword: boolean };
 type ApiKey = { id: number; name: string; createdAt: string; revokedAt: string | null };
@@ -154,6 +172,7 @@ const api = {
   adminUnits: () => call<{ units: UnitOverview[] }>("GET", "/api/admin/units"),
   adminUnreserve: (code: string) => call<void>("DELETE", `/api/admin/reserved-codes/${code}`),
   adminUploadLogo: (file: File) => upload("/api/admin/qr-logo", file),
+  archiveLink: (code: string) => call<Link>("POST", `/api/links/${code}/archive`),
   changeTarget: (code: string, target: string, expectedTarget: string, resetPreview = false) =>
     call<Link>("PUT", `/api/links/${code}/target`, { expectedTarget, resetPreview, target }),
   createGroup: (unitId: number, name: string) => call<LinkGroup>("POST", `/api/units/${unitId}/groups`, { name }),
@@ -161,6 +180,8 @@ const api = {
     call<{ id: number; key: string; name: string }>("POST", `/api/units/${unitId}/keys`, { name }),
   createLink: (input: NewLinkInput) => call<Link>("POST", "/api/links", input),
   deleteGroup: (unitId: number, groupId: number) => call<void>("DELETE", `/api/units/${unitId}/groups/${groupId}`),
+  /** Deletes a Link for good. `confirmCode` is its Mã link typed back by whoever confirmed. */
+  deleteLink: (code: string, confirmCode: string) => call<void>("DELETE", `/api/links/${code}`, { confirmCode }),
   disableLink: (code: string) => call<Link>("POST", `/api/links/${code}/disable`),
   enableLink: (code: string) => call<Link>("POST", `/api/links/${code}/enable`),
   groups: (unitId: number) => call<{ groups: LinkGroup[] }>("GET", `/api/units/${unitId}/groups`),
@@ -196,8 +217,11 @@ const api = {
   setPassword: async (token: string, email: string, password: string) =>
     call<void>("POST", "/api/auth/setup", { passwordKey: await stretchPassword(password, email), token }),
   setupAccount: (token: string) => call<{ email: string }>("POST", "/api/auth/setup/account", { token }),
+  unarchiveLink: (code: string) => call<Link>("POST", `/api/links/${code}/unarchive`),
   unitLogo: (unitId: number) => call<{ own: boolean; university: boolean }>("GET", `/api/units/${unitId}/qr-logo`),
   unitLogoPreview: (unitId: number) => svg(`/api/units/${unitId}/qr-preview`),
+  unitVisits: (unitId: number, days: number | null) =>
+    call<UnitVisits>("GET", `/api/units/${unitId}/visits${days ? `?days=${days}` : ""}`),
   updateLinkDetails: (code: string, name: string, note: string) =>
     call<Link>("PUT", `/api/links/${code}/details`, { name, note }),
   uploadLinkLogo: (code: string, file: File) => upload(`/api/links/${code}/qr-logo`, file),
@@ -221,5 +245,7 @@ export {
   type Role,
   type UnitMembership,
   type UnitOverview,
+  type UnitVisits,
+  type VisitSource,
   type Visits
 };

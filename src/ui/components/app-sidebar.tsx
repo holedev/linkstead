@@ -1,5 +1,6 @@
 import {
   Building2Icon,
+  ChartNoAxesColumnIcon,
   CheckIcon,
   ChevronsUpDownIcon,
   DatabaseBackupIcon,
@@ -41,7 +42,10 @@ import { useSession } from "@/session";
 type NavItem = { to: string; label: string; icon: LucideIcon };
 
 /** What a Thành viên works on. The last three are a Quản lý đơn vị's. */
-const UNIT_NAV: NavItem[] = [{ icon: Link2Icon, label: "Link", to: "/" }];
+const UNIT_NAV: NavItem[] = [
+  { icon: Link2Icon, label: "Link", to: "/" },
+  { icon: ChartNoAxesColumnIcon, label: "Lượt mở", to: "/stats" }
+];
 const MANAGER_NAV: NavItem[] = [
   { icon: UsersIcon, label: "Thành viên", to: "/members" },
   { icon: KeyRoundIcon, label: "Khóa API", to: "/keys" },

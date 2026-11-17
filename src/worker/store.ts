@@ -29,6 +29,10 @@ type OpenableLink = LinkPreview & {
   id: number;
   target: string;
   enabled: boolean;
+  /** Deleted: it opens nowhere, and its code is never given out again (ADR-0004). */
+  deleted: boolean;
+  /** The daily check found the Đích listed as unsafe: visitors are warned instead of sent on. */
+  unsafe: boolean;
 };
 
 type LinkRecord = LinkPreview & {
@@ -51,6 +55,12 @@ type LinkRecord = LinkPreview & {
   /** Every Lượt mở the Link has had, all days together. */
   visits: number;
   createdAt: Date;
+  /** Put away from the Đơn vị's list. It still opens. */
+  archivedAt: Date | null;
+  /** Deleted (ADR-0004). Only a lookup by a Quản trị hệ thống ever returns such a Link. */
+  deletedAt: Date | null;
+  /** Since when the daily check has found the Đích listed as unsafe, if it has. */
+  unsafeSince: Date | null;
 };
 
 /** Who made a change: a person or a Khóa API, never both. */
@@ -63,6 +73,7 @@ type HistoryEntry = { at: Date; by: AuthorName } & (
   | { kind: "target"; oldTarget: string; newTarget: string }
   | { kind: "unit"; oldUnitName: string; newUnitName: string }
   | { kind: "status"; enabled: boolean; bySystem: boolean }
+  | { kind: "deleted" }
 );
 
 /** What became of a change to a membership. A Đơn vị never loses its last Quản lý đơn vị. */
@@ -86,6 +97,15 @@ type Snapshot = {
 };
 
 type DayVisits = { day: string; count: number };
+
+/** Where Lượt mở came from: a country (two letters) or a referring site; "" is "not known". */
+type VisitSource = { kind: "country" | "referrer"; value: string; count: number };
+
+/** Which Lượt mở to add up: one Link's or a whole Đơn vị's, from a day on (`yyyy-mm-dd`) or ever. */
+type VisitScope = ({ linkId: number } | { unitId: number }) & { since?: string };
+
+/** A Link to look at again in the daily safety check. */
+type LinkToCheck = { id: number; target: string; unsafeSince: Date | null };
 
 type NewLink = {
   code: string;
@@ -119,17 +139,32 @@ type Store = {
   // ── Opening a Link ────────────────────────────────────────────────────────
   /** The Link behind a normalised Mã link, or null when there is none. */
   findLinkByCode: (code: string) => Promise<OpenableLink | null>;
-  /** Adds one Lượt mở to a Link's count for a day (`yyyy-mm-dd`). */
-  recordVisit: (linkId: number, day: string) => Promise<void>;
+  /**
+   * Adds one Lượt mở to a Link's count for a day (`yyyy-mm-dd`), and to the counts of the country
+   * and the site it came from ("" when not known).
+   */
+  recordVisit: (linkId: number, day: string, source: { country: string; referrer: string }) => Promise<void>;
 
   // ── Links ─────────────────────────────────────────────────────────────────
   /** Whether the administrators hold this code back, on top of the system's own list. */
   isReservedCode: (code: string) => Promise<boolean>;
-  /** Null when the Mã link is already taken - by any Link, open or switched off. */
+  /** Null when the Mã link is already taken - by any Link, open, switched off or deleted. */
   createLink: (link: NewLink) => Promise<LinkRecord | null>;
+  /** A Đơn vị's Links, archived ones included, deleted ones not. */
   listLinksByUnit: (unitId: number) => Promise<LinkRecord[]>;
-  /** The whole Link behind a normalised Mã link, for whoever manages it. */
+  /** The whole Link behind a normalised Mã link - also a deleted one, which the caller turns away. */
   findLink: (code: string) => Promise<LinkRecord | null>;
+  /** Puts a Link away from the Đơn vị's list, or back with null. It keeps opening either way. */
+  setLinkArchived: (linkId: number, at: Date | null) => Promise<void>;
+  /**
+   * Deletes a Link: from now on it opens nowhere and is listed nowhere, but its row - and so its
+   * Mã link - stays, never to be given out again (ADR-0004). False when it was already deleted.
+   */
+  deleteLink: (deletion: { linkId: number; byAccountId: number; at: Date }) => Promise<boolean>;
+  /** Every Link that is not deleted, for the daily safety check of its Đích. */
+  listLinksToCheck: () => Promise<LinkToCheck[]>;
+  /** Marks a Link's Đích as found unsafe since a moment, or clears that with null. */
+  setLinkUnsafe: (linkId: number, since: Date | null) => Promise<void>;
   /**
    * Replaces the Đích and records the change, together or not at all. False when the Đích was no
    * longer `oldTarget` - somebody else changed it first, and nothing is written.
@@ -178,6 +213,20 @@ type Store = {
 
   /** Lượt mở of every Link a Đơn vị owns, by Mã link then day. */
   listVisitsByUnit: (unitId: number) => Promise<{ code: string; day: string; count: number }[]>;
+  /** Lượt mở of every Link a Đơn vị owns, by Mã link, day, and where they came from. */
+  listVisitSourcesByUnit: (
+    unitId: number
+  ) => Promise<{ code: string; day: string; kind: "country" | "referrer"; value: string; count: number }[]>;
+  /** Lượt mở added up by country and by referring site, most first. */
+  listVisitSources: (scope: VisitScope) => Promise<VisitSource[]>;
+  /** A Đơn vị's Lượt mở per day, all its Links together, oldest first. */
+  listUnitVisitDays: (unitId: number, since?: string) => Promise<DayVisits[]>;
+  /** A Đơn vị's most opened Links over a stretch of days, most first. */
+  listUnitTopLinks: (
+    unitId: number,
+    since: string | undefined,
+    limit: number
+  ) => Promise<{ code: string; name: string; count: number }[]>;
 
   // ── The whole installation ────────────────────────────────────────────────
   exportAll: (at: Date) => Promise<Snapshot>;
@@ -295,6 +344,7 @@ export type {
   LinkGroup,
   LinkPreview,
   LinkRecord,
+  LinkToCheck,
   LogoChoice,
   LogoFiles,
   MemberRecord,
@@ -307,5 +357,7 @@ export type {
   Snapshot,
   Store,
   UnitOverview,
-  UnitRecord
+  UnitRecord,
+  VisitScope,
+  VisitSource
 };

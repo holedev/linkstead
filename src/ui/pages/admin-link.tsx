@@ -85,8 +85,9 @@ const AdminLinkLookup = ({ units, onMoved }: { units: UnitOverview[]; onMoved: (
         <div className='mt-4 space-y-3 rounded-md border border-border p-3'>
           <div className='flex flex-wrap items-center gap-2'>
             <h3 className='min-w-0 flex-1 break-words font-medium'>{link.name}</h3>
-            {link.enabled && <Badge tone='ok'>Đang bật</Badge>}
-            {!link.enabled && (
+            {link.deletedAt && <Badge tone='danger'>Đã xóa</Badge>}
+            {!link.deletedAt && link.enabled && <Badge tone='ok'>Đang bật</Badge>}
+            {!(link.deletedAt || link.enabled) && (
               <Badge tone={link.disabledBySystem ? "danger" : "muted"}>
                 {link.disabledBySystem ? "Quản trị hệ thống đã tắt" : "Đơn vị đã tắt"}
               </Badge>
@@ -114,7 +115,14 @@ const AdminLinkLookup = ({ units, onMoved }: { units: UnitOverview[]; onMoved: (
             Tạo ngày {formatDate(link.createdAt)} - khoảng {number.format(link.visits)} lượt mở
           </p>
 
-          <div className='flex flex-wrap gap-2'>
+          {link.deletedAt && (
+            <p className='text-sm'>
+              Link đã bị xóa ngày {formatDate(link.deletedAt)}: không mở được, không hiện ở đâu, và mã của nó không bao
+              giờ được cấp lại. Ai xóa có trong lịch sử bên dưới.
+            </p>
+          )}
+
+          <div className={link.deletedAt ? "hidden" : "flex flex-wrap gap-2"}>
             {link.enabled || !link.disabledBySystem ? (
               <Button disabled={busy} onClick={() => setConfirming("disable")} variant='danger'>
                 {link.enabled ? "Tắt link" : "Giữ link ở trạng thái tắt"}
@@ -127,7 +135,7 @@ const AdminLinkLookup = ({ units, onMoved }: { units: UnitOverview[]; onMoved: (
             )}
           </div>
 
-          {others.length > 0 && (
+          {others.length > 0 && !link.deletedAt && (
             <div className='grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-end'>
               <Field hint='Địa chỉ, đích và lượt mở của link giữ nguyên.' label='Chuyển sang đơn vị'>
                 {(props) => (

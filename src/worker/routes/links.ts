@@ -5,7 +5,8 @@ import { checkTarget } from "../../domain/target";
 import type { AppContext, AppDeps, AppEnv } from "../context";
 import { fetchPage as fetchRealPage } from "../fetch-page";
 import { positiveInt, readJson, text } from "../http";
-import type { Author, HistoryEntry, LinkRecord, NewLink, Store } from "../store";
+import { isListedUnsafe, type SafetyCheck } from "../safety";
+import type { Author, HistoryEntry, LinkRecord, NewLink, Store, VisitSource } from "../store";
 
 const MAX_NAME = 200;
 const MAX_NOTE = 1000;
@@ -37,6 +38,7 @@ const resolveCreator = async (c: AppContext, store: Store, requested: unknown): 
 };
 
 const present = (link: LinkRecord, origin: string) => ({
+  archived: link.archivedAt !== null,
   code: link.code,
   createdAt: link.createdAt.toISOString(),
   disabledBySystem: link.disabledBySystem,
@@ -49,9 +51,15 @@ const present = (link: LinkRecord, origin: string) => ({
   preview: { description: link.previewDescription, image: link.previewImage, title: link.previewTitle },
   target: link.target,
   unitId: link.unitId,
+  /** Since when the daily check has found the Đích listed as unsafe, or null. */
+  unsafeSince: link.unsafeSince?.toISOString() ?? null,
   url: `${origin}/${link.code}`,
   visits: link.visits
 });
+
+/** One side of where Lượt mở came from, most first. "" is "not known". */
+const sourcesOf = (sources: VisitSource[], kind: VisitSource["kind"]) =>
+  sources.filter((source) => source.kind === kind).map(({ value, count }) => ({ count, value }));
 
 const presentEntry = (entry: HistoryEntry) => ({ ...entry, at: entry.at.toISOString() });
 
@@ -67,6 +75,8 @@ type ReachOptions = {
   systemAdmin?: boolean;
   /** Refuses a Khóa API: the request is not one of the six things the API does. */
   peopleOnly?: boolean;
+  /** Lets a deleted Link through - for a Quản trị hệ thống's lookup only. Otherwise it is unknown. */
+  deleted?: boolean;
 };
 
 /**
@@ -80,7 +90,7 @@ const reachLink = async (c: AppContext, store: Store, options: ReachOptions = {}
   }
   const code = normalizeCode(c.req.param("code") ?? "");
   const link = isWellFormedCode(code) ? await store.findLink(code) : null;
-  if (!link) {
+  if (!link || (link.deletedAt && !options.deleted)) {
     return c.json({ error: "unknown-link" }, 404);
   }
   if (actor.kind === "key") {
@@ -148,7 +158,7 @@ const createWithGeneratedCode = async (store: Store, fields: LinkFields): Promis
  */
 const createLink = async (
   c: AppContext,
-  store: Store,
+  { store, checkSafety }: { store: Store; checkSafety?: SafetyCheck },
   creator: Creator,
   body: Record<string, unknown> | null,
   handOut = false
@@ -157,6 +167,9 @@ const createLink = async (
   const read = readFields(body, creator, url.hostname);
   if ("error" in read) {
     return c.json(read, 422);
+  }
+  if (await isListedUnsafe(checkSafety, read.target)) {
+    return c.json({ error: "bad-target", problem: "unsafe" }, 422);
   }
   // A Nhóm, if one is named, must be one of the Đơn vị's own.
   const groupId = body?.groupId === undefined || body.groupId === null ? null : positiveInt(String(body.groupId));
@@ -185,7 +198,7 @@ const createLink = async (
 
 const registerLinkRoutes = (
   app: Hono<AppEnv>,
-  { store, now = () => new Date(), fetchPage = fetchRealPage }: AppDeps
+  { store, now = () => new Date(), fetchPage = fetchRealPage, checkSafety }: AppDeps
 ) => {
   /** Creates a Link. With no `code`, the system picks one. */
   app.post("/api/links", async (c) => {
@@ -194,7 +207,7 @@ const registerLinkRoutes = (
     if (creator instanceof Response) {
       return creator;
     }
-    return createLink(c, store, creator, body);
+    return createLink(c, { checkSafety, store }, creator, body);
   });
 
   /** The Links of one Đơn vị, newest first. */
@@ -229,6 +242,9 @@ const registerLinkRoutes = (
     if (target === link.target) {
       return c.json({ error: "bad-target", problem: "unchanged" }, 422);
     }
+    if (await isListedUnsafe(checkSafety, target)) {
+      return c.json({ error: "bad-target", problem: "unsafe" }, 422);
+    }
     const expected = typeof body?.expectedTarget === "string" ? body.expectedTarget.trim() : link.target;
     const changed =
       expected === link.target &&
@@ -242,9 +258,9 @@ const registerLinkRoutes = (
     if (body?.resetPreview === true) {
       const cleared = { previewDescription: "", previewImage: "", previewTitle: "" };
       await store.updateLinkPreview(link.id, cleared);
-      return c.json(present({ ...link, ...cleared, target }, url.origin));
+      return c.json(present({ ...link, ...cleared, target, unsafeSince: null }, url.origin));
     }
-    return c.json(present({ ...link, target }, url.origin));
+    return c.json(present({ ...link, target, unsafeSince: null }, url.origin));
   });
 
   /** Sorts the Link into one of its Đơn vị's Nhóm, or into none with `groupId: null`. */
@@ -358,6 +374,55 @@ const registerLinkRoutes = (
     return c.json(present({ ...link, disabledBySystem: false, enabled: true }, new URL(c.req.url).origin));
   });
 
+  /**
+   * Puts a Link away from the Đơn vị's list, or brings it back. It keeps opening and counting: this
+   * is tidying, for any Thành viên, and not one of the API's six things.
+   */
+  app.post("/api/links/:code/archive", async (c) => {
+    const reach = await reachLink(c, store, { peopleOnly: true });
+    if (reach instanceof Response) {
+      return reach;
+    }
+    const archivedAt = reach.link.archivedAt ?? now();
+    await store.setLinkArchived(reach.link.id, archivedAt);
+    return c.json(present({ ...reach.link, archivedAt }, new URL(c.req.url).origin));
+  });
+
+  app.post("/api/links/:code/unarchive", async (c) => {
+    const reach = await reachLink(c, store, { peopleOnly: true });
+    if (reach instanceof Response) {
+      return reach;
+    }
+    await store.setLinkArchived(reach.link.id, null);
+    return c.json(present({ ...reach.link, archivedAt: null }, new URL(c.req.url).origin));
+  });
+
+  /**
+   * Deletes a Link (ADR-0004): it stops opening and leaves every list, and its Mã link is never
+   * given out again. For a Quản lý đơn vị of the owning Đơn vị, or a Quản trị hệ thống - never a
+   * Khóa API, which would make a leaked key able to break what is printed.
+   */
+  app.delete("/api/links/:code", async (c) => {
+    const reach = await reachLink(c, store, { peopleOnly: true, systemAdmin: true });
+    if (reach instanceof Response) {
+      return reach;
+    }
+    const actor = c.get("actor");
+    if (actor?.kind !== "account") {
+      return c.json({ error: "forbidden" }, 403);
+    }
+    const role = await store.findRole(actor.accountId, reach.link.unitId);
+    if (!(role === "manager" || actor.isSystemAdmin)) {
+      return c.json({ error: "forbidden" }, 403);
+    }
+    // The Mã link typed back, as the confirmation asks: a slip of the mouse deletes nothing.
+    if (normalizeCode(text((await readJson(c))?.confirmCode)) !== reach.link.code) {
+      return c.json({ error: "confirm-code" }, 422);
+    }
+    await store.deleteLink({ at: now(), byAccountId: actor.accountId, linkId: reach.link.id });
+    return c.body(null, 204);
+  });
+
   /** Every change of Đích and every switch-off and -on, for the Thành viên of the owning Đơn vị. */
   app.get("/api/links/:code/history", async (c) => {
     const reach = await reachLink(c, store, { peopleOnly: true });
@@ -374,8 +439,14 @@ const registerLinkRoutes = (
       return reach;
     }
     const days = await store.listVisits(reach.link.id);
-    return c.json({ days, total: days.reduce((sum, day) => sum + day.count, 0) });
+    const sources = await store.listVisitSources({ linkId: reach.link.id });
+    return c.json({
+      countries: sourcesOf(sources, "country"),
+      days,
+      referrers: sourcesOf(sources, "referrer"),
+      total: days.reduce((sum, day) => sum + day.count, 0)
+    });
   });
 };
 
-export { createLink, present, presentEntry, reachLink, registerLinkRoutes };
+export { createLink, present, presentEntry, reachLink, registerLinkRoutes, sourcesOf };

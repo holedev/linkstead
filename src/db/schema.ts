@@ -120,11 +120,21 @@ const linkGroups = sqliteTable(
 const links = sqliteTable(
   "links",
   {
-    /** Mã link, stored normalised. Unique for ever: there is no delete to free it. */
+    /**
+     * When it was put away from the Đơn vị's list. It still opens: tidying, not switching off.
+     */
+    archivedAt: integer("archived_at", { mode: "timestamp_ms" }),
+    /**
+     * Mã link, stored normalised. Unique for ever: a deleted Link keeps its row, so its code is
+     * never handed out again (ADR-0004).
+     */
     code: text("code").notNull(),
     createdAt: createdAt(),
     createdByAccountId: integer("created_by_account_id").references(() => accounts.id),
     createdByApiKeyId: integer("created_by_api_key_id").references(() => apiKeys.id),
+    /** Who deleted it, and when (ADR-0004). A deleted Link opens nowhere and is listed nowhere. */
+    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
+    deletedByAccountId: integer("deleted_by_account_id").references(() => accounts.id),
     /** Set when a Quản trị hệ thống switched it off: then only they switch it back on. */
     disabledBySystem: integer("disabled_by_system", { mode: "boolean" }).notNull().default(false),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
@@ -152,7 +162,12 @@ const links = sqliteTable(
     target: text("target").notNull(),
     unitId: integer("unit_id")
       .notNull()
-      .references(() => units.id)
+      .references(() => units.id),
+    /**
+     * When the daily check found the Đích listed as unsafe. Visitors then meet a warning instead
+     * of the redirect, until the Đích is changed or a later check clears it.
+     */
+    unsafeSince: integer("unsafe_since", { mode: "timestamp_ms" })
   },
   (table) => [uniqueIndex("links_code_unique").on(table.code), index("links_unit_idx").on(table.unitId)]
 );
@@ -244,10 +259,30 @@ const dailyVisits = sqliteTable(
   (table) => [primaryKey({ columns: [table.linkId, table.day] })]
 );
 
+/**
+ * Lượt mở by where they came from, one row per Link per day per country or per referring site
+ * (ADR-0005). Counts only: the country is the one the network reports, the site is a host name,
+ * and nothing ties a row to a person. An empty `value` is "not known" - a scanned QR sends no site.
+ */
+const dailyVisitSources = sqliteTable(
+  "daily_visit_sources",
+  {
+    count: integer("count").notNull().default(0),
+    day: text("day").notNull(),
+    kind: text("kind", { enum: ["country", "referrer"] }).notNull(),
+    linkId: integer("link_id")
+      .notNull()
+      .references(() => links.id),
+    value: text("value").notNull()
+  },
+  (table) => [primaryKey({ columns: [table.linkId, table.day, table.kind, table.value] })]
+);
+
 export {
   accounts,
   apiKeys,
   apiKeyUsage,
+  dailyVisitSources,
   dailyVisits,
   linkGroups,
   links,

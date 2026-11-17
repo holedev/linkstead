@@ -47,6 +47,12 @@ const CODE = {
 
 const LINK = { content: json(ref("Link")), description: "Link sau thay đổi." };
 
+/** One country or referring site and how many Lượt mở came from it. */
+const SOURCE = {
+  properties: { count: { type: "integer" }, value: { example: "VN", type: "string" } },
+  type: "object"
+};
+
 const openApiDocument = (origin: string) => ({
   components: {
     schemas: {
@@ -60,6 +66,10 @@ const openApiDocument = (origin: string) => ({
       },
       Link: {
         properties: {
+          archived: {
+            description: "Đã được cất khỏi danh sách của đơn vị. Link vẫn mở bình thường.",
+            type: "boolean"
+          },
           code: { description: "Mã link. Không bao giờ đổi.", example: "hoi-thao-2027", type: "string" },
           createdAt: { format: "date-time", type: "string" },
           disabledBySystem: {
@@ -81,6 +91,12 @@ const openApiDocument = (origin: string) => ({
           },
           target: { description: "Đích: nơi người mở link được chuyển tới.", format: "uri", type: "string" },
           unitId: { type: "integer" },
+          unsafeSince: {
+            description:
+              "Từ khi nào lượt kiểm tra hằng ngày thấy đích nằm trong danh sách không an toàn của Google Safe Browsing. Khi đó người mở link gặp trang cảnh báo thay vì được chuyển đi. Null nếu không.",
+            format: "date-time",
+            type: ["string", "null"]
+          },
           url: { description: "Địa chỉ đầy đủ để in hoặc gửi đi.", format: "uri", type: "string" },
           visits: { description: "Tổng lượt mở, ước tính.", type: "integer" }
         },
@@ -153,7 +169,7 @@ const openApiDocument = (origin: string) => ({
           201: { content: json(ref("Link")), description: "Link vừa tạo." },
           409: refusal("Mã đã có link khác dùng.", ["code-taken"]),
           422: refusal(
-            "Tên, ghi chú, đích, mã hoặc nhóm không hợp lệ. `problem` nói rõ: với đích là `not-a-url`, `not-https`, `points-at-self`, `too-long`; với mã là `too-short`, `too-long`, `bad-characters`, `reserved`.",
+            "Tên, ghi chú, đích, mã hoặc nhóm không hợp lệ. `problem` nói rõ: với đích là `not-a-url`, `not-https`, `points-at-self`, `too-long`, `unsafe` (Google Safe Browsing xếp là không an toàn); với mã là `too-short`, `too-long`, `bad-characters`, `reserved`.",
             ["bad-name", "bad-note", "bad-target", "bad-code", "unknown-group"]
           ),
           503: refusal("Chưa sinh được mã. Thử lại.", ["no-code-available"]),
@@ -247,7 +263,7 @@ const openApiDocument = (origin: string) => ({
             description: "Đích đã bị đổi trước khi yêu cầu này tới; `target` là đích hiện tại."
           },
           422: refusal(
-            "Đích không hợp lệ: `problem` là `not-a-url`, `not-https`, `points-at-self`, `too-long` hoặc `unchanged`.",
+            "Đích không hợp lệ: `problem` là `not-a-url`, `not-https`, `points-at-self`, `too-long`, `unsafe` hoặc `unchanged`.",
             ["bad-target"]
           )
         },
@@ -265,6 +281,11 @@ const openApiDocument = (origin: string) => ({
           200: {
             content: json({
               properties: {
+                countries: {
+                  description: "Theo quốc gia (mã hai chữ), nhiều trước. `value` rỗng là không rõ.",
+                  items: SOURCE,
+                  type: "array"
+                },
                 days: {
                   items: {
                     properties: { count: { type: "integer" }, day: { example: "2027-03-01", type: "string" } },
@@ -272,11 +293,17 @@ const openApiDocument = (origin: string) => ({
                   },
                   type: "array"
                 },
+                referrers: {
+                  description:
+                    "Theo trang giới thiệu (chỉ tên miền), nhiều trước. `value` rỗng là không rõ: quét QR, gõ tay và phần lớn ứng dụng chat không gửi trang giới thiệu.",
+                  items: SOURCE,
+                  type: "array"
+                },
                 total: { type: "integer" }
               },
               type: "object"
             }),
-            description: "Lượt mở theo ngày và tổng."
+            description: "Lượt mở theo ngày, theo quốc gia, theo nguồn giới thiệu, và tổng."
           },
           ...ON_A_LINK
         },

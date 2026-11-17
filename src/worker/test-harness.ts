@@ -21,6 +21,7 @@ const PHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKi
 
 // Children before parents, so the foreign keys never object.
 const TABLES = [
+  "daily_visit_sources",
   "daily_visits",
   "target_changes",
   "unit_changes",
@@ -80,8 +81,12 @@ const startHarness = async () => {
   const logoFiles = new Map<string, Uint8Array>();
   /** The pages the tests pretend are on the internet, by address. Anything else is unreachable. */
   const pages = new Map<string, string>();
+  /** The addresses the tests pretend Safe Browsing lists as unsafe. */
+  const unsafe = new Set<string>();
+  const checkSafety = (urls: readonly string[]) => Promise.resolve(new Set(urls.filter((url) => unsafe.has(url))));
   const app = createApp({
     bootstrapToken: BOOTSTRAP_TOKEN,
+    checkSafety,
     defer: (work) => {
       deferred.push(work);
     },
@@ -127,6 +132,7 @@ const startHarness = async () => {
     clock.now = new Date("2027-03-01T03:00:00Z");
     logoFiles.clear();
     pages.clear();
+    unsafe.clear();
   };
 
   /** A caller that keeps its cookies between requests, like a browser - or sends none. */
@@ -182,6 +188,7 @@ const startHarness = async () => {
     advance: (ms: number) => {
       clock.now = new Date(clock.now.getTime() + ms);
     },
+    checkSafety,
     client,
     db,
     dispose: proxy.dispose,
@@ -190,7 +197,9 @@ const startHarness = async () => {
     reset,
     run,
     runMigration,
-    signedInAdmin
+    signedInAdmin,
+    store: createD1Store(db),
+    unsafe
   };
 };
 

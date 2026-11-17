@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ADR-0004
 ---
 
 # A link code is permanent and the namespace is flat

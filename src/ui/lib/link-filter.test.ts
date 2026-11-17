@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applyFilter, DEFAULT_FILTER, fold, isFiltering, readFilter, writeFilter } from "./link-filter";
 
 const link = (over: Partial<Parameters<typeof applyFilter>[0][number]>) => ({
+  archived: false,
   code: "abc123",
   createdAt: "2027-03-01T00:00:00.000Z",
   enabled: true,
@@ -28,7 +29,8 @@ const LINKS = [
     note: "Đăng trên Zalo",
     visits: 9
   }),
-  link({ code: "cu", createdAt: "2027-02-01T00:00:00.000Z", enabled: false, groupId: 2, name: "Đường dẫn cũ" })
+  link({ code: "cu", createdAt: "2027-02-01T00:00:00.000Z", enabled: false, groupId: 2, name: "Đường dẫn cũ" }),
+  link({ archived: true, code: "xong", createdAt: "2026-12-01T00:00:00.000Z", groupId: 1, name: "Hội thảo 2026" })
 ];
 
 const codes = (links: { code: string }[]) => links.map((one) => one.code);
@@ -71,6 +73,13 @@ describe("finding Links", () => {
     expect(codes(applyFilter(LINKS, { ...everywhere, sort: "old" }))).toEqual(["cu", "so-3", "cfp-2027"]);
     expect(codes(applyFilter(LINKS, { ...everywhere, sort: "visits" }))).toEqual(["so-3", "cfp-2027", "cu"]);
     expect(codes(applyFilter(LINKS, { ...everywhere, sort: "name" }))).toEqual(["so-3", "cu", "cfp-2027"]);
+  });
+
+  it("keeps archived Links out of every view but their own, which looks through every Nhóm", () => {
+    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: 1 }))).toEqual(["cfp-2027"]);
+    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "hoi thao" }))).toEqual(["cfp-2027"]);
+    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, status: "archived" }))).toEqual(["xong"]);
+    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: 2, status: "archived" }))).toEqual([]);
   });
 
   it("leaves the list it was given as it was", () => {
