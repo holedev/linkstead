@@ -1,4 +1,4 @@
-import { CheckIcon, CircleAlertIcon, CopyIcon, DownloadIcon } from "lucide-react";
+import { CheckIcon, CircleAlertIcon, CopyIcon, DownloadIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { type ComponentProps, type ReactNode, useEffect, useId, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -70,6 +70,34 @@ const Field = ({
           {hint}
         </p>
       )}
+    </div>
+  );
+};
+
+/**
+ * A password field with an eye to show what was typed and hide it again - every password in the
+ * system gets one, so a typo on a phone keyboard can be seen before it is sent. `shown` starts it
+ * visible, for a password meant to be copied and passed on.
+ */
+const PasswordInput = ({
+  className,
+  shown: initiallyShown = false,
+  ...rest
+}: Omit<ComponentProps<"input">, "type"> & { shown?: boolean }) => {
+  const [shown, setShown] = useState(initiallyShown);
+  return (
+    <div className='relative'>
+      <input {...rest} className={cn(className, "pr-11")} type={shown ? "text" : "password"} />
+      <button
+        aria-label={shown ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+        aria-pressed={shown}
+        className='absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50'
+        onClick={() => setShown((value) => !value)}
+        title={shown ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+        type='button'
+      >
+        {shown ? <EyeOffIcon className='size-4' /> : <EyeIcon className='size-4' />}
+      </button>
     </div>
   );
 };
@@ -265,5 +293,6 @@ export {
   formatDateTime,
   Modal,
   Notice,
+  PasswordInput,
   SecretBox
 };

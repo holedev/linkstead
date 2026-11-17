@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from "react";
-import { Button, ErrorText, Field } from "@/components/app";
+import { Button, ErrorText, Field, PasswordInput } from "@/components/app";
 import { api, type Link } from "../api";
 import { messageOf } from "../messages";
 
@@ -106,15 +106,19 @@ const AccessForm = ({
           </label>
         </div>
         {passwordChoice === "set" && (
-          <Field hint='4 đến 100 ký tự. Hiện rõ để bạn chép gửi cho người cần mở.' label='Mật khẩu mới'>
+          <Field
+            hint='4 đến 100 ký tự. Đang hiện rõ để bạn chép gửi cho người cần mở; bấm hình con mắt để ẩn.'
+            label='Mật khẩu mới'
+          >
             {(props) => (
-              <input
+              <PasswordInput
                 {...props}
                 autoComplete='off'
                 maxLength={100}
                 minLength={4}
                 onChange={(event) => setPassword(event.target.value)}
                 required
+                shown
                 spellCheck={false}
                 value={password}
               />

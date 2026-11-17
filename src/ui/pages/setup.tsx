@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Button, Card, ErrorText, Field } from "@/components/app";
+import { Button, Card, ErrorText, Field, PasswordInput } from "@/components/app";
 import { checkNewPassword } from "../../domain/password";
 import { api } from "../api";
 import { messageOf } from "../messages";
@@ -74,25 +74,23 @@ const SetupPage = () => {
             <input autoComplete='username' hidden readOnly type='email' value={email} />
             <Field hint='Ít nhất 12 ký tự.' label='Mật khẩu mới'>
               {(props) => (
-                <input
+                <PasswordInput
                   {...props}
                   autoComplete='new-password'
                   minLength={12}
                   onChange={(event) => setPassword(event.target.value)}
                   required
-                  type='password'
                   value={password}
                 />
               )}
             </Field>
             <Field label='Nhập lại mật khẩu'>
               {(props) => (
-                <input
+                <PasswordInput
                   {...props}
                   autoComplete='new-password'
                   onChange={(event) => setRepeat(event.target.value)}
                   required
-                  type='password'
                   value={repeat}
                 />
               )}

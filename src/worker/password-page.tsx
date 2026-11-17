@@ -15,6 +15,12 @@ const STYLE = `
 .gate .badge{display:grid;place-items:center;width:3rem;height:3rem;margin-bottom:1.1rem;border-radius:.9rem;background:var(--brand-soft);color:var(--brand)}
 .gate h1{font-size:1.4rem;line-height:1.3}
 .gate .stack>*+*{margin-top:1rem}
+.gate .field{position:relative}
+.gate .field input{padding-right:2.9rem}
+.gate .eye{position:absolute;top:0;right:0;bottom:0;display:grid;place-items:center;width:2.75rem;border:0;border-radius:0 .6rem .6rem 0;background:none;color:var(--muted);cursor:pointer}
+.gate .eye:hover{color:var(--text)}
+.gate .eye:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 40%,transparent)}
+.gate .eye[aria-pressed="true"] .when-hidden,.gate .eye[aria-pressed="false"] .when-shown{display:none}
 .gate input{width:100%;padding:.7rem .85rem;border:1px solid var(--border);border-radius:.6rem;background:var(--surface);color:var(--text);font:inherit}
 .gate input:focus{outline:3px solid color-mix(in srgb,var(--brand) 40%,transparent);border-color:var(--brand)}
 .gate .btn{width:100%}
@@ -29,6 +35,25 @@ const ERRORS: Record<Exclude<PasswordState, "ask">, { vi: string; en: string }> 
   },
   wrong: { en: "Wrong password.", vi: "Mật khẩu không đúng." }
 };
+
+/** Shows and hides what was typed - the page's one piece of script, and it touches nothing else. */
+const EYE_SCRIPT = `(()=>{const b=document.querySelector(".eye"),i=document.getElementById("password");if(!b||!i)return;b.hidden=false;b.addEventListener("click",()=>{const s=i.type==="password";i.type=s?"text":"password";b.setAttribute("aria-pressed",String(s));b.setAttribute("aria-label",s?"Ẩn mật khẩu · Hide password":"Hiện mật khẩu · Show password");i.focus();});})();`;
+
+const EyeIcon = () => (
+  <Icon size={18}>
+    <path d='M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0' />
+    <circle cx='12' cy='12' r='3' />
+  </Icon>
+);
+
+const EyeOffIcon = () => (
+  <Icon size={18}>
+    <path d='M10.73 5.08A10.43 10.43 0 0 1 12 5c4.67 0 8.44 2.98 9.94 6.65a1 1 0 0 1 0 .7 10.75 10.75 0 0 1-1.44 2.49' />
+    <path d='M14.08 14.16a3 3 0 0 1-4.24-4.24' />
+    <path d='M17.48 17.5A10.75 10.75 0 0 1 2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 4.45-5.14' />
+    <path d='m2 2 20 20' />
+  </Icon>
+);
 
 const LockIcon = () => (
   <Icon size={24}>
@@ -70,10 +95,31 @@ const PasswordPage = ({ url, state }: { url: string; state: PasswordState }) => 
               {ERRORS[state].vi} <span lang='en'>{ERRORS[state].en}</span>
             </p>
           )}
-          <label>
-            <span class='label'>Mật khẩu · Password</span>
-            <input autocomplete='current-password' autofocus maxlength={100} name='password' required type='password' />
-          </label>
+          <div>
+            <label class='label' for='password'>
+              Mật khẩu · Password
+            </label>
+            <div class='field'>
+              <input
+                autocomplete='current-password'
+                autofocus
+                id='password'
+                maxlength={100}
+                name='password'
+                required
+                type='password'
+              />
+              {/* Shown once the script below runs: without it, there is nothing for the eye to do. */}
+              <button aria-label='Hiện mật khẩu · Show password' aria-pressed='false' class='eye' hidden type='button'>
+                <span class='when-hidden'>
+                  <EyeIcon />
+                </span>
+                <span class='when-shown'>
+                  <EyeOffIcon />
+                </span>
+              </button>
+            </div>
+          </div>
           <button class='btn primary' type='submit'>
             Mở liên kết · Open
             <ArrowRightIcon />
@@ -82,6 +128,7 @@ const PasswordPage = ({ url, state }: { url: string; state: PasswordState }) => 
       </section>
     </main>
     <Footer />
+    <script>{raw(EYE_SCRIPT)}</script>
   </VisitorPage>
 );
 

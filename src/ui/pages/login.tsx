@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { Navigate } from "react-router";
-import { Button, Card, ErrorText, Field } from "@/components/app";
+import { Button, Card, ErrorText, Field, PasswordInput } from "@/components/app";
 import { api } from "../api";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
@@ -52,12 +52,11 @@ const LoginPage = () => {
           </Field>
           <Field label='Mật khẩu'>
             {(props) => (
-              <input
+              <PasswordInput
                 {...props}
                 autoComplete='current-password'
                 onChange={(event) => setPassword(event.target.value)}
                 required
-                type='password'
                 value={password}
               />
             )}
