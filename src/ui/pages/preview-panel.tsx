@@ -1,6 +1,7 @@
 import { ImageIcon } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { Button, ErrorText, Field } from "@/components/app";
+import { LOCKED_PREVIEW } from "../../domain/preview";
 import { api, type Link, type Preview } from "../api";
 import { messageOf } from "../messages";
 
@@ -67,8 +68,16 @@ const PreviewPanel = ({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  // A Link with a password never shows its Đích's words, so there is nothing to read.
+  const locked = link.hasPassword;
+  const fallback = locked ? LOCKED_PREVIEW : fromTarget;
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: read once, when the panel opens
   useEffect(() => {
+    if (link.hasPassword) {
+      setFromTarget(null);
+      return;
+    }
     let current = true;
     api
       .linkPreview(link.code)
@@ -80,16 +89,20 @@ const PreviewPanel = ({
   }, []);
 
   const shown: Preview = {
-    description: own.description.trim() || fromTarget?.description || "",
-    image: own.image.trim() || fromTarget?.image || "",
-    title: own.title.trim() || fromTarget?.title || ""
+    description: own.description.trim() || fallback?.description || "",
+    image: own.image.trim() || fallback?.image || "",
+    title: own.title.trim() || fallback?.title || ""
   };
   const set = (part: keyof Preview) => (event: { target: { value: string } }) => {
     setError("");
     setOwn((previous) => ({ ...previous, [part]: event.target.value }));
   };
-  const fromPage = (part: keyof Preview) =>
-    fromTarget?.[part] ? `Để trống để dùng của trang đích: "${fromTarget[part]}"` : "Trang đích không có.";
+  const fromPage = (part: keyof Preview) => {
+    if (locked) {
+      return LOCKED_PREVIEW[part] ? `Để trống để dùng: "${LOCKED_PREVIEW[part]}"` : "Để trống là không có ảnh.";
+    }
+    return fromTarget?.[part] ? `Để trống để dùng của trang đích: "${fromTarget[part]}"` : "Trang đích không có.";
+  };
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -106,16 +119,24 @@ const PreviewPanel = ({
 
   return (
     <form className='space-y-4' onSubmit={save}>
-      <p className='text-muted-foreground text-sm'>
-        Đây là thứ hiện ra khi dán {link.url} vào Zalo, Facebook, Messenger... Mỗi phần để trống sẽ lấy từ trang đích.
-        Mọi người đều thấy phần này - khác với Tên link và ghi chú, chỉ đơn vị thấy.
-      </p>
+      {locked ? (
+        <p className='rounded-md border border-primary/30 bg-primary/5 p-3 text-sm'>
+          Link có mật khẩu, nên khi dán {link.url} vào Zalo, Facebook, Messenger... người khác chỉ thấy phần dưới đây,
+          không bao giờ thấy tiêu đề, mô tả hay ảnh của trang đích. Bạn có thể tự viết lại, nhưng đừng viết gì làm lộ
+          nội dung muốn giữ kín.
+        </p>
+      ) : (
+        <p className='text-muted-foreground text-sm'>
+          Đây là thứ hiện ra khi dán {link.url} vào Zalo, Facebook, Messenger... Mỗi phần để trống sẽ lấy từ trang đích.
+          Mọi người đều thấy phần này - khác với Tên link và ghi chú, chỉ đơn vị thấy.
+        </p>
+      )}
       {fromTarget === undefined ? (
         <p className='text-muted-foreground text-sm'>Đang đọc trang đích...</p>
       ) : (
-        <PreviewCard host={new URL(link.target).hostname} preview={shown} />
+        <PreviewCard host={new URL(locked ? link.url : link.target).hostname} preview={shown} />
       )}
-      {fromTarget === null && (
+      {fromTarget === null && !locked && (
         <p className='text-muted-foreground text-xs'>
           Không đọc được trang đích, hoặc trang không tự mô tả. Hãy tự đặt tiêu đề và ảnh bên dưới.
         </p>
@@ -134,7 +155,7 @@ const PreviewPanel = ({
             {...props}
             inputMode='url'
             onChange={set("image")}
-            placeholder={fromTarget?.image || "https://"}
+            placeholder={(locked ? "" : fromTarget?.image) || "https://"}
             spellCheck={false}
             value={own.image}
           />
@@ -157,7 +178,9 @@ const PreviewPanel = ({
       <ErrorText>{error}</ErrorText>
       <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
         <Button onClick={onDone}>Hủy</Button>
-        <Button onClick={() => setOwn(EMPTY)}>Dùng hết của trang đích</Button>
+        <Button onClick={() => setOwn(EMPTY)}>
+          {locked ? "Xóa hết, dùng chữ mặc định" : "Dùng hết của trang đích"}
+        </Button>
         <Button disabled={busy} type='submit' variant='primary'>
           {busy ? "Đang lưu..." : "Lưu"}
         </Button>

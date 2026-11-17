@@ -58,6 +58,26 @@ describe("a Link with a password", () => {
     expect(page).not.toContain("Bài báo bí mật");
   });
 
+  it("shows a chat app its Đơn vị's own words, or the locked ones, and never reads the Đích", async () => {
+    const admin = await withLink();
+    h.pages.set(
+      TARGET,
+      '<title>Bài báo bí mật</title><meta property="og:image" content="https://anh.example/bi-mat.png">'
+    );
+    await admin.put("/api/links/phan-bien/access", { password: "hoi-dong" });
+    const fetcher = { headers: { "user-agent": "facebookexternalhit/1.1" } };
+
+    const locked = await (await h.client().get("/phan-bien", fetcher)).text();
+    expect(locked).toContain('<meta content="Liên kết cần mật khẩu" property="og:title"/>');
+    expect(locked).not.toContain("bi-mat.png");
+    expect(await (await admin.get("/api/links/phan-bien/preview")).json()).toMatchObject({ fromTarget: null });
+
+    await admin.put("/api/links/phan-bien/preview", { description: "", image: "", title: "Tài liệu cho hội đồng" });
+    expect(await (await h.client().get("/phan-bien", fetcher)).text()).toContain(
+      '<meta content="Tài liệu cho hội đồng" property="og:title"/>'
+    );
+  });
+
   it("makes a guesser wait after ten wrong tries in a minute", async () => {
     const admin = await withLink();
     await admin.put("/api/links/phan-bien/access", { password: "hoi-dong" });

@@ -86,6 +86,19 @@ const mergePreview = (own: Preview, fromTarget: Preview | null): Preview => ({
   title: own.title || fromTarget?.title || ""
 });
 
+/**
+ * What a Link with a password shows when pasted somewhere: what its Đơn vị set by hand, and for
+ * the rest these words - never anything read from the Đích, which stays behind the password
+ * (ADR-0006).
+ */
+const LOCKED_PREVIEW: Preview = {
+  description: "Nhập mật khẩu mà đơn vị phát hành đã gửi cho bạn để mở liên kết này.",
+  image: "",
+  title: "Liên kết cần mật khẩu"
+};
+
+const lockedPreview = (own: Preview): Preview => mergePreview(own, LOCKED_PREVIEW);
+
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 
 /**
@@ -161,6 +174,8 @@ const renderPreviewPage = ({
 export {
   EMPTY as EMPTY_PREVIEW,
   isFetchableTarget,
+  LOCKED_PREVIEW,
+  lockedPreview,
   MAX_DESCRIPTION as MAX_PREVIEW_DESCRIPTION,
   MAX_TITLE as MAX_PREVIEW_TITLE,
   mergePreview,

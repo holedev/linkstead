@@ -351,7 +351,8 @@ const registerLinkRoutes = (
       return reach;
     }
     const { link } = reach;
-    const page = await fetchPage(link.target);
+    // Behind a password the Đích's own words are never shown, so they are not read either.
+    const page = link.passwordHash ? null : await fetchPage(link.target);
     return c.json({
       fromTarget: page ? readPreview(page.html, page.url) : null,
       own: { description: link.previewDescription, image: link.previewImage, title: link.previewTitle }

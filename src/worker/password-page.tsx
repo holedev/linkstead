@@ -1,4 +1,5 @@
 import { raw } from "hono/html";
+import type { Preview } from "../domain/preview";
 import { shownAddress } from "./notice";
 import { ArrowRightIcon, Brand, Footer, Icon, VisitorPage } from "./visitor-page";
 
@@ -62,11 +63,26 @@ const LockIcon = () => (
   </Icon>
 );
 
-const PasswordPage = ({ url, state }: { url: string; state: PasswordState }) => (
+/**
+ * `preview` is what a chat app shows for the Link: its Đơn vị's own words, or the locked ones
+ * (`lockedPreview`) - never the Đích's.
+ */
+const PasswordPage = ({ url, state, preview }: { url: string; state: PasswordState; preview: Preview }) => (
   <VisitorPage
-    description='Liên kết này cần mật khẩu. This link needs a password.'
-    head={<style>{raw(STYLE)}</style>}
-    title='Cần mật khẩu - OU Link'
+    description={preview.description}
+    head={
+      <>
+        <meta content='website' property='og:type' />
+        <meta content='OU Link - Trường Đại học Mở Thành phố Hồ Chí Minh' property='og:site_name' />
+        <meta content={url} property='og:url' />
+        <meta content={preview.title} property='og:title' />
+        <meta content={preview.description} property='og:description' />
+        {preview.image ? <meta content={preview.image} property='og:image' /> : null}
+        <meta content={preview.image ? "summary_large_image" : "summary"} name='twitter:card' />
+        <style>{raw(STYLE)}</style>
+      </>
+    }
+    title={`${preview.title} - OU Link`}
   >
     <header class='wrap'>
       <div class='top'>

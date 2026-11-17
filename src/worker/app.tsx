@@ -1,7 +1,7 @@
 import { type Context, Hono } from "hono";
 import { isWellFormedCode, normalizeCode, SYSTEM_RESERVED_CODES } from "../domain/link-code";
 import { matchesLinkPassword } from "../domain/link-password";
-import { mergePreview, readPreview, renderPreviewPage } from "../domain/preview";
+import { lockedPreview, mergePreview, readPreview, renderPreviewPage } from "../domain/preview";
 import { isMachineAgent, isPreviewFetcher, referrerSite, visitCountry, visitDay } from "../domain/visit";
 import { resolveActor } from "./actor";
 import type { AppDeps, AppEnv } from "./context";
@@ -39,6 +39,10 @@ const closedAs = (link: OpenableLink | null, at: Date): { kind: NoticeKind; stat
   }
   return link.expiresAt && link.expiresAt <= at ? { kind: "expired", status: 404 } : null;
 };
+
+/** What a Link behind a password shows when pasted somewhere: its own words, never its Đích's. */
+const lockedPreviewOf = (link: OpenableLink) =>
+  lockedPreview({ description: link.previewDescription, image: link.previewImage, title: link.previewTitle });
 
 /** Wrong passwords a Link takes in a minute before it asks the visitor to wait (ADR-0006). */
 const MAX_WRONG_PASSWORDS = 10;
@@ -156,7 +160,7 @@ const createApp = (deps: AppDeps) => {
     const { link, code } = reach;
     // A Link with a password says nothing of its Đích - to a person or to a preview fetcher.
     if (link.passwordHash) {
-      return c.html(<PasswordPage state='ask' url={c.req.url} />);
+      return c.html(<PasswordPage preview={lockedPreviewOf(link)} state='ask' url={c.req.url} />);
     }
     // A chat app or social site building a preview gets the tags, not a redirect: not every one
     // follows a redirect to read the Đích's. It is never counted as a Lượt mở.
@@ -178,13 +182,13 @@ const createApp = (deps: AppDeps) => {
     }
     const minute = Math.floor(now().getTime() / MINUTE_MS);
     if ((await store.passwordFailures(link.id, minute)) >= MAX_WRONG_PASSWORDS) {
-      return c.html(<PasswordPage state='too-many' url={c.req.url} />, 429);
+      return c.html(<PasswordPage preview={lockedPreviewOf(link)} state='too-many' url={c.req.url} />, 429);
     }
     const form = await c.req.parseBody();
     const password = typeof form.password === "string" ? form.password : "";
     if (!(await matchesLinkPassword(password, link.passwordHash))) {
       await store.countPasswordFailure(link.id, minute);
-      return c.html(<PasswordPage state='wrong' url={c.req.url} />, 401);
+      return c.html(<PasswordPage preview={lockedPreviewOf(link)} state='wrong' url={c.req.url} />, 401);
     }
     return sendOn(c, link, 303);
   });
