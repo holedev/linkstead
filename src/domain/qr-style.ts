@@ -31,4 +31,29 @@ const MAX_LOGO_SCALE = 100;
 const isLogoScale = (value: unknown): value is number =>
   Number.isInteger(value) && (value as number) >= MIN_LOGO_SCALE && (value as number) <= MAX_LOGO_SCALE;
 
-export { DEFAULT_QR_STYLE, isLogoScale, isQrStyle, MAX_LOGO_SCALE, MIN_LOGO_SCALE, QR_STYLES, type QrStyle };
+/**
+ * How the modules are drawn: `square` as the standard draws them; `dots` as round dots, with the
+ * three large corner squares rounded. Kept with each Link, like its logo, so a download later is
+ * the same picture. Either reads the same: only the outline of a module changes, not where it is.
+ */
+const QR_SHAPES = ["square", "dots"] as const;
+
+type QrShape = (typeof QR_SHAPES)[number];
+
+const DEFAULT_QR_SHAPE: QrShape = "square";
+
+const isQrShape = (value: unknown): value is QrShape => QR_SHAPES.includes(value as QrShape);
+
+export {
+  DEFAULT_QR_SHAPE,
+  DEFAULT_QR_STYLE,
+  isLogoScale,
+  isQrShape,
+  isQrStyle,
+  MAX_LOGO_SCALE,
+  MIN_LOGO_SCALE,
+  QR_SHAPES,
+  QR_STYLES,
+  type QrShape,
+  type QrStyle
+};

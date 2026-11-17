@@ -1,7 +1,7 @@
 import jsQR from "jsqr";
 import { describe, expect, it } from "vitest";
 import { checkLogo, logoTypeOf, MAX_LOGO_BYTES } from "./logo";
-import { logoBox, QUIET_ZONE, qrMatrix, renderQrSvg } from "./qr";
+import { dotMarks, logoBox, type Mark, QUIET_ZONE, qrMatrix, renderQrSvg } from "./qr";
 import { isLogoScale, isQrStyle, QR_STYLES, type QrStyle } from "./qr-style";
 
 const LINK = "https://go.ou.edu.vn/hoi-thao-khoa-hoc-quoc-te-2027";
@@ -198,5 +198,76 @@ describe("an uploaded logo", () => {
     big.set(PNG);
     expect(checkLogo(big)).toBe("too-large");
     expect(checkLogo(big.subarray(0, MAX_LOGO_BYTES))).toBeNull();
+  });
+});
+
+/** Whether a point lies inside a rounded rectangle. */
+const inMark = (mark: Mark, px: number, py: number): boolean => {
+  if (px < mark.x || px > mark.x + mark.w || py < mark.y || py > mark.y + mark.h) {
+    return false;
+  }
+  const cx = Math.min(Math.max(px, mark.x + mark.r), mark.x + mark.w - mark.r);
+  const cy = Math.min(Math.max(py, mark.y + mark.r), mark.y + mark.h - mark.r);
+  return (px - cx) ** 2 + (py - cy) ** 2 <= mark.r ** 2;
+};
+
+/** Paints the dots shape even-odd, as an SVG renderer does, and reads it back as a phone would. */
+const scanDots = (text: string, withLogo: boolean): string | null => {
+  const matrix = qrMatrix(text, withLogo);
+  const box = logoBox(matrix.size);
+  const end = box.backingStart + box.backing;
+  const hidden = (row: number, column: number) =>
+    withLogo && row >= box.backingStart && row < end && column >= box.backingStart && column < end;
+  const marks = dotMarks(matrix, hidden);
+  const total = matrix.size + 2 * QUIET_ZONE;
+  const width = total * SCALE;
+  const pixels = new Uint8ClampedArray(width * width * 4).fill(255);
+  for (let y = 0; y < width; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const px = (x + 0.5) / SCALE;
+      const py = (y + 0.5) / SCALE;
+      const inside = marks.filter((mark) => inMark(mark, px, py)).length;
+      const inLogo =
+        withLogo &&
+        px >= box.logoStart + QUIET_ZONE &&
+        px < box.logoStart + QUIET_ZONE + box.logo &&
+        py >= box.logoStart + QUIET_ZONE &&
+        py < box.logoStart + QUIET_ZONE + box.logo;
+      if (inside % 2 === 1 || inLogo) {
+        pixels.fill(inLogo ? 40 : 0, (y * width + x) * 4, (y * width + x) * 4 + 3);
+      }
+    }
+  }
+  return jsQR(pixels, width, width)?.data ?? null;
+};
+
+describe("the dots shape", () => {
+  it("reads back as the same Link, with or without a logo over the middle", () => {
+    expect(scanDots(LINK, false)).toBe(LINK);
+    expect(scanDots(LINK, true)).toBe(LINK);
+    expect(scanDots("https://go.test/abc", true)).toBe("https://go.test/abc");
+  });
+
+  it("draws a dot where the square shape draws a module, and rounds the three finders", () => {
+    const matrix = qrMatrix(LINK, false);
+    const marks = dotMarks(matrix, () => false);
+    const finders = marks.filter((mark) => mark.w > 1);
+    expect(finders).toHaveLength(9);
+    let modules = 0;
+    for (let row = 0; row < matrix.size; row += 1) {
+      for (let column = 0; column < matrix.size; column += 1) {
+        modules += matrix.isDark(row, column) ? 1 : 0;
+      }
+    }
+    // Each finder has 33 dark modules: a ring of 24 and a centre of 9.
+    expect(marks.length - finders.length).toBe(modules - 3 * 33);
+  });
+
+  it("is still only shapes and an embedded image, and keeps the logo on a rounded white backing", () => {
+    const svg = renderQrSvg(LINK, PNG, "dark-on-light", 100, "dots");
+    expect(svg).not.toMatch(ANYTHING_ACTIVE);
+    expect(svg).toContain('fill-rule="evenodd"');
+    expect(svg).toContain('rx="1" fill="#fff"');
+    expect(svg).not.toContain("crispEdges");
   });
 });

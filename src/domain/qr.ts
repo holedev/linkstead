@@ -1,7 +1,15 @@
 import qrcode from "qrcode-generator";
 import { toBase64 } from "./base64";
 import { logoTypeOf } from "./logo";
-import { DEFAULT_QR_STYLE, isLogoScale, MAX_LOGO_SCALE, QR_STYLES, type QrStyle } from "./qr-style";
+import {
+  DEFAULT_QR_SHAPE,
+  DEFAULT_QR_STYLE,
+  isLogoScale,
+  MAX_LOGO_SCALE,
+  QR_STYLES,
+  type QrShape,
+  type QrStyle
+} from "./qr-style";
 
 /**
  * The picture of a QR (CONTEXT.md). The caller passes the Link's address - never the Đích - and
@@ -59,6 +67,66 @@ const darkPath = (matrix: QrMatrix, hidden: (row: number, column: number) => boo
   return parts.join("");
 };
 
+/** The size of a finder - each of the three large corner squares - in modules. */
+const FINDER = 7;
+
+/**
+ * A rounded rectangle, in modules from the picture's top-left (quiet zone included). The `dots`
+ * shape is made of these alone: a dot is one with a radius of half its side.
+ */
+type Mark = { x: number; y: number; w: number; h: number; r: number };
+
+/** Where the three finders start, in modules from the symbol's top-left. */
+const finderOrigins = (size: number) => [
+  [0, 0],
+  [0, size - FINDER],
+  [size - FINDER, 0]
+];
+
+const inFinder = (size: number, row: number, column: number): boolean =>
+  finderOrigins(size).some(
+    ([top = 0, left = 0]) => row >= top && row < top + FINDER && column >= left && column < left + FINDER
+  );
+
+/** A dot slightly smaller than its module, so neighbours stay apart and each reads as one. */
+const DOT = 0.9;
+
+/**
+ * The `dots` shape as marks, drawn even-odd: each finder is a rounded square, a rounded hole in it
+ * and a rounded centre in the hole; every other dark module is a dot.
+ */
+const dotMarks = (matrix: QrMatrix, hidden: (row: number, column: number) => boolean): Mark[] => {
+  const marks: Mark[] = [];
+  for (const [top = 0, left = 0] of finderOrigins(matrix.size)) {
+    const x = left + QUIET_ZONE;
+    const y = top + QUIET_ZONE;
+    marks.push(
+      { h: 7, r: 2.4, w: 7, x, y },
+      { h: 5, r: 1.6, w: 5, x: x + 1, y: y + 1 },
+      { h: 3, r: 1.1, w: 3, x: x + 2, y: y + 2 }
+    );
+  }
+  const inset = (1 - DOT) / 2;
+  for (let row = 0; row < matrix.size; row += 1) {
+    for (let column = 0; column < matrix.size; column += 1) {
+      if (matrix.isDark(row, column) && !hidden(row, column) && !inFinder(matrix.size, row, column)) {
+        marks.push({ h: DOT, r: DOT / 2, w: DOT, x: column + QUIET_ZONE + inset, y: row + QUIET_ZONE + inset });
+      }
+    }
+  }
+  return marks;
+};
+
+const round = (value: number): number => Math.round(value * 1000) / 1000;
+
+const markPath = ({ x, y, w, h, r }: Mark): string => {
+  const [left, top, width, height, radius] = [x, y, w, h, r].map(round) as [number, number, number, number, number];
+  const across = round(width - 2 * radius);
+  const down = round(height - 2 * radius);
+  const arc = (dx: number, dy: number) => `a${radius} ${radius} 0 0 1 ${dx} ${dy}`;
+  return `M${round(left + radius)} ${top}h${across}${arc(radius, radius)}v${down}${arc(-radius, radius)}h${-across}${arc(-radius, -radius)}v${-down}${arc(radius, -radius)}z`;
+};
+
 /**
  * A QR as a self-contained SVG: the logo, if any, is inside the file, so the same file gives the
  * same picture wherever it is opened. Bytes that are not PNG or JPEG are left out. `style` sets
@@ -68,7 +136,8 @@ const renderQrSvg = (
   text: string,
   logoBytes: Uint8Array | null = null,
   style: QrStyle = DEFAULT_QR_STYLE,
-  logoScale = MAX_LOGO_SCALE
+  logoScale = MAX_LOGO_SCALE,
+  shape: QrShape = DEFAULT_QR_SHAPE
 ): string => {
   const type = logoBytes ? logoTypeOf(logoBytes) : null;
   const logo = logoBytes && type ? { bytes: logoBytes, type } : null;
@@ -87,10 +156,16 @@ const renderQrSvg = (
   const background = colours.background
     ? `<rect width="${total}" height="${total}" fill="${colours.background}"/>`
     : "";
+  const corner = shape === "dots" ? ' rx="1"' : "";
   const image = logo
-    ? `<rect x="${box.backingStart + QUIET_ZONE}" y="${box.backingStart + QUIET_ZONE}" width="${box.backing}" height="${box.backing}" fill="#fff"/><image x="${imageStart}" y="${imageStart}" width="${imageSize}" height="${imageSize}" preserveAspectRatio="xMidYMid meet" href="data:${logo.type};base64,${toBase64(logo.bytes)}"/>`
+    ? `<rect x="${box.backingStart + QUIET_ZONE}" y="${box.backingStart + QUIET_ZONE}" width="${box.backing}" height="${box.backing}"${corner} fill="#fff"/><image x="${imageStart}" y="${imageStart}" width="${imageSize}" height="${imageSize}" preserveAspectRatio="xMidYMid meet" href="data:${logo.type};base64,${toBase64(logo.bytes)}"/>`
     : "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="${pixels}" height="${pixels}" shape-rendering="crispEdges">${background}<path fill="${colours.foreground}" d="${darkPath(matrix, hidden)}"/>${image}</svg>`;
+  const open = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="${pixels}" height="${pixels}"`;
+  if (shape === "dots") {
+    const path = dotMarks(matrix, hidden).map(markPath).join("");
+    return `${open}>${background}<path fill="${colours.foreground}" fill-rule="evenodd" d="${path}"/>${image}</svg>`;
+  }
+  return `${open} shape-rendering="crispEdges">${background}<path fill="${colours.foreground}" d="${darkPath(matrix, hidden)}"/>${image}</svg>`;
 };
 
-export { logoBox, QUIET_ZONE, qrMatrix, renderQrSvg };
+export { dotMarks, logoBox, type Mark, QUIET_ZONE, qrMatrix, renderQrSvg };

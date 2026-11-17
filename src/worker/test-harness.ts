@@ -21,6 +21,7 @@ const PHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKi
 
 // Children before parents, so the foreign keys never object.
 const TABLES = [
+  "link_password_failures",
   "daily_visit_sources",
   "daily_visits",
   "target_changes",
@@ -164,6 +165,12 @@ const startHarness = async () => {
       login: async (email: string, password: string) =>
         request("POST", "/api/auth/login", { body: { email, passwordKey: await passwordKey(email, password) } }),
       post: (path: string, body?: unknown, options?: RequestOptions) => request("POST", path, { ...options, body }),
+      /** Sends a form as a browser does - the password page's. */
+      postForm: (path: string, fields: Record<string, string>) =>
+        request("POST", path, {
+          bytes: new TextEncoder().encode(new URLSearchParams(fields).toString()),
+          headers: { "content-type": "application/x-www-form-urlencoded" }
+        }),
       put: (path: string, body?: unknown, options?: RequestOptions) => request("PUT", path, { ...options, body }),
       /** Uses a one-time link the way the UI does. */
       setup: async (token: string, email: string, password: string) =>

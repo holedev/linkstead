@@ -9,7 +9,7 @@ import { ArrowRightIcon, Brand, Footer, Icon, VisitorPage } from "./visitor-page
  * page. A Link whose Đích the daily check found unsafe warns, and leaves going on to the visitor.
  */
 
-type NoticeKind = "unknown" | "disabled" | "deleted" | "unsafe";
+type NoticeKind = "unknown" | "disabled" | "deleted" | "expired" | "unsafe";
 
 const TEXT: Record<
   NoticeKind,
@@ -32,6 +32,15 @@ const TEXT: Record<
     title: "Liên kết đã bị tắt",
     titleEn: "This link is switched off",
     vi: "Liên kết này đã bị tắt và hiện không dẫn tới đâu."
+  },
+  expired: {
+    advice:
+      "Liên kết chỉ dùng được đến một ngày do đơn vị phát hành đặt. Nếu bạn vẫn cần nó, hãy liên hệ đơn vị đã in hoặc gửi liên kết cho bạn.",
+    adviceEn: "It could only be used until a date its publisher set. If you still need it, please contact them.",
+    en: "This link has expired and no longer leads anywhere.",
+    title: "Liên kết đã hết hạn",
+    titleEn: "This link has expired",
+    vi: "Liên kết này đã hết hạn và hiện không dẫn tới đâu."
   },
   unknown: {
     advice:
@@ -83,6 +92,13 @@ const DeletedIcon = () => (
   </Icon>
 );
 
+const ExpiredIcon = () => (
+  <Icon size={24}>
+    <circle cx='12' cy='12' r='9' />
+    <path d='M12 7v5l3 2' />
+  </Icon>
+);
+
 const WarningIcon = () => (
   <Icon size={24}>
     <path d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3' />
@@ -94,6 +110,7 @@ const WarningIcon = () => (
 const ICONS: Record<NoticeKind, () => unknown> = {
   deleted: () => <DeletedIcon />,
   disabled: () => <DisabledIcon />,
+  expired: () => <ExpiredIcon />,
   unknown: () => <UnknownIcon />,
   unsafe: () => <WarningIcon />
 };
@@ -206,4 +223,4 @@ const Notice = ({ kind, url, target }: { kind: NoticeKind; url: string; target?:
   );
 };
 
-export { Notice, type NoticeKind };
+export { Notice, type NoticeKind, shownAddress };

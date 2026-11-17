@@ -138,6 +138,11 @@ const links = sqliteTable(
     /** Set when a Quản trị hệ thống switched it off: then only they switch it back on. */
     disabledBySystem: integer("disabled_by_system", { mode: "boolean" }).notNull().default(false),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    /**
+     * When it stops opening, if ever (ADR-0006). Past it the Link shows the expired notice; its
+     * Mã link stays taken, and a later date - or none - brings it back.
+     */
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
     /** The Nhóm it is sorted into, of its own Đơn vị, if any. */
     groupId: integer("group_id").references(() => linkGroups.id),
     id: integer("id").primaryKey({ autoIncrement: true }),
@@ -152,12 +157,21 @@ const links = sqliteTable(
     name: text("name").notNull(),
     note: text("note").notNull().default(""),
     /**
+     * A password visitors must give before being sent on (ADR-0006), as `domain/link-password.ts`
+     * stores it - never the password itself. Null: the Link opens for anyone.
+     */
+    passwordHash: text("password_hash"),
+    /**
      * How the Link looks when pasted into a chat or a post, where its Đơn vị wants that set by hand.
      * Empty takes the Đích's own (`domain/preview.ts`). Public, unlike the Tên link and the note.
      */
     previewDescription: text("preview_description").notNull().default(""),
     previewImage: text("preview_image").notNull().default(""),
     previewTitle: text("preview_title").notNull().default(""),
+    /** How the QR's modules are drawn (`domain/qr-style.ts`), kept so every download looks the same. */
+    qrShape: text("qr_shape", { enum: ["square", "dots"] })
+      .notNull()
+      .default("square"),
     /** Đích - the only column here that is expected to change. */
     target: text("target").notNull(),
     unitId: integer("unit_id")
@@ -245,6 +259,22 @@ const statusChanges = sqliteTable(
   (table) => [index("status_changes_link_idx").on(table.linkId)]
 );
 
+/**
+ * Wrong passwords given for a Link in one minute (minutes since 1970), so guessing is slowed down.
+ * Rows of earlier minutes are removed as new ones come.
+ */
+const linkPasswordFailures = sqliteTable(
+  "link_password_failures",
+  {
+    count: integer("count").notNull().default(0),
+    linkId: integer("link_id")
+      .notNull()
+      .references(() => links.id),
+    minute: integer("minute").notNull()
+  },
+  (table) => [primaryKey({ columns: [table.linkId, table.minute] })]
+);
+
 /** Lượt mở, one row per Link per Vietnamese day. A count and nothing about who. */
 const dailyVisits = sqliteTable(
   "daily_visits",
@@ -285,6 +315,7 @@ export {
   dailyVisitSources,
   dailyVisits,
   linkGroups,
+  linkPasswordFailures,
   links,
   memberships,
   passwordSetups,

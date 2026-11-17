@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import { checkLogo, MAX_LOGO_BYTES } from "../../domain/logo";
 import { renderQrSvg } from "../../domain/qr";
-import { DEFAULT_QR_STYLE, isLogoScale, isQrStyle } from "../../domain/qr-style";
+import { DEFAULT_QR_STYLE, isLogoScale, isQrShape, isQrStyle } from "../../domain/qr-style";
 import { newSecret } from "../../domain/secret";
 import type { AppContext, AppDeps, AppEnv } from "../context";
 import { readJson } from "../http";
@@ -123,10 +123,25 @@ const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
       `${origin(c)}/${link.code}`,
       await logoOfLink(store, logos, link),
       style,
-      link.logoScale
+      link.logoScale,
+      link.qrShape
     );
     const suffix = style === DEFAULT_QR_STYLE ? "" : `-${style}`;
     return svg(c, picture, `qr-${link.code}${suffix}.svg`);
+  });
+
+  /** How the Link's QR draws its modules, `{ "shape": "square" | "dots" }`, kept with the Link. */
+  app.put("/api/links/:code/qr-shape", async (c) => {
+    const reach = await reachLink(c, store, { peopleOnly: true });
+    if (reach instanceof Response) {
+      return reach;
+    }
+    const shape = (await readJson(c))?.shape;
+    if (!isQrShape(shape)) {
+      return c.json({ error: "bad-shape" }, 422);
+    }
+    await store.setLinkQrShape(reach.link.id, shape);
+    return c.json({ qrShape: shape });
   });
 
   /**

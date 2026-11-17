@@ -9,6 +9,7 @@ import {
   FolderInputIcon,
   GripVerticalIcon,
   HistoryIcon,
+  LockIcon,
   PencilIcon,
   PowerIcon,
   PowerOffIcon,
@@ -43,6 +44,7 @@ import { api, type HistoryEntry, type Link, type LinkGroup, type Visits } from "
 import { startLinkDrag } from "../lib/drag";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
+import { AccessForm, formatVietnam, isPast } from "./access-form";
 import { PreviewPanel } from "./preview-panel";
 import { QrPanel } from "./qr-panel";
 import { VisitSources } from "./visit-sources";
@@ -479,7 +481,9 @@ const EnabledBadge = ({ link }: { link: Link }) => {
 
 const StatusBadge = ({ link }: { link: Link }) => (
   <>
-    <EnabledBadge link={link} />
+    {isPast(link.expiresAt) ? <Badge tone='muted'>Đã hết hạn</Badge> : <EnabledBadge link={link} />}
+    {link.hasPassword && <Badge tone='muted'>Có mật khẩu</Badge>}
+    {link.expiresAt && !isPast(link.expiresAt) && <Badge tone='muted'>Hết hạn {formatVietnam(link.expiresAt)}</Badge>}
     {link.unsafeSince && <Badge tone='danger'>Đích không an toàn</Badge>}
     {link.archived && <Badge tone='muted'>Đã lưu trữ</Badge>}
   </>
@@ -496,6 +500,12 @@ const LinkNotices = ({ link, lockedBySystem }: { link: Link; lockedBySystem: boo
           mã độc). Người mở link đang gặp trang cảnh báo thay vì được chuyển đi. Hãy kiểm tra trang đích, hoặc đổi sang
           đích khác.
         </span>
+      </p>
+    )}
+    {link.enabled && link.expiresAt && isPast(link.expiresAt) && (
+      <p className='text-muted-foreground text-xs'>
+        Link đã hết hạn lúc {formatVietnam(link.expiresAt)}; người mở đang thấy trang báo hết hạn. Đặt hạn mới trong
+        "Mật khẩu và hạn dùng" để mở lại.
       </p>
     )}
     {!link.enabled && (
@@ -580,9 +590,21 @@ const DeleteLinkDialog = ({
   );
 };
 
-type Task = "target" | "details" | "group" | "preview" | "history" | "visits" | "qr" | "disable" | "delete" | null;
+type Task =
+  | "target"
+  | "details"
+  | "group"
+  | "access"
+  | "preview"
+  | "history"
+  | "visits"
+  | "qr"
+  | "disable"
+  | "delete"
+  | null;
 
 const TASK_TITLE = {
+  access: "Mật khẩu và hạn dùng",
   details: "Sửa tên, ghi chú",
   group: "Chuyển nhóm",
   history: "Lịch sử thay đổi",
@@ -635,6 +657,10 @@ const LinkActions = ({
       <DropdownMenuItem onSelect={() => onTask("group")}>
         <FolderInputIcon />
         Chuyển nhóm
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onTask("access")}>
+        <LockIcon />
+        Mật khẩu và hạn dùng
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={() => onTask("qr")}>
         <QrCodeIcon />
@@ -820,6 +846,7 @@ const LinkRow = ({
       >
         {task === "target" && <TargetForm link={link} onChanged={onChanged} onDone={close} />}
         {task === "details" && <DetailsForm link={link} onChanged={onChanged} onDone={close} />}
+        {task === "access" && <AccessForm link={link} onChanged={onChanged} onDone={close} />}
         {task === "group" && <GroupForm groups={groups} link={link} onChanged={onChanged} onDone={close} />}
         {task === "history" && <HistoryPanel link={link} />}
         {task === "visits" && <VisitsPanel link={link} />}

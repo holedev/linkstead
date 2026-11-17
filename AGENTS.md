@@ -23,14 +23,16 @@ These were decided before the first line of code. Each is a rule, not a default.
 - Mã dành riêng cover the system's own paths (`app`, `api`, ...) and names only a Quản trị hệ thống
   may hand out.
 - A Link has exactly one Đích at a time: any `https` address that does not point back at this
-  system and that Google Safe Browsing does not list as unsafe. No expiry, no schedule, no
-  per-device target. Every Đích is checked again daily. A Link whose Đích is newly listed shows
+  system and that Google Safe Browsing does not list as unsafe. No schedule, no per-device target.
+  A Link may have a password visitors must give first, and a moment it expires at - after which
+  it shows a notice and keeps its code (ADR-0006). Both are set in the UI only. Every Đích is checked again daily. A Link whose Đích is newly listed shows
   visitors a warning instead of redirecting (`worker/safety.ts`).
 - Changing a Đích goes through a confirmation showing the old and the new one, and is logged with
   who made it. Every Thành viên of the owning Đơn vị can read that history.
 - An open Link answers with a **temporary** redirect - a permanent one is cached by browsers and
-  keeps sending people to the old Đích. An unknown Mã link, a Link bị tắt and a Link đã xóa show a
-  notice page, in Vietnamese and English; none falls back to a home page.
+  keeps sending people to the old Đích. An unknown Mã link, a Link bị tắt, a Link đã xóa and an
+  expired Link show a notice page, in Vietnamese and English; none falls back to a home page. A
+  Link with a password shows a page asking for it, which names nothing of the Đích.
 
 **QR**
 
@@ -45,6 +47,8 @@ These were decided before the first line of code. Each is a rule, not a default.
 - Uploaded logos are PNG or JPEG. **Never SVG** - it can carry script and would be served back
   under the university's domain.
 - The server renders SVG, and the API returns only SVG. PNG is made in the browser from that SVG.
+- Modules are drawn `square` or as `dots` with rounded corner squares, kept per Link like its logo.
+  Only the outline changes, never where a module is, so both read the same.
 
 **People**
 
@@ -120,6 +124,8 @@ by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts
 | `GET /api/links/:code/visits`, `GET /api/links/:code/qr` | a Thành viên, or a Khóa API | Lượt mở per day, country and referring site; the QR as SVG, `?style=` one of the fixed looks in `domain/qr-style.ts` |
 | `GET /api/links/:code/history` | a Thành viên | every change of Đích, state and Đơn vị |
 | `POST /api/links/:code/archive`, `.../unarchive` | a Thành viên | puts a Link away from the list, or back; it keeps opening |
+| `PUT /api/links/:code/access`, `PUT /api/links/:code/qr-shape` | a Thành viên | the Link's password and expiry (ADR-0006); how its QR is drawn |
+| `POST /:code` | anyone | the password page's form: right, a 303 to the Đích; 10 wrong in a minute, 429 |
 | `DELETE /api/links/:code` | Quản lý đơn vị, or a Quản trị hệ thống | deletes a Link, with `{"confirmCode"}` the Mã link typed back; the code stays taken (ADR-0004) |
 | `GET /api/units/:unitId/visits?days=` | a Thành viên | the Đơn vị's Lượt mở at a glance: per day, most opened Links, countries, referring sites |
 | `PUT /api/links/:code/details`, `PUT /api/links/:code/qr-logo` | a Thành viên | rewords Tên link and note; the Link's logo choice |

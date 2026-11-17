@@ -34,6 +34,7 @@ const NEW_LINK_COLUMNS = {
   deletedAt: links.deletedAt,
   disabledBySystem: links.disabledBySystem,
   enabled: links.enabled,
+  expiresAt: links.expiresAt,
   groupId: links.groupId,
   id: links.id,
   logoChoice: links.logoChoice,
@@ -41,9 +42,11 @@ const NEW_LINK_COLUMNS = {
   logoScale: links.logoScale,
   name: links.name,
   note: links.note,
+  passwordHash: links.passwordHash,
   previewDescription: links.previewDescription,
   previewImage: links.previewImage,
   previewTitle: links.previewTitle,
+  qrShape: links.qrShape,
   target: links.target,
   unitId: links.unitId,
   unsafeSince: links.unsafeSince
@@ -203,6 +206,18 @@ const createD1Store = (database: D1Database): Store => {
       return (counted?.results[0] as { count: number } | undefined)?.count ?? 0;
     },
 
+    countPasswordFailure: async (linkId, minute) => {
+      await database.batch([
+        database.prepare("DELETE FROM link_password_failures WHERE link_id = ?1 AND minute < ?2").bind(linkId, minute),
+        database
+          .prepare(
+            `INSERT INTO link_password_failures (link_id, minute, count) VALUES (?1, ?2, 1)
+             ON CONFLICT (link_id, minute) DO UPDATE SET count = count + 1`
+          )
+          .bind(linkId, minute)
+      ]);
+    },
+
     countSystemAdmins: async () => {
       const row = await db.select({ total: count() }).from(accounts).where(eq(accounts.isSystemAdmin, true)).get();
       return row?.total ?? 0;
@@ -356,7 +371,9 @@ const createD1Store = (database: D1Database): Store => {
         .select({
           deleted: sql<boolean>`${links.deletedAt} IS NOT NULL`.mapWith(Boolean),
           enabled: links.enabled,
+          expiresAt: links.expiresAt,
           id: links.id,
+          passwordHash: links.passwordHash,
           previewDescription: links.previewDescription,
           previewImage: links.previewImage,
           previewTitle: links.previewTitle,
@@ -798,6 +815,14 @@ const createD1Store = (database: D1Database): Store => {
       return (moved?.meta.changes ?? 0) > 0;
     },
 
+    passwordFailures: async (linkId, minute) => {
+      const row = await database
+        .prepare("SELECT count FROM link_password_failures WHERE link_id = ?1 AND minute = ?2")
+        .bind(linkId, minute)
+        .first<{ count: number }>();
+      return row?.count ?? 0;
+    },
+
     recordVisit: async (linkId, day, source) => {
       const countSource = (kind: "country" | "referrer", value: string) =>
         database
@@ -880,6 +905,10 @@ const createD1Store = (database: D1Database): Store => {
       await db.update(links).set({ archivedAt: at }).where(eq(links.id, linkId));
     },
 
+    setLinkExpiry: async (linkId, expiresAt) => {
+      await db.update(links).set({ expiresAt }).where(eq(links.id, linkId));
+    },
+
     setLinkGroup: async (linkId, groupId) => {
       await db.update(links).set({ groupId }).where(eq(links.id, linkId));
     },
@@ -890,6 +919,14 @@ const createD1Store = (database: D1Database): Store => {
 
     setLinkLogoScale: async (linkId, scale) => {
       await db.update(links).set({ logoScale: scale }).where(eq(links.id, linkId));
+    },
+
+    setLinkPassword: async (linkId, passwordHash) => {
+      await db.update(links).set({ passwordHash }).where(eq(links.id, linkId));
+    },
+
+    setLinkQrShape: async (linkId, qrShape) => {
+      await db.update(links).set({ qrShape }).where(eq(links.id, linkId));
     },
 
     setLinkStatus: async ({ linkId, enabled, bySystem, by, at }) => {

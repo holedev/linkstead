@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
 import { checkChosenCode, generateCode, isWellFormedCode, normalizeCode } from "../../domain/link-code";
+import { checkLinkPassword, hashLinkPassword } from "../../domain/link-password";
 import { MAX_PREVIEW_DESCRIPTION, MAX_PREVIEW_TITLE, readPreview } from "../../domain/preview";
 import { checkTarget } from "../../domain/target";
 import type { AppContext, AppDeps, AppEnv } from "../context";
@@ -43,12 +44,17 @@ const present = (link: LinkRecord, origin: string) => ({
   createdAt: link.createdAt.toISOString(),
   disabledBySystem: link.disabledBySystem,
   enabled: link.enabled,
+  /** When it stops opening, or null for never. */
+  expiresAt: link.expiresAt?.toISOString() ?? null,
   groupId: link.groupId,
+  /** Whether visitors must give a password first. The password itself is never sent back. */
+  hasPassword: link.passwordHash !== null,
   logoChoice: link.logoChoice,
   logoScale: link.logoScale,
   name: link.name,
   note: link.note,
   preview: { description: link.previewDescription, image: link.previewImage, title: link.previewTitle },
+  qrShape: link.qrShape,
   target: link.target,
   unitId: link.unitId,
   /** Since when the daily check has found the Đích listed as unsafe, or null. */
@@ -56,6 +62,38 @@ const present = (link: LinkRecord, origin: string) => ({
   url: `${origin}/${link.code}`,
   visits: link.visits
 });
+
+type Access = { passwordHash?: string | null; expiresAt?: Date | null };
+
+/** The password and expiry a request asks for, checked; `undefined` parts are left as they are. */
+const readAccess = async (
+  body: Record<string, unknown>,
+  at: Date
+): Promise<Access | { error: string; problem?: string }> => {
+  const access: Access = {};
+  if (body.password === null || body.password === "") {
+    access.passwordHash = null;
+  } else if (typeof body.password === "string") {
+    const problem = checkLinkPassword(body.password);
+    if (problem) {
+      return { error: "bad-password", problem };
+    }
+    access.passwordHash = await hashLinkPassword(body.password);
+  }
+  if (body.expiresAt === null) {
+    access.expiresAt = null;
+  } else if (body.expiresAt !== undefined) {
+    const expiresAt = typeof body.expiresAt === "string" ? new Date(body.expiresAt) : null;
+    if (!expiresAt || Number.isNaN(expiresAt.getTime())) {
+      return { error: "bad-expiry", problem: "not-a-date" };
+    }
+    if (expiresAt <= at) {
+      return { error: "bad-expiry", problem: "in-the-past" };
+    }
+    access.expiresAt = expiresAt;
+  }
+  return access;
+};
 
 /** One side of where Lượt mở came from, most first. "" is "not known". */
 const sourcesOf = (sources: VisitSource[], kind: VisitSource["kind"]) =>
@@ -372,6 +410,40 @@ const registerLinkRoutes = (
     }
     await store.setLinkStatus({ at: now(), by, bySystem: false, enabled: true, linkId: link.id });
     return c.json(present({ ...link, disabledBySystem: false, enabled: true }, new URL(c.req.url).origin));
+  });
+
+  /**
+   * Who may open the Link (ADR-0006): `password` - a string sets it, null or "" removes it - and
+   * `expiresAt` - an ISO moment in the future, or null for never. A part left out stays as it is.
+   * For people only: it is not one of the API's six things.
+   */
+  app.put("/api/links/:code/access", async (c) => {
+    const reach = await reachLink(c, store, { peopleOnly: true });
+    if (reach instanceof Response) {
+      return reach;
+    }
+    const { link } = reach;
+    const body = (await readJson(c)) ?? {};
+    const access = await readAccess(body, now());
+    if ("error" in access) {
+      return c.json(access, 422);
+    }
+    if (access.passwordHash !== undefined) {
+      await store.setLinkPassword(link.id, access.passwordHash);
+    }
+    if (access.expiresAt !== undefined) {
+      await store.setLinkExpiry(link.id, access.expiresAt);
+    }
+    return c.json(
+      present(
+        {
+          ...link,
+          expiresAt: access.expiresAt === undefined ? link.expiresAt : access.expiresAt,
+          passwordHash: access.passwordHash === undefined ? link.passwordHash : access.passwordHash
+        },
+        new URL(c.req.url).origin
+      )
+    );
   });
 
   /**

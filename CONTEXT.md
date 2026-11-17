@@ -92,6 +92,15 @@ stays taken. A Unit may switch its own Links off and on; one switched off by a *
 only a Quản trị hệ thống switches back on.
 _Distinct from_: a **Link đã xóa**, which is gone for good; a **Link lưu trữ**, which still opens.
 
+**Mật khẩu link** (En: Link Password):
+A word a Unit sets on a **Link** and shares with the people it means to let through. They give it
+before being sent to the **Đích** (ADR-0006). Not a **Tài khoản**'s password.
+_Avoid_: PIN, access code.
+
+**Link hết hạn** (En: Expired Link):
+A **Link** past the moment its Unit set. It shows the university's notice, like a **Link bị tắt**,
+until the moment is moved or removed. Its **Mã link** stays taken (ADR-0006).
+
 **Link lưu trữ** (En: Archived Link):
 A **Link** put away from its Unit's list because nobody works on it any more. It still opens and
 counts - archiving is tidying, not switching off.

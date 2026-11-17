@@ -1,5 +1,6 @@
 import { type Context, Hono } from "hono";
 import { isWellFormedCode, normalizeCode, SYSTEM_RESERVED_CODES } from "../domain/link-code";
+import { matchesLinkPassword } from "../domain/link-password";
 import { mergePreview, readPreview, renderPreviewPage } from "../domain/preview";
 import { isMachineAgent, isPreviewFetcher, referrerSite, visitCountry, visitDay } from "../domain/visit";
 import { resolveActor } from "./actor";
@@ -8,6 +9,7 @@ import { fetchPage as fetchRealPage } from "./fetch-page";
 import { Landing } from "./landing";
 import { Notice, type NoticeKind } from "./notice";
 import { openApiDocument } from "./openapi";
+import { PasswordPage } from "./password-page";
 import { registerAdminRoutes } from "./routes/admin";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerExportRoutes } from "./routes/export";
@@ -25,12 +27,22 @@ const SITE_NAME = "OU Link - Trường Đại học Mở Thành phố Hồ Chí 
 const ROBOTS = "User-agent: *\nDisallow: /app\nDisallow: /api\n";
 
 /** Why a Link found by its code does not open: deleted (gone for good), or switched off. */
-const closedAs = (link: OpenableLink | null): { kind: NoticeKind; status: 404 | 410 } | null => {
-  if (link?.deleted) {
+const closedAs = (link: OpenableLink | null, at: Date): { kind: NoticeKind; status: 404 | 410 } | null => {
+  if (!link) {
+    return null;
+  }
+  if (link.deleted) {
     return { kind: "deleted", status: 410 };
   }
-  return link && !link.enabled ? { kind: "disabled", status: 404 } : null;
+  if (!link.enabled) {
+    return { kind: "disabled", status: 404 };
+  }
+  return link.expiresAt && link.expiresAt <= at ? { kind: "expired", status: 404 } : null;
 };
+
+/** Wrong passwords a Link takes in a minute before it asks the visitor to wait (ADR-0006). */
+const MAX_WRONG_PASSWORDS = 10;
+const MINUTE_MS = 60_000;
 
 /**
  * Where a Lượt mở came from, as counts only (ADR-0005): the country the network in front reports,
@@ -99,44 +111,82 @@ const createApp = (deps: AppDeps) => {
     return renderPreviewPage({ linkUrl, preview, siteName: SITE_NAME, target: link.target });
   };
 
-  // Opening a Link. Everything else in the system exists to make this one route worth trusting.
-  app.get("/:code", async (c) => {
-    const code = normalizeCode(c.req.param("code"));
-
+  /**
+   * The Link at the path if it may be opened, or the page that says why not: unknown, deleted,
+   * switched off, expired, or with a Đích listed as unsafe - where the visitor is warned and
+   * decides, no preview is built from a page that may be a trap, and nothing is counted.
+   */
+  const reachOpenable = async (c: Context): Promise<{ link: OpenableLink; code: string } | Response> => {
+    const code = normalizeCode(c.req.param("code") ?? "");
     // Asked before the database: a malformed or system path can never be a Link.
     if (!isWellFormedCode(code) || SYSTEM_RESERVED_CODES.has(code)) {
       return c.html(<Notice kind='unknown' url={c.req.url} />, 404);
     }
-
     const link = await store.findLinkByCode(code);
-    const closed = closedAs(link);
+    const closed = closedAs(link, now());
     if (!link || closed) {
       return c.html(<Notice kind={closed?.kind ?? "unknown"} url={c.req.url} />, closed?.status ?? 404);
     }
-
-    const userAgent = c.req.header("user-agent");
     c.header("Cache-Control", "no-store");
-
-    // Listed as unsafe by the daily check: the visitor is warned and decides; no preview is built
-    // from a page that may be a trap, and nothing is counted, since nobody was sent on.
     if (link.unsafe) {
       return c.html(<Notice kind='unsafe' target={link.target} url={c.req.url} />);
     }
+    return { code, link };
+  };
 
-    // A chat app or social site building a preview gets the tags, not a redirect: not every one
-    // follows a redirect to read the Đích's. It is never counted as a Lượt mở.
-    if (isPreviewFetcher(userAgent)) {
-      return c.html(await previewPageOf(link, `${new URL(c.req.url).origin}/${code}`));
-    }
-
-    if (!isMachineAgent(userAgent)) {
+  /**
+   * Sends the visitor to the Đích, counting it when a person asked. Temporary on purpose, and
+   * never stored: a permanent redirect is remembered by the browser, which would keep sending
+   * people to the old Đích after it has been changed.
+   */
+  const sendOn = (c: Context, link: OpenableLink, status: 302 | 303) => {
+    if (!isMachineAgent(c.req.header("user-agent"))) {
       // A failed count must never cost the visitor their redirect.
       defer(store.recordVisit(link.id, visitDay(now()), sourceOf(c)).catch(() => undefined));
     }
+    return c.redirect(link.target, status);
+  };
 
-    // Temporary on purpose, and never stored: a permanent redirect is remembered by the browser,
-    // which would keep sending people to the old Đích after it has been changed.
-    return c.redirect(link.target, 302);
+  // Opening a Link. Everything else in the system exists to make this one route worth trusting.
+  app.get("/:code", async (c) => {
+    const reach = await reachOpenable(c);
+    if (reach instanceof Response) {
+      return reach;
+    }
+    const { link, code } = reach;
+    // A Link with a password says nothing of its Đích - to a person or to a preview fetcher.
+    if (link.passwordHash) {
+      return c.html(<PasswordPage state='ask' url={c.req.url} />);
+    }
+    // A chat app or social site building a preview gets the tags, not a redirect: not every one
+    // follows a redirect to read the Đích's. It is never counted as a Lượt mở.
+    if (isPreviewFetcher(c.req.header("user-agent"))) {
+      return c.html(await previewPageOf(link, `${new URL(c.req.url).origin}/${code}`));
+    }
+    return sendOn(c, link, 302);
+  });
+
+  /** The password page's form. Right, it sends the visitor on; wrong, it asks again. */
+  app.post("/:code", async (c) => {
+    const reach = await reachOpenable(c);
+    if (reach instanceof Response) {
+      return reach;
+    }
+    const { link } = reach;
+    if (!link.passwordHash) {
+      return sendOn(c, link, 303);
+    }
+    const minute = Math.floor(now().getTime() / MINUTE_MS);
+    if ((await store.passwordFailures(link.id, minute)) >= MAX_WRONG_PASSWORDS) {
+      return c.html(<PasswordPage state='too-many' url={c.req.url} />, 429);
+    }
+    const form = await c.req.parseBody();
+    const password = typeof form.password === "string" ? form.password : "";
+    if (!(await matchesLinkPassword(password, link.passwordHash))) {
+      await store.countPasswordFailure(link.id, minute);
+      return c.html(<PasswordPage state='wrong' url={c.req.url} />, 401);
+    }
+    return sendOn(c, link, 303);
   });
 
   app.notFound((c) => c.html(<Notice kind='unknown' url={c.req.url} />, 404));

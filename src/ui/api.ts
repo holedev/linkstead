@@ -1,5 +1,5 @@
 import { stretchPassword } from "../domain/password";
-import { DEFAULT_QR_STYLE, type QrStyle } from "../domain/qr-style";
+import { DEFAULT_QR_STYLE, type QrShape, type QrStyle } from "../domain/qr-style";
 
 /** The one place the UI talks to the server. Every screen goes through `api`. */
 
@@ -28,6 +28,11 @@ type Link = {
   archived: boolean;
   /** Since when the daily check has found the Đích listed as unsafe, or null. */
   unsafeSince: string | null;
+  /** When it stops opening, or null for never. */
+  expiresAt: string | null;
+  /** Whether visitors must give a password first. */
+  hasPassword: boolean;
+  qrShape: QrShape;
 };
 type Author = { kind: "account"; email: string } | { kind: "key"; name: string } | null;
 type HistoryEntry = { at: string; by: Author } & (
@@ -206,12 +211,20 @@ const api = {
   renameGroup: (unitId: number, groupId: number, name: string) =>
     call<{ id: number; name: string }>("PUT", `/api/units/${unitId}/groups/${groupId}`, { name }),
   revokeKey: (unitId: number, keyId: number) => call<void>("DELETE", `/api/units/${unitId}/keys/${keyId}`),
+  /**
+   * Who may open the Link: `password` sets one (null removes it), `expiresAt` an ISO moment (null
+   * for never). A part left out stays as it is.
+   */
+  setLinkAccess: (code: string, access: { password?: string | null; expiresAt?: string | null }) =>
+    call<Link>("PUT", `/api/links/${code}/access`, access),
   setLinkGroup: (code: string, groupId: number | null) => call<Link>("PUT", `/api/links/${code}/group`, { groupId }),
   setLinkLogoChoice: (code: string, choice: "inherit" | "none") =>
     call<{ logoChoice: LogoChoice; logoScale: number }>("PUT", `/api/links/${code}/qr-logo`, { choice }),
   setLinkLogoScale: (code: string, scale: number) =>
     call<{ logoChoice: LogoChoice; logoScale: number }>("PUT", `/api/links/${code}/qr-logo`, { scale }),
   setLinkPreview: (code: string, preview: Preview) => call<Link>("PUT", `/api/links/${code}/preview`, preview),
+  setLinkQrShape: (code: string, shape: QrShape) =>
+    call<{ qrShape: QrShape }>("PUT", `/api/links/${code}/qr-shape`, { shape }),
   setMemberRole: (unitId: number, email: string, role: Role) =>
     call<void>("PUT", `/api/units/${unitId}/members/${encodeURIComponent(email)}`, { role }),
   setPassword: async (token: string, email: string, password: string) =>

@@ -1,6 +1,13 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { ErrorText } from "@/components/app";
-import { DEFAULT_QR_STYLE, MAX_LOGO_SCALE, MIN_LOGO_SCALE, QR_STYLES, type QrStyle } from "../../domain/qr-style";
+import {
+  DEFAULT_QR_STYLE,
+  MAX_LOGO_SCALE,
+  MIN_LOGO_SCALE,
+  QR_STYLES,
+  type QrShape,
+  type QrStyle
+} from "../../domain/qr-style";
 import { api, type Link, type LogoChoice } from "../api";
 import { messageOf } from "../messages";
 import { LogoUpload, QrPicture, useQr } from "../qr";
@@ -64,6 +71,51 @@ const Swatch = ({ style }: { style: QrStyle }) => {
   );
 };
 
+/** A small picture of each shape, drawn the way the QR is: three corner squares and a few modules. */
+const ShapeIcon = ({ shape }: { shape: QrShape }) => {
+  const corner = (x: number, y: number) =>
+    shape === "dots" ? (
+      <g key={`${x}-${y}`}>
+        <rect fill='none' height='6' rx='2' stroke='currentColor' strokeWidth='1.4' width='6' x={x + 0.7} y={y + 0.7} />
+        <rect height='3' rx='1' width='3' x={x + 2.2} y={y + 2.2} />
+      </g>
+    ) : (
+      <g key={`${x}-${y}`}>
+        <rect fill='none' height='6' stroke='currentColor' strokeWidth='1.4' width='6' x={x + 0.7} y={y + 0.7} />
+        <rect height='3' width='3' x={x + 2.2} y={y + 2.2} />
+      </g>
+    );
+  const modules = [
+    [10, 2],
+    [12, 4],
+    [10, 10],
+    [13, 12],
+    [16, 11],
+    [11, 15],
+    [15, 16],
+    [17, 14]
+  ];
+  return (
+    <svg aria-hidden='true' className='size-10 shrink-0' fill='currentColor' viewBox='0 0 20 20'>
+      {corner(0, 0)}
+      {corner(12, 0)}
+      {corner(0, 12)}
+      {modules.map(([x = 0, y = 0]) =>
+        shape === "dots" ? (
+          <circle cx={x + 1} cy={y + 1} key={`${x}-${y}`} r='0.9' />
+        ) : (
+          <rect height='2' key={`${x}-${y}`} width='2' x={x} y={y} />
+        )
+      )}
+    </svg>
+  );
+};
+
+const SHAPES: { shape: QrShape; label: string; hint: string }[] = [
+  { hint: "Ô vuông, như mọi QR.", label: "Vuông", shape: "square" },
+  { hint: "Chấm tròn, góc bo tròn.", label: "Chấm tròn", shape: "dots" }
+];
+
 /** One group of settings, framed and named. */
 const Panel = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className='space-y-3 rounded-lg border p-4'>
@@ -81,8 +133,9 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
   const [version, setVersion] = useState(0);
   const [style, setStyle] = useState<QrStyle>(readStyle);
   const look = LOOKS.find((candidate) => candidate.style === style) ?? LOOKS[0];
-  const { source, error } = useQr(`${link.code}|${link.logoChoice}|${link.logoScale}|${version}|${style}`, () =>
-    api.linkQr(link.code, style)
+  const { source, error } = useQr(
+    `${link.code}|${link.logoChoice}|${link.logoScale}|${link.qrShape}|${version}|${style}`,
+    () => api.linkQr(link.code, style)
   );
   const choose = (next: QrStyle) => {
     setStyle(next);
@@ -95,7 +148,7 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  const run = async (work: () => Promise<{ logoChoice: LogoChoice; logoScale: number }>) => {
+  const run = async (work: () => Promise<Partial<Pick<Link, "logoChoice" | "logoScale" | "qrShape">>>) => {
     setBusy(true);
     setActionError("");
     try {
@@ -199,6 +252,34 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
             <p className='text-muted-foreground text-xs'>
               Ảnh PNG hoặc JPEG. Viền trắng hoặc trong suốt quanh logo được tự cắt bỏ để logo lấp đầy khung. Khung logo
               ở giữa, trên nền trắng, có kích thước cố định để QR luôn quét được.
+            </p>
+          </Panel>
+
+          <Panel title='Hình dạng'>
+            <fieldset className='grid grid-cols-2 gap-2' disabled={busy}>
+              <legend className='sr-only'>Hình dạng của QR</legend>
+              {SHAPES.map((option) => (
+                <label
+                  className='flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm has-checked:border-primary has-checked:bg-primary/5'
+                  key={option.shape}
+                >
+                  <input
+                    checked={link.qrShape === option.shape}
+                    className='sr-only'
+                    name={`shape-${link.code}`}
+                    onChange={() => run(() => api.setLinkQrShape(link.code, option.shape))}
+                    type='radio'
+                  />
+                  <ShapeIcon shape={option.shape} />
+                  <span>
+                    <span className='block font-medium'>{option.label}</span>
+                    <span className='block text-muted-foreground text-xs'>{option.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+            <p className='text-muted-foreground text-xs'>
+              Lưu cùng link: mọi lần tải sau đều ra cùng một hình. Cả hai đều quét được như nhau.
             </p>
           </Panel>
 

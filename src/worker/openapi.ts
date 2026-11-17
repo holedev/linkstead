@@ -80,7 +80,16 @@ const openApiDocument = (origin: string) => ({
             description: "Đang bật. Link bị tắt hiện trang thông báo thay vì chuyển tới đích.",
             type: "boolean"
           },
+          expiresAt: {
+            description: "Thời điểm link hết hạn và không còn mở được; null là không hết hạn. Đặt trong giao diện.",
+            format: "date-time",
+            type: ["string", "null"]
+          },
           groupId: { description: "Nhóm của đơn vị mà link được xếp vào, nếu có.", type: ["integer", "null"] },
+          hasPassword: {
+            description: "Người mở phải nhập mật khẩu trước khi được chuyển tới đích. Đặt trong giao diện.",
+            type: "boolean"
+          },
           logoChoice: { enum: ["inherit", "none", "custom"], type: "string" },
           name: { description: "Tên link: dùng cho việc gì. Chỉ người trong đơn vị thấy.", type: "string" },
           note: { type: "string" },
@@ -88,6 +97,11 @@ const openApiDocument = (origin: string) => ({
             description: "Tiêu đề, mô tả, ảnh khi dán link vào Zalo, Facebook... Rỗng là lấy của trang đích.",
             properties: { description: { type: "string" }, image: { type: "string" }, title: { type: "string" } },
             type: "object"
+          },
+          qrShape: {
+            description: "Hình các ô của QR: vuông hoặc chấm tròn.",
+            enum: ["square", "dots"],
+            type: "string"
           },
           target: { description: "Đích: nơi người mở link được chuyển tới.", format: "uri", type: "string" },
           unitId: { type: "integer" },

@@ -6,6 +6,8 @@
  * writing another - not touching the handlers.
  */
 
+import type { QrShape } from "../domain/qr-style";
+
 type Role = "manager" | "member";
 
 type LogoChoice = "inherit" | "none" | "custom";
@@ -33,6 +35,10 @@ type OpenableLink = LinkPreview & {
   deleted: boolean;
   /** The daily check found the Đích listed as unsafe: visitors are warned instead of sent on. */
   unsafe: boolean;
+  /** Past this it shows the expired notice (ADR-0006). */
+  expiresAt: Date | null;
+  /** Set when visitors must give a password first (`domain/link-password.ts`). */
+  passwordHash: string | null;
 };
 
 type LinkRecord = LinkPreview & {
@@ -61,6 +67,12 @@ type LinkRecord = LinkPreview & {
   deletedAt: Date | null;
   /** Since when the daily check has found the Đích listed as unsafe, if it has. */
   unsafeSince: Date | null;
+  /** Past this it stops opening (ADR-0006). */
+  expiresAt: Date | null;
+  /** What its password is kept as, if it has one. Never leaves the server. */
+  passwordHash: string | null;
+  /** How its QR's modules are drawn. */
+  qrShape: QrShape;
 };
 
 /** Who made a change: a person or a Khóa API, never both. */
@@ -163,6 +175,15 @@ type Store = {
   deleteLink: (deletion: { linkId: number; byAccountId: number; at: Date }) => Promise<boolean>;
   /** Every Link that is not deleted, for the daily safety check of its Đích. */
   listLinksToCheck: () => Promise<LinkToCheck[]>;
+  /** Sets the password visitors must give, as its stored form, or none with null. */
+  setLinkPassword: (linkId: number, passwordHash: string | null) => Promise<void>;
+  /** Sets when the Link stops opening, or never with null. */
+  setLinkExpiry: (linkId: number, expiresAt: Date | null) => Promise<void>;
+  setLinkQrShape: (linkId: number, shape: QrShape) => Promise<void>;
+  /** Wrong passwords given for a Link in a minute (minutes since 1970). */
+  passwordFailures: (linkId: number, minute: number) => Promise<number>;
+  /** Counts one more wrong password in a minute, forgetting earlier minutes. */
+  countPasswordFailure: (linkId: number, minute: number) => Promise<void>;
   /** Marks a Link's Đích as found unsafe since a moment, or clears that with null. */
   setLinkUnsafe: (linkId: number, since: Date | null) => Promise<void>;
   /**

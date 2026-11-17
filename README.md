@@ -14,12 +14,14 @@ trang đích chuyển chỗ vào năm sau.
   cấp lại. Link có thể bị tắt, được lưu trữ (ẩn khỏi danh sách, vẫn mở được) hoặc bị xóa. Link đã
   xóa vẫn giữ mã, để QR đã in không bao giờ dẫn tới nơi khác. Mã tự chọn, hoặc để hệ thống sinh 6
   ký tự.
+- **Mật khẩu và hạn dùng.** Link có thể yêu cầu mật khẩu trước khi chuyển tới đích, và có thể hết
+  hạn vào một thời điểm (giờ Việt Nam). Link hết hạn vẫn giữ mã, gia hạn là mở lại.
 - **Tạo nhiều link một lần.** Nhập tệp CSV (Tên link, Đích, Mã link, Nhóm, Ghi chú), xem trước lỗi
   từng dòng, rồi tải QR của mọi link vừa tạo thành một tệp zip.
 - **Đổi đích có kiểm soát.** Đổi đích phải qua bước xác nhận hiện đích cũ và đích mới, và được ghi
   vào lịch sử cùng người đổi.
 - **QR.** QR luôn chứa địa chỉ link, không chứa đích. Logo chọn theo ba cấp: của Trường, của đơn vị,
-  của riêng từng link (hoặc không logo). Tải về dạng SVG hoặc PNG.
+  của riêng từng link (hoặc không logo). Ô vuông hoặc chấm tròn bo góc. Tải về dạng SVG hoặc PNG.
 - **Theo đơn vị.** Link thuộc về đơn vị (tạp chí, khoa, phòng), không thuộc về cá nhân, nên vẫn còn
   khi người tạo rời đi. Một tài khoản có thể thuộc nhiều đơn vị.
 - **Lượt mở.** Đếm theo link theo ngày, theo quốc gia và theo trang giới thiệu (chỉ tên miền).
