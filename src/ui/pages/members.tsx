@@ -1,5 +1,18 @@
+import { KeyRoundIcon, UserCogIcon, UserMinusIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { Badge, Button, Card, ConfirmDialog, ErrorText, Field, SecretBox } from "@/components/app";
+import {
+  Badge,
+  Button,
+  Card,
+  ConfirmDialog,
+  ErrorText,
+  Field,
+  RowMenu,
+  SecretBox,
+  TableCardTitle
+} from "@/components/app";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api, type Role } from "../api";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
@@ -116,52 +129,81 @@ const UnitMembers = ({ unitId, unitName, onChanged }: { unitId: number; unitName
       </Card>
 
       <Card flush>
-        <h2 className='border-border border-b p-4 font-semibold text-lg'>
-          Thành viên
-          {data && <span className='ml-2 font-normal text-muted-foreground text-sm'>({data.length})</span>}
-        </h2>
+        <TableCardTitle count={data?.length} title='Thành viên' />
         {error && (
           <div className='p-4'>
             <ErrorText>{error}</ErrorText>
           </div>
         )}
         {!(data || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
-        <ul className='divide-y divide-border'>
-          {data?.map((member) => (
-            <li className='flex flex-col gap-3 p-4' key={member.email}>
-              <div className='min-w-0 flex-1'>
-                <p className='break-all font-medium'>
-                  {member.email}
-                  {member.email === me?.email && <span className='font-normal text-muted-foreground'> (bạn)</span>}
-                </p>
-                <div className='mt-1 flex flex-wrap gap-2'>
+        {data && data.length > 0 && (
+          <Table>
+            <TableHeader className='hidden bg-muted/40 md:table-header-group'>
+              <TableRow className='hover:bg-transparent'>
+                <TableHead className='pl-5'>Email</TableHead>
+                <TableHead>Vai trò</TableHead>
+                <TableHead>Mật khẩu</TableHead>
+                <TableHead className='w-12'>
+                  <span className='sr-only'>Thao tác</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((member) => {
+                const roleBadge = (
                   <Badge tone='muted'>{member.role === "manager" ? "Quản lý đơn vị" : "Thành viên"}</Badge>
+                );
+                const passwordBadge = (
                   <Badge tone={member.hasPassword ? "ok" : "danger"}>
                     {member.hasPassword ? "Đã đặt mật khẩu" : "Chưa đặt mật khẩu"}
                   </Badge>
-                </div>
-              </div>
-              <div className='flex flex-wrap gap-2'>
-                <Button disabled={busy} onClick={() => run(() => api.reissueSetup(unitId, member.email))}>
-                  Cấp đường dẫn đặt mật khẩu
-                </Button>
-                <Button
-                  disabled={busy}
-                  onClick={() =>
-                    change(() =>
-                      api.setMemberRole(unitId, member.email, member.role === "manager" ? "member" : "manager")
-                    )
-                  }
-                >
-                  {member.role === "manager" ? "Chuyển thành Thành viên" : "Đặt làm Quản lý đơn vị"}
-                </Button>
-                <Button disabled={busy} onClick={() => setRemoveEmail(member.email)} variant='danger'>
-                  Xóa khỏi đơn vị
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
+                );
+                return (
+                  <TableRow key={member.email}>
+                    <TableCell className='whitespace-normal py-3 pl-5'>
+                      <p className='break-all font-medium'>
+                        {member.email}
+                        {member.email === me?.email && (
+                          <span className='font-normal text-muted-foreground'> (bạn)</span>
+                        )}
+                      </p>
+                      {/* On a phone the other columns are hidden: their gist is this line. */}
+                      <div className='mt-1 flex flex-wrap gap-1 md:hidden'>
+                        {roleBadge}
+                        {passwordBadge}
+                      </div>
+                    </TableCell>
+                    <TableCell className='hidden md:table-cell'>{roleBadge}</TableCell>
+                    <TableCell className='hidden md:table-cell'>{passwordBadge}</TableCell>
+                    <TableCell className='w-12 pr-3 text-right'>
+                      <RowMenu disabled={busy} label={`Thao tác với ${member.email}`}>
+                        <DropdownMenuItem onSelect={() => run(() => api.reissueSetup(unitId, member.email))}>
+                          <KeyRoundIcon />
+                          Cấp đường dẫn đặt mật khẩu
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            change(() =>
+                              api.setMemberRole(unitId, member.email, member.role === "manager" ? "member" : "manager")
+                            )
+                          }
+                        >
+                          <UserCogIcon />
+                          {member.role === "manager" ? "Chuyển thành Thành viên" : "Đặt làm Quản lý đơn vị"}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => setRemoveEmail(member.email)} variant='destructive'>
+                          <UserMinusIcon />
+                          Xóa khỏi đơn vị
+                        </DropdownMenuItem>
+                      </RowMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
       </Card>
 
       <ConfirmDialog

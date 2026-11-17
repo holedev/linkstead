@@ -120,9 +120,11 @@ const HistoryPanel = ({ link }: { link: Link }) => {
   );
 };
 
-/** Today's date where the university is, as `2027-03-01`: Lượt mở are counted by Vietnamese day. */
-const vietnamToday = (): string =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date());
+/** Formats a moment as `2027-03-01`, the day it is where the university is. */
+const VIETNAM_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+
+/** Today's date where the university is: Lượt mở are counted by Vietnamese day. */
+const vietnamToday = (): string => VIETNAM_DAY.format(new Date());
 
 /** The `count` days up to and including `last`, oldest first, as `2027-03-01`. */
 const daysUpTo = (last: string, count: number): string[] => {

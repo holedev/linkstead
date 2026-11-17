@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ChevronRightIcon, MergeIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, MergeIcon, Trash2Icon } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Navigate, Outlet, Link as RouterLink, useParams } from "react-router";
 import {
@@ -11,8 +11,11 @@ import {
   Field,
   Modal,
   Notice,
+  RowMenu,
   SecretBox
 } from "@/components/app";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api, type Link, type UnitOverview } from "../api";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
@@ -44,6 +47,76 @@ const useAction = () => {
 type MergeResult = Awaited<ReturnType<typeof api.adminMergeUnit>>;
 
 type CreatedUnit = { name: string; managerEmail: string; setupUrl: string | null };
+
+/**
+ * Every Đơn vị: its name (to its own screen), how many Links it owns, its managers, and merging or
+ * dissolving it. Only one that owns no Link is offered dissolving; one that does is merged instead.
+ */
+const UnitsTable = ({
+  units,
+  busy,
+  onMerge,
+  onDissolve
+}: {
+  units: UnitOverview[];
+  busy: boolean;
+  onMerge: (unitId: number) => void;
+  onDissolve: (unitId: number) => void;
+}) => (
+  <Table>
+    <TableHeader className='hidden bg-muted/40 md:table-header-group'>
+      <TableRow className='hover:bg-transparent'>
+        <TableHead className='pl-5'>Đơn vị</TableHead>
+        <TableHead className='text-right'>Link</TableHead>
+        <TableHead>Quản lý đơn vị</TableHead>
+        <TableHead className='w-12'>
+          <span className='sr-only'>Thao tác</span>
+        </TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {units.map((unit) => (
+        <TableRow key={unit.id}>
+          <TableCell className='whitespace-normal py-3 pl-5'>
+            <RouterLink
+              className='inline-flex items-center gap-1 break-words font-semibold underline-offset-4 hover:underline'
+              to={`/admin/units/${unit.id}`}
+            >
+              {unit.name}
+              <ChevronRightIcon aria-hidden='true' className='size-4 shrink-0 text-muted-foreground' />
+            </RouterLink>
+            <p className='text-muted-foreground text-xs md:hidden'>
+              {unit.linkCount} link - Quản lý: <span className='break-all'>{unit.managers.join(", ")}</span>
+            </p>
+          </TableCell>
+          <TableCell className='hidden text-right tabular-nums md:table-cell'>{unit.linkCount}</TableCell>
+          <TableCell className='hidden whitespace-normal text-muted-foreground md:table-cell'>
+            <span className='break-all'>{unit.managers.join(", ")}</span>
+          </TableCell>
+          <TableCell className='w-12 pr-3 text-right'>
+            {(units.length > 1 || unit.linkCount === 0) && (
+              <RowMenu disabled={busy} label={`Thao tác với đơn vị ${unit.name}`}>
+                {units.length > 1 && (
+                  <DropdownMenuItem onSelect={() => onMerge(unit.id)}>
+                    <MergeIcon />
+                    Gộp vào đơn vị khác...
+                  </DropdownMenuItem>
+                )}
+                {/* A Đơn vị that still owns Links is merged, never dissolved. */}
+                {unit.linkCount === 0 && (
+                  <DropdownMenuItem onSelect={() => onDissolve(unit.id)} variant='destructive'>
+                    <Trash2Icon />
+                    Giải thể
+                  </DropdownMenuItem>
+                )}
+              </RowMenu>
+            )}
+          </TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  </Table>
+);
 
 const UnitsCard = ({
   units,
@@ -110,7 +183,7 @@ const UnitsCard = ({
   return (
     <Card flush>
       <div className='border-border border-b p-4 sm:p-5'>
-        <h2 className='font-semibold text-lg'>Đơn vị</h2>
+        <h2 className='font-semibold text-lg'>Tạo đơn vị</h2>
         <form className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end' onSubmit={create}>
           <Field label='Tên đơn vị mới'>
             {(props) => (
@@ -168,37 +241,9 @@ const UnitsCard = ({
         </div>
       )}
       {!(units || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
-      <ul className='divide-y divide-border'>
-        {units?.map((unit) => (
-          <li className='flex flex-col gap-2 p-4 sm:flex-row sm:items-center' key={unit.id}>
-            <RouterLink
-              className='group -m-2 min-w-0 flex-1 rounded-md p-2 outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50'
-              to={`/admin/units/${unit.id}`}
-            >
-              <p className='flex items-center gap-1 break-words font-medium group-hover:underline'>
-                {unit.name}
-                <ChevronRightIcon aria-hidden='true' className='size-4 shrink-0 text-muted-foreground' />
-              </p>
-              <p className='text-muted-foreground text-sm'>
-                {unit.linkCount} link - Quản lý: <span className='break-all'>{unit.managers.join(", ")}</span>
-              </p>
-            </RouterLink>
-            <div className='flex flex-wrap gap-2'>
-              {units.length > 1 && (
-                <Button disabled={busy} onClick={() => setMergeId(unit.id)}>
-                  <MergeIcon />
-                  Gộp vào...
-                </Button>
-              )}
-              {unit.linkCount === 0 && (
-                <Button disabled={busy} onClick={() => setDissolveId(unit.id)} variant='danger'>
-                  Giải thể
-                </Button>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
+      {units && units.length > 0 && (
+        <UnitsTable busy={busy} onDissolve={setDissolveId} onMerge={setMergeId} units={units} />
+      )}
 
       <Modal
         description='Đơn vị được chọn sẽ nhận toàn bộ link, thành viên và khóa API, còn đơn vị này bị giải thể.'

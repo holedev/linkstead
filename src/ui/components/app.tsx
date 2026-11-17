@@ -3,6 +3,7 @@ import {
   CircleAlertIcon,
   CopyIcon,
   DownloadIcon,
+  EllipsisIcon,
   EyeIcon,
   EyeOffIcon,
   TriangleAlertIcon
@@ -21,6 +22,7 @@ import { Badge as UiBadge } from "@/components/ui/badge";
 import { buttonVariants, Button as UiButton } from "@/components/ui/button";
 import { Card as UiCard } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -376,6 +378,40 @@ const SignInFrame = ({ title, children }: { title: string; children: ReactNode }
   </div>
 );
 
+/**
+ * The actions of one row of a table, behind a "⋯" at its end. `label` names the row for a screen
+ * reader; the items are `DropdownMenuItem`s, the one that cannot be taken back marked destructive.
+ */
+const RowMenu = ({ label, disabled = false, children }: { label: string; disabled?: boolean; children: ReactNode }) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <UiButton
+        aria-label={label}
+        className='size-9 shrink-0 text-muted-foreground md:size-8'
+        disabled={disabled}
+        size='icon'
+        variant='ghost'
+      >
+        <EllipsisIcon />
+      </UiButton>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align='end' className='min-w-56'>
+      {children}
+    </DropdownMenuContent>
+  </DropdownMenu>
+);
+
+/** The title row of a card that holds a table: its name, a count, and anything on the right. */
+const TableCardTitle = ({ title, count, children }: { title: string; count?: number; children?: ReactNode }) => (
+  <div className='flex flex-wrap items-center gap-2 border-b px-4 py-3 sm:px-5'>
+    <h2 className='min-w-0 flex-1 font-semibold'>
+      {title}
+      {count !== undefined && <span className='ml-2 font-normal text-muted-foreground text-sm'>({count})</span>}
+    </h2>
+    {children}
+  </div>
+);
+
 const formatDateTime = (iso: string): string =>
   new Date(iso).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" });
 
@@ -399,8 +435,10 @@ export {
   Notice,
   PageHeader,
   PasswordInput,
+  RowMenu,
   SecretBox,
   SignInFrame,
+  TableCardTitle,
   TrialBadge,
   TrialPrintWarning
 };

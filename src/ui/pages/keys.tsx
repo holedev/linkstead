@@ -1,6 +1,17 @@
 import { BookOpenIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { Badge, Button, Card, ConfirmDialog, ErrorText, Field, formatDate, SecretBox } from "@/components/app";
+import {
+  Badge,
+  Button,
+  Card,
+  ConfirmDialog,
+  ErrorText,
+  Field,
+  formatDate,
+  SecretBox,
+  TableCardTitle
+} from "@/components/app";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "../api";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
@@ -104,7 +115,7 @@ const KeysPage = () => {
       </Card>
 
       <Card flush>
-        <h2 className='border-border border-b p-4 font-semibold text-lg'>Khóa API</h2>
+        <TableCardTitle count={data?.length} title='Khóa API' />
         {error && (
           <div className='p-4'>
             <ErrorText>{error}</ErrorText>
@@ -112,26 +123,54 @@ const KeysPage = () => {
         )}
         {!(data || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
         {data?.length === 0 && <p className='p-4 text-muted-foreground'>Đơn vị chưa có khóa nào.</p>}
-        <ul className='divide-y divide-border'>
-          {data?.map((key) => (
-            <li className='flex flex-col gap-2 p-4 sm:flex-row sm:items-center' key={key.id}>
-              <div className='min-w-0 flex-1'>
-                <p className='break-words font-medium'>{key.name}</p>
-                <p className='text-muted-foreground text-xs'>
-                  Cấp ngày {formatDate(key.createdAt)}
-                  {key.revokedAt && ` - thu hồi ngày ${formatDate(key.revokedAt)}`}
-                </p>
-              </div>
-              {key.revokedAt ? (
-                <Badge tone='muted'>Đã thu hồi</Badge>
-              ) : (
-                <Button disabled={busy} onClick={() => setRevokeId(key.id)} variant='danger'>
-                  Thu hồi
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
+        {data && data.length > 0 && (
+          <Table>
+            <TableHeader className='hidden bg-muted/40 md:table-header-group'>
+              <TableRow className='hover:bg-transparent'>
+                <TableHead className='pl-5'>Tên khóa</TableHead>
+                <TableHead>Cấp ngày</TableHead>
+                <TableHead>Trạng thái</TableHead>
+                <TableHead className='w-32'>
+                  <span className='sr-only'>Thao tác</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((key) => (
+                <TableRow className={key.revokedAt ? "text-muted-foreground" : undefined} key={key.id}>
+                  <TableCell className='whitespace-normal py-3 pl-5'>
+                    <p className='break-words font-medium'>{key.name}</p>
+                    <p className='text-muted-foreground text-xs md:hidden'>
+                      Cấp ngày {formatDate(key.createdAt)}
+                      {key.revokedAt && ` - thu hồi ngày ${formatDate(key.revokedAt)}`}
+                    </p>
+                  </TableCell>
+                  <TableCell className='hidden tabular-nums md:table-cell'>{formatDate(key.createdAt)}</TableCell>
+                  <TableCell className='hidden md:table-cell'>
+                    {key.revokedAt ? (
+                      <Badge tone='muted'>Thu hồi ngày {formatDate(key.revokedAt)}</Badge>
+                    ) : (
+                      <Badge tone='ok'>Đang dùng</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className='w-32 pr-4 text-right'>
+                    {key.revokedAt ? (
+                      <span className='text-xs md:hidden'>Đã thu hồi</span>
+                    ) : (
+                      <Button
+                        className='text-destructive hover:text-destructive'
+                        disabled={busy}
+                        onClick={() => setRevokeId(key.id)}
+                      >
+                        Thu hồi
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </Card>
 
       <ConfirmDialog
