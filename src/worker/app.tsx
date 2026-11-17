@@ -5,6 +5,7 @@ import { isMachineAgent, isPreviewFetcher, visitDay } from "../domain/visit";
 import { resolveActor } from "./actor";
 import type { AppDeps, AppEnv } from "./context";
 import { fetchPage as fetchRealPage } from "./fetch-page";
+import { Landing } from "./landing";
 import { Notice } from "./notice";
 import { openApiDocument } from "./openapi";
 import { registerAdminRoutes } from "./routes/admin";
@@ -46,10 +47,17 @@ const createApp = (deps: AppDeps) => {
 
   app.get("/robots.txt", (c) => c.text(ROBOTS));
 
+  // What OU Link is, for whoever opens the bare domain. Not a fallback: a Link that does not answer
+  // shows its notice, which only offers this page.
+  app.get("/", (c) => {
+    c.header("Cache-Control", "public, max-age=300");
+    return c.html(<Landing url={c.req.url} />);
+  });
+
   // The UI. It answers before the Link route does; `app` is a reserved code for that reason.
   app.on(["GET", "HEAD"], ["/app", "/app/*"], async (c) => {
     if (!deps.serveUi) {
-      return c.html(<Notice kind='unknown' />, 404);
+      return c.html(<Notice kind='unknown' url={c.req.url} />, 404);
     }
     const served = await deps.serveUi(c.req.raw);
     // Copied so the headers can be set: a response handed back by the platform is read-only.
@@ -69,15 +77,15 @@ const createApp = (deps: AppDeps) => {
 
     // Asked before the database: a malformed or system path can never be a Link.
     if (!isWellFormedCode(code) || SYSTEM_RESERVED_CODES.has(code)) {
-      return c.html(<Notice kind='unknown' />, 404);
+      return c.html(<Notice kind='unknown' url={c.req.url} />, 404);
     }
 
     const link = await store.findLinkByCode(code);
     if (!link) {
-      return c.html(<Notice kind='unknown' />, 404);
+      return c.html(<Notice kind='unknown' url={c.req.url} />, 404);
     }
     if (!link.enabled) {
-      return c.html(<Notice kind='disabled' />, 404);
+      return c.html(<Notice kind='disabled' url={c.req.url} />, 404);
     }
 
     const userAgent = c.req.header("user-agent");
@@ -103,7 +111,7 @@ const createApp = (deps: AppDeps) => {
     return c.redirect(link.target, 302);
   });
 
-  app.notFound((c) => c.html(<Notice kind='unknown' />, 404));
+  app.notFound((c) => c.html(<Notice kind='unknown' url={c.req.url} />, 404));
 
   return app;
 };

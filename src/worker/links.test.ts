@@ -192,6 +192,24 @@ describe("opening a Link", () => {
     expect(body).toContain("does not exist");
   });
 
+  it("says on the notice which address was opened, as text, and offers the introduction", async () => {
+    const body = await (await h.client().get("/h%E1%BB%99i-th%E1%BA%A3o%3Cb%3E")).text();
+
+    expect(body).toContain("/hội-thảo&lt;b&gt;");
+    expect(body).not.toContain("hội-thảo<b>");
+    expect(body).toContain('href="/"');
+  });
+
+  it("introduces OU Link at the bare domain, with the way in for staff", async () => {
+    const response = await h.client().get("/");
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("OU Link");
+    expect(body).toContain('href="/app"');
+    expect(body).not.toContain('name="robots"');
+  });
+
   it("shows a different notice for a Link bị tắt, and does not count the opening", async () => {
     await create();
     await h.db.prepare("UPDATE links SET enabled = 0").run();

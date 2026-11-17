@@ -102,7 +102,8 @@ by `Authorization: Bearer <Khóa API>`; a route says which of the two it accepts
 
 | Route | Who | Does |
 | --- | --- | --- |
-| `GET /:code` | anyone | opens a Link, or shows a notice page; a preview fetcher (Zalo, Facebook...) gets a page of Open Graph tags instead of the redirect (`domain/preview.ts`) |
+| `GET /:code` | anyone | opens a Link, or shows a notice page naming the address opened (`worker/notice.tsx`); a preview fetcher (Zalo, Facebook...) gets a page of Open Graph tags instead of the redirect (`domain/preview.ts`) |
+| `GET /` | anyone | what OU Link is, and the way in to `/app` (`worker/landing.tsx`); a notice page links here but never falls back to it |
 | `GET /robots.txt` | anyone | keeps crawlers out of `/app` and `/api` |
 | `GET /app/*` | anyone | the UI |
 | `POST /api/bootstrap` | holder of `BOOTSTRAP_TOKEN` | creates the first Quản trị hệ thống, once |
