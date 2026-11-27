@@ -6,8 +6,8 @@ import type { Store } from "../store";
 const MAX_NAME = 100;
 
 /**
- * The Đơn vị in the path, if a Thành viên of it is asking. A Nhóm only sorts Links, so whoever may
- * change the Links may sort them; a Khóa API may not - it is not one of the API's six things.
+ * The Unit in the path, if a Member of it is asking. A Group only sorts Links, so whoever may
+ * change the Links may sort them; an API Key may not - it is not one of the API's six things.
  */
 const memberUnit = async (c: AppContext, store: Store): Promise<number | Response> => {
   const actor = c.get("actor");
@@ -65,7 +65,7 @@ const registerGroupRoutes = (app: Hono<AppEnv>, { store }: AppDeps) => {
     return outcome === "done" ? c.json({ id: groupId, name }) : c.json({ error: "group-name-taken" }, 409);
   });
 
-  /** Removes a Nhóm. Its Links stay as they are, in no Nhóm: nothing printed carries a Nhóm. */
+  /** Removes a Group. Its Links stay as they are, in no Group: nothing printed carries a Group. */
   app.delete("/api/units/:unitId/groups/:groupId", async (c) => {
     const unitId = await memberUnit(c, store);
     if (unitId instanceof Response) {

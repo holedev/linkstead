@@ -1,27 +1,23 @@
 import { type FormEvent, useState } from "react";
 import { Button, ErrorText, Field, PasswordInput } from "@/components/app";
+import { fromWallClock, toWallClock } from "../../domain/time-zone";
 import { api, type Link } from "../api";
+import { text } from "../i18n";
 import { messageOf } from "../messages";
+import { organization } from "../organization";
 
 /**
  * Who may open a Link (ADR-0006): a password visitors must give, and a moment after which it stops
- * opening. Both are optional, both can be undone, and neither frees the Mã link.
+ * opening. Both are optional, both can be undone, and neither frees the Link Code. The moment is
+ * typed and shown on the Organization's clocks, whatever the browser's own zone.
  */
 
-const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
+/** An ISO moment as the `datetime-local` value the Organization's clocks show. */
+const toInput = (iso: string): string => toWallClock(new Date(iso), organization().timeZone);
 
-/** An ISO moment as the `datetime-local` value it is in Vietnam. */
-const toVietnamInput = (iso: string): string => new Date(Date.parse(iso) + VN_OFFSET_MS).toISOString().slice(0, 16);
-
-/** A `datetime-local` value, read as Vietnam time, as an ISO moment. */
-const fromVietnamInput = (value: string): string => new Date(`${value}:00+07:00`).toISOString();
-
-const formatVietnam = (iso: string): string =>
-  new Intl.DateTimeFormat("vi-VN", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "Asia/Ho_Chi_Minh"
-  }).format(new Date(iso));
+/** A `datetime-local` value, read on the Organization's clocks, as an ISO moment - or null. */
+const fromInput = (value: string): string | null =>
+  fromWallClock(value, organization().timeZone)?.toISOString() ?? null;
 
 /** Whether the moment has passed - for a Link, whether it has expired. */
 const isPast = (iso: string | null): boolean => iso !== null && Date.parse(iso) <= Date.now();
@@ -39,9 +35,10 @@ const AccessForm = ({
 }) => {
   const [passwordChoice, setPasswordChoice] = useState<PasswordChoice>(link.hasPassword ? "keep" : "remove");
   const [password, setPassword] = useState("");
-  const [expiry, setExpiry] = useState(link.expiresAt ? toVietnamInput(link.expiresAt) : "");
+  const [expiry, setExpiry] = useState(link.expiresAt ? toInput(link.expiresAt) : "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const t = text();
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -51,7 +48,7 @@ const AccessForm = ({
     } else if (passwordChoice === "remove" && link.hasPassword) {
       access.password = null;
     }
-    const expiresAt = expiry ? fromVietnamInput(expiry) : null;
+    const expiresAt = expiry ? fromInput(expiry) : null;
     if (expiresAt !== link.expiresAt) {
       access.expiresAt = expiresAt;
     }
@@ -69,11 +66,8 @@ const AccessForm = ({
   return (
     <form className='space-y-5' onSubmit={save}>
       <fieldset className='space-y-2'>
-        <legend className='mb-1 font-medium text-sm'>Mật khẩu</legend>
-        <p className='text-muted-foreground text-xs'>
-          Người mở link phải nhập mật khẩu trước khi được chuyển tới đích. Trang hỏi mật khẩu và bản xem trước trên
-          Zalo, Facebook không để lộ đích. Hợp với tài liệu gửi cho một lớp, một hội đồng.
-        </p>
+        <legend className='mb-1 font-medium text-sm'>{t.access.password}</legend>
+        <p className='text-muted-foreground text-xs'>{t.access.passwordLead}</p>
         <div className='flex flex-wrap gap-x-4 gap-y-1 text-sm'>
           {link.hasPassword && (
             <label className='flex min-h-9 items-center gap-2'>
@@ -83,7 +77,7 @@ const AccessForm = ({
                 onChange={() => setPasswordChoice("keep")}
                 type='radio'
               />
-              Giữ mật khẩu hiện tại
+              {t.access.keepPassword}
             </label>
           )}
           <label className='flex min-h-9 items-center gap-2'>
@@ -93,7 +87,7 @@ const AccessForm = ({
               onChange={() => setPasswordChoice("set")}
               type='radio'
             />
-            {link.hasPassword ? "Đổi mật khẩu" : "Đặt mật khẩu"}
+            {link.hasPassword ? t.access.changePassword : t.access.setPassword}
           </label>
           <label className='flex min-h-9 items-center gap-2'>
             <input
@@ -102,14 +96,11 @@ const AccessForm = ({
               onChange={() => setPasswordChoice("remove")}
               type='radio'
             />
-            {link.hasPassword ? "Bỏ mật khẩu" : "Không mật khẩu"}
+            {link.hasPassword ? t.access.removePassword : t.access.noPassword}
           </label>
         </div>
         {passwordChoice === "set" && (
-          <Field
-            hint='4 đến 100 ký tự. Đang hiện rõ để bạn chép gửi cho người cần mở; bấm hình con mắt để ẩn.'
-            label='Mật khẩu mới'
-          >
+          <Field hint={t.access.passwordHint} label={t.access.newPassword}>
             {(props) => (
               <PasswordInput
                 {...props}
@@ -128,11 +119,8 @@ const AccessForm = ({
       </fieldset>
 
       <fieldset className='space-y-2 border-t pt-4'>
-        <legend className='sr-only'>Hạn dùng</legend>
-        <Field
-          hint='Giờ Việt Nam. Sau thời điểm này, người mở link thấy trang báo link đã hết hạn. Mã link vẫn được giữ; đặt ngày mới hoặc bỏ hạn là link mở lại.'
-          label='Hết hạn lúc (không bắt buộc)'
-        >
+        <legend className='sr-only'>{t.access.expiryLegend}</legend>
+        <Field hint={t.access.expiryHint(organization().timeZone)} label={t.access.expiresAt}>
           {(props) => (
             <input
               {...props}
@@ -148,20 +136,20 @@ const AccessForm = ({
             onClick={() => setExpiry("")}
             type='button'
           >
-            Bỏ hạn dùng
+            {t.access.removeExpiry}
           </button>
         )}
       </fieldset>
 
       <ErrorText>{error}</ErrorText>
       <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-        <Button onClick={onDone}>Hủy</Button>
+        <Button onClick={onDone}>{t.common.cancel}</Button>
         <Button disabled={busy} type='submit' variant='primary'>
-          {busy ? "Đang lưu..." : "Lưu"}
+          {busy ? t.common.saving : t.common.save}
         </Button>
       </div>
     </form>
   );
 };
 
-export { AccessForm, formatVietnam, isPast };
+export { AccessForm, isPast };

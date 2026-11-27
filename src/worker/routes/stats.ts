@@ -10,8 +10,8 @@ const TOP_LINKS = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * A Đơn vị's Lượt mở at a glance: per day, its most opened Links, and where the openings came
- * from. For its Thành viên in the UI - the API reads Lượt mở one Link at a time.
+ * A Unit's Visits at a glance: per day, its most opened Links, and where the openings came
+ * from. For its Member in the UI - the API reads Visits one Link at a time.
  */
 const registerStatsRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }: AppDeps) => {
   app.get("/api/units/:unitId/visits", async (c) => {

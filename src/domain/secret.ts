@@ -1,6 +1,6 @@
 /**
  * Secrets the system hands out once and then only recognises: a session, a one-time password
- * link, a Khóa API. Only the hash is ever stored, so a leaked database opens nothing.
+ * link, an API Key. Only the hash is ever stored, so a leaked database opens nothing.
  */
 
 const SECRET_BYTES = 32;

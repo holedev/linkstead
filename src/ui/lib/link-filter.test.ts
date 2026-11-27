@@ -42,20 +42,20 @@ describe("finding Links", () => {
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "duong" }))).toEqual(["cu"]);
   });
 
-  it("searches the code, the Đích and the note too, and needs every word typed", () => {
+  it("searches the code, the Target and the note too, and needs every word typed", () => {
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "so-3" }))).toEqual(["so-3"]);
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "zalo bai" }))).toEqual(["so-3"]);
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "zalo hoi" }))).toEqual([]);
     expect(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "example.org" })).toHaveLength(3);
   });
 
-  it("shows at the top only the Links in no Nhóm, and inside a Nhóm only its own", () => {
+  it("shows at the top only the Links in no Group, and inside a Group only its own", () => {
     expect(codes(applyFilter(LINKS, DEFAULT_FILTER))).toEqual(["so-3"]);
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: 1 }))).toEqual(["cfp-2027"]);
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: 2 }))).toEqual(["cu"]);
   });
 
-  it("searches every Link from the top, but only the Nhóm's from inside it", () => {
+  it("searches every Link from the top, but only the Group's from inside it", () => {
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "duong" }))).toEqual(["cu"]);
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: 1, query: "duong" }))).toEqual([]);
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: 2, query: "duong" }))).toEqual(["cu"]);
@@ -78,7 +78,7 @@ describe("finding Links", () => {
     expect(codes(applyFilter(LINKS, { ...everywhere, sort: "name" }))).toEqual(["so-3", "cu", "cfp-2027"]);
   });
 
-  it("keeps archived Links out of every view but their own, which looks through every Nhóm", () => {
+  it("keeps archived Links out of every view but their own, which looks through every Group", () => {
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: 1 }))).toEqual(["cfp-2027"]);
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "hoi thao" }))).toEqual(["cfp-2027"]);
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, status: "archived" }))).toEqual(["xong"]);
@@ -108,7 +108,7 @@ describe("a filter in the address", () => {
     expect(isFiltering(DEFAULT_FILTER)).toBe(false);
     expect(isFiltering({ ...DEFAULT_FILTER, sort: "name" })).toBe(false);
     expect(isFiltering({ ...DEFAULT_FILTER, query: " " })).toBe(false);
-    // Being inside a Nhóm is a place, not a filter.
+    // Being inside a Group is a place, not a filter.
     expect(isFiltering({ ...DEFAULT_FILTER, group: 4 })).toBe(false);
     expect(isFiltering({ ...DEFAULT_FILTER, status: "off" })).toBe(true);
   });

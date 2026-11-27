@@ -1,3 +1,4 @@
+import type { Language } from "../domain/organization";
 import { stretchPassword } from "../domain/password";
 import { DEFAULT_QR_STYLE, type QrShape, type QrStyle } from "../domain/qr-style";
 
@@ -15,18 +16,18 @@ type Link = {
   unitId: number;
   enabled: boolean;
   disabledBySystem: boolean;
-  /** The Nhóm it is sorted into, if any. */
+  /** The Group it is sorted into, if any. */
   groupId: number | null;
   logoChoice: LogoChoice;
   /** How much of the QR's logo box the logo fills, in percent: 40 to 100. */
   logoScale: number;
-  /** How it looks when pasted somewhere, as its Đơn vị set it. Empty parts take the Đích's. */
+  /** How it looks when pasted somewhere, as its Unit set it. Empty parts take the Target's. */
   preview: Preview;
   visits: number;
   createdAt: string;
   /** Put away from the list. It still opens. */
   archived: boolean;
-  /** Since when the daily check has found the Đích listed as unsafe, or null. */
+  /** Since when the daily check has found the Target listed as unsafe, or null. */
   unsafeSince: string | null;
   /** When it stops opening, or null for never. */
   expiresAt: string | null;
@@ -43,7 +44,7 @@ type HistoryEntry = { at: string; by: Author } & (
 );
 type UnitOverview = { id: number; name: string; linkCount: number; managers: string[] };
 type ReservedCode = { code: string; note: string; createdAt: string };
-/** A Link as a Quản trị hệ thống finds it: with the Đơn vị that owns it and its history. */
+/** A Link as a System Administrator finds it: with the Unit that owns it and its history. */
 type FoundLink = Link & { unitName: string; history: HistoryEntry[]; deletedAt: string | null };
 type NewLinkInput = {
   unitId: number;
@@ -53,10 +54,10 @@ type NewLinkInput = {
   note: string;
   groupId?: number | null;
 };
-/** A Nhóm: a Đơn vị's own way of sorting its Links. */
+/** A Group: a Unit's own way of sorting its Links. */
 type LinkGroup = { id: number; name: string; linkCount: number };
 type Preview = { title: string; description: string; image: string };
-/** A country (two letters) or a referring site, and its Lượt mở. "" is "not known". */
+/** A country (two letters) or a referring site, and its Visits. "" is "not known". */
 type VisitSource = { value: string; count: number };
 type Visits = {
   total: number;
@@ -64,7 +65,7 @@ type Visits = {
   countries: VisitSource[];
   referrers: VisitSource[];
 };
-/** A Đơn vị's Lượt mở over a stretch of days, or since the start when `since` is null. */
+/** A Unit's Visits over a stretch of days, or since the start when `since` is null. */
 type UnitVisits = Visits & {
   since: string | null;
   today: string;
@@ -73,6 +74,19 @@ type UnitVisits = Visits & {
 type LogoChoice = "inherit" | "none" | "custom";
 type Member = { email: string; role: Role; hasPassword: boolean };
 type ApiKey = { id: number; name: string; createdAt: string; revokedAt: string | null };
+/** The Organization the installation serves (ADR-0007), as anyone may read it. */
+type Organization = {
+  name: string;
+  emailDomains: string[];
+  language: Language;
+  timeZone: string;
+  brandColor: string;
+  /** Where the UI's logo is served, or null when none was uploaded. */
+  uiLogo: string | null;
+};
+type OrganizationSettings = Partial<
+  Pick<Organization, "name" | "emailDomains" | "language" | "timeZone" | "brandColor">
+>;
 
 /** A refusal from the server: its machine-readable reason, never prose. `messages.ts` words it. */
 class ApiFailure extends Error {
@@ -170,13 +184,16 @@ const api = {
   adminMoveLink: (code: string, unitId: number) =>
     call<Link & { unitName: string }>("POST", `/api/admin/links/${code}/move`, { unitId }),
   adminRemoveLogo: () => call<void>("DELETE", "/api/admin/qr-logo"),
+  adminRemoveUiLogo: () => call<Organization>("DELETE", "/api/admin/ui-logo"),
   adminReserve: (code: string, note: string) =>
     call<{ code: string; note: string }>("POST", "/api/admin/reserved-codes", { code, note }),
   adminReservedCodes: () => call<{ codes: ReservedCode[] }>("GET", "/api/admin/reserved-codes"),
   adminRevoke: (email: string) => call<void>("DELETE", `/api/admin/admins/${encodeURIComponent(email)}`),
+  adminSaveSettings: (settings: OrganizationSettings) => call<Organization>("PUT", "/api/admin/settings", settings),
   adminUnits: () => call<{ units: UnitOverview[] }>("GET", "/api/admin/units"),
   adminUnreserve: (code: string) => call<void>("DELETE", `/api/admin/reserved-codes/${code}`),
   adminUploadLogo: (file: File) => upload("/api/admin/qr-logo", file),
+  adminUploadUiLogo: (file: File) => upload("/api/admin/ui-logo", file),
   archiveLink: (code: string) => call<Link>("POST", `/api/links/${code}/archive`),
   changeTarget: (code: string, target: string, expectedTarget: string, resetPreview = false) =>
     call<Link>("PUT", `/api/links/${code}/target`, { expectedTarget, resetPreview, target }),
@@ -185,7 +202,7 @@ const api = {
     call<{ id: number; key: string; name: string }>("POST", `/api/units/${unitId}/keys`, { name }),
   createLink: (input: NewLinkInput) => call<Link>("POST", "/api/links", input),
   deleteGroup: (unitId: number, groupId: number) => call<void>("DELETE", `/api/units/${unitId}/groups/${groupId}`),
-  /** Deletes a Link for good. `confirmCode` is its Mã link typed back by whoever confirmed. */
+  /** Deletes a Link for good. `confirmCode` is its Link Code typed back by whoever confirmed. */
   deleteLink: (code: string, confirmCode: string) => call<void>("DELETE", `/api/links/${code}`, { confirmCode }),
   disableLink: (code: string) => call<Link>("POST", `/api/links/${code}/disable`),
   enableLink: (code: string) => call<Link>("POST", `/api/links/${code}/enable`),
@@ -204,6 +221,7 @@ const api = {
   logout: () => call<void>("POST", "/api/auth/logout"),
   me: () => call<Me>("GET", "/api/auth/me"),
   members: (unitId: number) => call<{ members: Member[] }>("GET", `/api/units/${unitId}/members`),
+  organization: () => call<Organization>("GET", "/api/organization"),
   reissueSetup: (unitId: number, email: string) =>
     call<{ email: string; setupUrl: string }>("POST", `/api/units/${unitId}/members/password-setup`, { email }),
   removeMember: (unitId: number, email: string) =>
@@ -254,6 +272,8 @@ export {
   type LogoChoice,
   type Me,
   type Member,
+  type Organization,
+  type OrganizationSettings,
   type Preview,
   type ReservedCode,
   type Role,

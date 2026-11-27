@@ -21,7 +21,7 @@ const visitsOf = async () =>
   (await h.db.prepare("SELECT coalesce(sum(count), 0) AS total FROM daily_visits").first<{ total: number }>())?.total;
 
 describe("a Link with a password", () => {
-  it("asks for it, says nothing of the Đích, and sends the visitor on once it is given", async () => {
+  it("asks for it, says nothing of the Target, and sends the visitor on once it is given", async () => {
     const admin = await withLink();
     const set = await admin.put("/api/links/phan-bien/access", { password: "hoi-dong" });
     expect(await set.json()).toMatchObject({ hasPassword: true });
@@ -46,7 +46,7 @@ describe("a Link with a password", () => {
     expect(await visitsOf()).toBe(1);
   });
 
-  it("gives a preview fetcher the password page too, never the Đích's title", async () => {
+  it("gives a preview fetcher the password page too, never the Target's title", async () => {
     const admin = await withLink();
     h.pages.set(TARGET, "<title>Bài báo bí mật</title>");
     await admin.put("/api/links/phan-bien/access", { password: "hoi-dong" });
@@ -58,7 +58,7 @@ describe("a Link with a password", () => {
     expect(page).not.toContain("Bài báo bí mật");
   });
 
-  it("shows a chat app its Đơn vị's own words, or the locked ones, and never reads the Đích", async () => {
+  it("shows a chat app its Unit's own words, or the locked ones, and never reads the Target", async () => {
     const admin = await withLink();
     h.pages.set(
       TARGET,

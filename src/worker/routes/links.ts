@@ -16,8 +16,8 @@ const GENERATE_ATTEMPTS = 5;
 type Creator = { unitId: number; accountId: number | null; apiKeyId: number | null };
 
 /**
- * Which Đơn vị a request is about, and on whose behalf. A Khóa API has one Đơn vị and cannot name
- * another; a person names theirs and must belong to it - being a Quản trị hệ thống is not
+ * Which Unit a request is about, and on whose behalf. An API Key has one Unit and cannot name
+ * another; a person names theirs and must belong to it - being a System Administrator is not
  * membership, they add themselves like anybody else.
  */
 const resolveCreator = async (c: AppContext, store: Store, requested: unknown): Promise<Creator | Response> => {
@@ -57,7 +57,7 @@ const present = (link: LinkRecord, origin: string) => ({
   qrShape: link.qrShape,
   target: link.target,
   unitId: link.unitId,
-  /** Since when the daily check has found the Đích listed as unsafe, or null. */
+  /** Since when the daily check has found the Target listed as unsafe, or null. */
   unsafeSince: link.unsafeSince?.toISOString() ?? null,
   url: `${origin}/${link.code}`,
   visits: link.visits
@@ -95,7 +95,7 @@ const readAccess = async (
   return access;
 };
 
-/** One side of where Lượt mở came from, most first. "" is "not known". */
+/** One side of where Visits came from, most first. "" is "not known". */
 const sourcesOf = (sources: VisitSource[], kind: VisitSource["kind"]) =>
   sources.filter((source) => source.kind === kind).map(({ value, count }) => ({ count, value }));
 
@@ -104,22 +104,22 @@ const presentEntry = (entry: HistoryEntry) => ({ ...entry, at: entry.at.toISOStr
 type Reach = {
   link: LinkRecord;
   by: Author;
-  /** The request comes from a Quản trị hệ thống: a switch-off of theirs only they undo. */
+  /** The request comes from a System Administrator: a switch-off of theirs only they undo. */
   asSystem: boolean;
 };
 
 type ReachOptions = {
-  /** Lets a Quản trị hệ thống through without membership - for switching off and on only. */
+  /** Lets a System Administrator through without membership - for switching off and on only. */
   systemAdmin?: boolean;
-  /** Refuses a Khóa API: the request is not one of the six things the API does. */
+  /** Refuses an API Key: the request is not one of the six things the API does. */
   peopleOnly?: boolean;
-  /** Lets a deleted Link through - for a Quản trị hệ thống's lookup only. Otherwise it is unknown. */
+  /** Lets a deleted Link through - for a System Administrator's lookup only. Otherwise it is unknown. */
   deleted?: boolean;
 };
 
 /**
- * The Link in the path, if whoever is asking may act on it: a Thành viên of the Đơn vị that owns
- * it, or that Đơn vị's Khóa API.
+ * The Link in the path, if whoever is asking may act on it: a Member of the Unit that owns
+ * it, or that Unit's API Key.
  */
 const reachLink = async (c: AppContext, store: Store, options: ReachOptions = {}): Promise<Reach | Response> => {
   const actor = c.get("actor");
@@ -191,8 +191,8 @@ const createWithGeneratedCode = async (store: Store, fields: LinkFields): Promis
 };
 
 /**
- * Creates a Link for a creator already known to be allowed. `handOut` is a Quản trị hệ thống
- * giving out a Mã dành riêng: the administrators' list is skipped, the system's own paths never.
+ * Creates a Link for a creator already known to be allowed. `handOut` is a System Administrator
+ * giving out a Reserved Code: the administrators' list is skipped, the system's own paths never.
  */
 const createLink = async (
   c: AppContext,
@@ -209,7 +209,7 @@ const createLink = async (
   if (await isListedUnsafe(checkSafety, read.target)) {
     return c.json({ error: "bad-target", problem: "unsafe" }, 422);
   }
-  // A Nhóm, if one is named, must be one of the Đơn vị's own.
+  // A Group, if one is named, must be one of the Unit's own.
   const groupId = body?.groupId === undefined || body.groupId === null ? null : positiveInt(String(body.groupId));
   if (groupId === null && body?.groupId !== undefined && body.groupId !== null) {
     return c.json({ error: "unknown-group" }, 422);
@@ -248,7 +248,7 @@ const registerLinkRoutes = (
     return createLink(c, { checkSafety, store }, creator, body);
   });
 
-  /** The Links of one Đơn vị, newest first. */
+  /** The Links of one Unit, newest first. */
   app.get("/api/links", async (c) => {
     const creator = await resolveCreator(c, store, c.req.query("unitId"));
     if (creator instanceof Response) {
@@ -260,7 +260,7 @@ const registerLinkRoutes = (
   });
 
   /**
-   * One Link, for its page in the UI. A person only: the Khóa API lists a Đơn vị's Links and that
+   * One Link, for its page in the UI. A person only: the API Key lists a Unit's Links and that
    * is all it reads (AGENTS.md), so this adds nothing a leaked key could use.
    */
   app.get("/api/links/:code", async (c) => {
@@ -272,9 +272,9 @@ const registerLinkRoutes = (
   });
 
   /**
-   * Changes a Link's Đích and records who did. `expectedTarget` is the Đích the caller was shown
+   * Changes a Link's Target and records who did. `expectedTarget` is the Target the caller was shown
    * when confirming; if it has changed since, nothing is written and the answer says what it is now.
-   * `resetPreview: true` also drops the share preview set by hand, which described the old Đích.
+   * `resetPreview: true` also drops the share preview set by hand, which described the old Target.
    */
   app.put("/api/links/:code/target", async (c) => {
     const reach = await reachLink(c, store);
@@ -303,7 +303,7 @@ const registerLinkRoutes = (
       const current = await store.findLink(link.code);
       return c.json({ error: "target-changed", target: current?.target ?? link.target }, 409);
     }
-    // A preview set by hand described the old Đích. Asked to, it goes, and the new Đích's own
+    // A preview set by hand described the old Target. Asked to, it goes, and the new Target's own
     // title, description and image show instead.
     if (body?.resetPreview === true) {
       const cleared = { previewDescription: "", previewImage: "", previewTitle: "" };
@@ -313,7 +313,7 @@ const registerLinkRoutes = (
     return c.json(present({ ...link, target, unsafeSince: null }, url.origin));
   });
 
-  /** Sorts the Link into one of its Đơn vị's Nhóm, or into none with `groupId: null`. */
+  /** Sorts the Link into one of its Unit's Group, or into none with `groupId: null`. */
   app.put("/api/links/:code/group", async (c) => {
     const reach = await reachLink(c, store, { peopleOnly: true });
     if (reach instanceof Response) {
@@ -330,8 +330,8 @@ const registerLinkRoutes = (
   });
 
   /**
-   * Rewords the Tên link and its note - what the Link is for, in its Đơn vị's own words. For
-   * people only: it is not one of the things the API does. The Mã link never changes.
+   * Rewords the Link Name and its note - what the Link is for, in its Unit's own words. For
+   * people only: it is not one of the things the API does. The Link Code never changes.
    */
   app.put("/api/links/:code/details", async (c) => {
     const reach = await reachLink(c, store, { peopleOnly: true });
@@ -354,7 +354,7 @@ const registerLinkRoutes = (
   });
 
   /**
-   * How the Link looks when pasted into a chat or a post: what it sets itself, and what its Đích's
+   * How the Link looks when pasted into a chat or a post: what it sets itself, and what its Target's
    * page says, which fills whatever it leaves empty. For people: not one of the API's six things.
    */
   app.get("/api/links/:code/preview", async (c) => {
@@ -363,7 +363,7 @@ const registerLinkRoutes = (
       return reach;
     }
     const { link } = reach;
-    // Behind a password the Đích's own words are never shown, so they are not read either.
+    // Behind a password the Target's own words are never shown, so they are not read either.
     const page = link.passwordHash ? null : await fetchPage(link.target);
     return c.json({
       fromTarget: page ? readPreview(page.html, page.url) : null,
@@ -371,7 +371,7 @@ const registerLinkRoutes = (
     });
   });
 
-  /** Sets the Link's own preview. An empty part goes back to the Đích's. */
+  /** Sets the Link's own preview. An empty part goes back to the Target's. */
   app.put("/api/links/:code/preview", async (c) => {
     const reach = await reachLink(c, store, { peopleOnly: true });
     if (reach instanceof Response) {
@@ -397,8 +397,8 @@ const registerLinkRoutes = (
   });
 
   /**
-   * Switches a Link off: it shows the notice from now on, and keeps its Mã link. Switched off by a
-   * Quản trị hệ thống, it stays theirs to switch back on - also when it was already off.
+   * Switches a Link off: it shows the notice from now on, and keeps its Link Code. Switched off by a
+   * System Administrator, it stays theirs to switch back on - also when it was already off.
    */
   app.post("/api/links/:code/disable", async (c) => {
     const reach = await reachLink(c, store, { systemAdmin: true });
@@ -460,8 +460,8 @@ const registerLinkRoutes = (
   });
 
   /**
-   * Puts a Link away from the Đơn vị's list, or brings it back. It keeps opening and counting: this
-   * is tidying, for any Thành viên, and not one of the API's six things.
+   * Puts a Link away from the Unit's list, or brings it back. It keeps opening and counting: this
+   * is tidying, for any Member, and not one of the API's six things.
    */
   app.post("/api/links/:code/archive", async (c) => {
     const reach = await reachLink(c, store, { peopleOnly: true });
@@ -483,9 +483,9 @@ const registerLinkRoutes = (
   });
 
   /**
-   * Deletes a Link (ADR-0004): it stops opening and leaves every list, and its Mã link is never
-   * given out again. For a Quản lý đơn vị of the owning Đơn vị, or a Quản trị hệ thống - never a
-   * Khóa API, which would make a leaked key able to break what is printed.
+   * Deletes a Link (ADR-0004): it stops opening and leaves every list, and its Link Code is never
+   * given out again. For a Unit Manager of the owning Unit, or a System Administrator - never a
+   * API Key, which would make a leaked key able to break what is printed.
    */
   app.delete("/api/links/:code", async (c) => {
     const reach = await reachLink(c, store, { peopleOnly: true, systemAdmin: true });
@@ -500,7 +500,7 @@ const registerLinkRoutes = (
     if (!(role === "manager" || actor.isSystemAdmin)) {
       return c.json({ error: "forbidden" }, 403);
     }
-    // The Mã link typed back, as the confirmation asks: a slip of the mouse deletes nothing.
+    // The Link Code typed back, as the confirmation asks: a slip of the mouse deletes nothing.
     if (normalizeCode(text((await readJson(c))?.confirmCode)) !== reach.link.code) {
       return c.json({ error: "confirm-code" }, 422);
     }
@@ -508,7 +508,7 @@ const registerLinkRoutes = (
     return c.body(null, 204);
   });
 
-  /** Every change of Đích and every switch-off and -on, for the Thành viên of the owning Đơn vị. */
+  /** Every change of Target and every switch-off and -on, for the Member of the owning Unit. */
   app.get("/api/links/:code/history", async (c) => {
     const reach = await reachLink(c, store, { peopleOnly: true });
     if (reach instanceof Response) {
@@ -517,7 +517,7 @@ const registerLinkRoutes = (
     return c.json({ history: (await store.listHistory(reach.link.id)).map(presentEntry) });
   });
 
-  /** Lượt mở per Vietnamese day, oldest first. Days nobody opened the Link are left out. */
+  /** Visits per Vietnamese day, oldest first. Days nobody opened the Link are left out. */
   app.get("/api/links/:code/visits", async (c) => {
     const reach = await reachLink(c, store);
     if (reach instanceof Response) {

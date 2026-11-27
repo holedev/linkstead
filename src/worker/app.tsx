@@ -23,7 +23,7 @@ import type { OpenableLink } from "./store";
 import type { Site } from "./visitor-page";
 import type { NoticeKind } from "./visitor-text";
 
-/** Search engines may follow a Link to its Đích, but have no business in the UI or the API. */
+/** Search engines may follow a Link to its Target, but have no business in the UI or the API. */
 const ROBOTS = "User-agent: *\nDisallow: /app\nDisallow: /api\n";
 
 /** Why a Link found by its code does not open: deleted (gone for good), or switched off. */
@@ -40,16 +40,19 @@ const closedAs = (link: OpenableLink | null, at: Date): { kind: NoticeKind; stat
   return link.expiresAt && link.expiresAt <= at ? { kind: "expired", status: 404 } : null;
 };
 
-/** What a Link behind a password shows when pasted somewhere: its own words, never its Đích's. */
-const lockedPreviewOf = (link: OpenableLink) =>
-  lockedPreview({ description: link.previewDescription, image: link.previewImage, title: link.previewTitle });
+/** What a Link behind a password shows when pasted somewhere: its own words, never its Target's. */
+const lockedPreviewOf = (link: OpenableLink, site: Site) =>
+  lockedPreview(
+    { description: link.previewDescription, image: link.previewImage, title: link.previewTitle },
+    site.language
+  );
 
 /** Wrong passwords a Link takes in a minute before it asks the visitor to wait (ADR-0006). */
 const MAX_WRONG_PASSWORDS = 10;
 const MINUTE_MS = 60_000;
 
 /**
- * Where a Lượt mở came from, as counts only (ADR-0005): the country the network in front reports,
+ * Where a Visit came from, as counts only (ADR-0005): the country the network in front reports,
  * and the referring site's host.
  */
 const sourceOf = (c: Context) => ({
@@ -117,7 +120,7 @@ const createApp = (deps: AppDeps) => {
     return response;
   });
 
-  /** The page of Open Graph tags a preview fetcher is given: the Link's own, else its Đích's. */
+  /** The page of Open Graph tags a preview fetcher is given: the Link's own, else its Target's. */
   const previewPageOf = async (link: OpenableLink, linkUrl: string) => {
     const own = { description: link.previewDescription, image: link.previewImage, title: link.previewTitle };
     const page = own.title && own.description && own.image ? null : await fetchPage(link.target);
@@ -129,7 +132,7 @@ const createApp = (deps: AppDeps) => {
 
   /**
    * The Link at the path if it may be opened, or the page that says why not: unknown, deleted,
-   * switched off, expired, or with a Đích listed as unsafe - where the visitor is warned and
+   * switched off, expired, or with a Target listed as unsafe - where the visitor is warned and
    * decides, no preview is built from a page that may be a trap, and nothing is counted.
    */
   const reachOpenable = async (c: Context): Promise<{ link: OpenableLink; code: string } | Response> => {
@@ -151,9 +154,9 @@ const createApp = (deps: AppDeps) => {
   };
 
   /**
-   * Sends the visitor to the Đích, counting it when a person asked. Temporary on purpose, and
+   * Sends the visitor to the Target, counting it when a person asked. Temporary on purpose, and
    * never stored: a permanent redirect is remembered by the browser, which would keep sending
-   * people to the old Đích after it has been changed.
+   * people to the old Target after it has been changed.
    */
   const sendOn = (c: Context, link: OpenableLink, status: 302 | 303) => {
     if (!isMachineAgent(c.req.header("user-agent"))) {
@@ -177,12 +180,13 @@ const createApp = (deps: AppDeps) => {
       return reach;
     }
     const { link, code } = reach;
-    // A Link with a password says nothing of its Đích - to a person or to a preview fetcher.
+    // A Link with a password says nothing of its Target - to a person or to a preview fetcher.
     if (link.passwordHash) {
-      return c.html(<PasswordPage preview={lockedPreviewOf(link)} site={await site()} state='ask' url={c.req.url} />);
+      const here = await site();
+      return c.html(<PasswordPage preview={lockedPreviewOf(link, here)} site={here} state='ask' url={c.req.url} />);
     }
     // A chat app or social site building a preview gets the tags, not a redirect: not every one
-    // follows a redirect to read the Đích's. It is never counted as a Lượt mở.
+    // follows a redirect to read the Target's. It is never counted as a Visit.
     if (isPreviewFetcher(c.req.header("user-agent"))) {
       return c.html(await previewPageOf(link, `${new URL(c.req.url).origin}/${code}`));
     }
@@ -199,10 +203,11 @@ const createApp = (deps: AppDeps) => {
     if (!link.passwordHash) {
       return sendOn(c, link, 303);
     }
+    const here = await site();
     const minute = Math.floor(now().getTime() / MINUTE_MS);
     if ((await store.passwordFailures(link.id, minute)) >= MAX_WRONG_PASSWORDS) {
       return c.html(
-        <PasswordPage preview={lockedPreviewOf(link)} site={await site()} state='too-many' url={c.req.url} />,
+        <PasswordPage preview={lockedPreviewOf(link, here)} site={here} state='too-many' url={c.req.url} />,
         429
       );
     }
@@ -211,7 +216,7 @@ const createApp = (deps: AppDeps) => {
     if (!(await matchesLinkPassword(password, link.passwordHash))) {
       await store.countPasswordFailure(link.id, minute);
       return c.html(
-        <PasswordPage preview={lockedPreviewOf(link)} site={await site()} state='wrong' url={c.req.url} />,
+        <PasswordPage preview={lockedPreviewOf(link, here)} site={here} state='wrong' url={c.req.url} />,
         401
       );
     }

@@ -32,7 +32,7 @@ describe("visitDay", () => {
   });
 });
 
-describe("where a Lượt mở came from", () => {
+describe("where a Visit came from", () => {
   it("keeps the country the network reports, and nothing for a placeholder", () => {
     expect(visitCountry("VN")).toBe("VN");
     expect(visitCountry("jp")).toBe("JP");

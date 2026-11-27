@@ -1,24 +1,26 @@
 import { Outlet, useLocation } from "react-router";
-import { PageHeader, TrialBadge } from "@/components/app";
+import { PageHeader } from "@/components/app";
 import { AppSidebar, screenOf } from "@/components/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { text } from "@/i18n";
 import { useSession } from "./session";
 
 const OWN_TITLE = /^\/(links|admin\/units)\/[^/]+/u;
 
 /**
- * The frame every signed-in screen sits in: the sidebar says which Đơn vị and which section, the
- * header where you are and that this is still the trial - in full where a QR is downloaded.
+ * The frame every signed-in screen sits in: the sidebar says which Unit and which section, the
+ * header where you are.
  */
 const Layout = () => {
   const { unit } = useSession();
   const { pathname } = useLocation();
-  // The system-wide screens are about every Đơn vị, so they show without one selected.
+  const t = text().layout;
+  // The system-wide screens are about every Unit, so they show without one selected.
   const onSystemScreen = pathname.startsWith("/admin");
-  const scope = onSystemScreen ? "Toàn hệ thống" : unit?.unitName;
+  const scope = onSystemScreen ? t.systemWide : unit?.unitName;
   const screen = screenOf(pathname);
-  // These draw their own title: it carries a Nhóm, a Link, a Đơn vị or the screen's own controls.
+  // These draw their own title: it carries a Group, a Link, a Unit or the screen's own controls.
   const ownTitle = pathname === "/" || pathname === "/stats" || OWN_TITLE.test(pathname);
 
   return (
@@ -26,14 +28,13 @@ const Layout = () => {
       <AppSidebar />
       <SidebarInset className='min-w-0'>
         <header className='sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur'>
-          <SidebarTrigger aria-label='Mở hoặc thu gọn thanh bên' className='-ml-1 size-9' />
+          <SidebarTrigger aria-label={t.toggleSidebar} className='-ml-1 size-9' />
           <Separator className='mr-2 data-[orientation=vertical]:h-4' orientation='vertical' />
-          <nav aria-label='Vị trí' className='flex min-w-0 flex-1 items-center gap-2 text-sm'>
+          <nav aria-label={t.breadcrumb} className='flex min-w-0 flex-1 items-center gap-2 text-sm'>
             {scope && <span className='hidden truncate text-muted-foreground sm:inline'>{scope}</span>}
             {scope && <span className='hidden text-muted-foreground sm:inline'>/</span>}
             <span className='truncate font-medium'>{screen?.label}</span>
           </nav>
-          <TrialBadge />
         </header>
 
         {/* A div: the inset around it is already the page's one <main>. */}
@@ -42,9 +43,7 @@ const Layout = () => {
           {unit || onSystemScreen ? (
             <Outlet />
           ) : (
-            <p className='rounded-xl border bg-card p-5 text-muted-foreground'>
-              Tài khoản của bạn chưa thuộc đơn vị nào nên chưa tạo được link. Hãy nhờ Quản lý đơn vị thêm bạn vào.
-            </p>
+            <p className='rounded-xl border bg-card p-5 text-muted-foreground'>{t.noUnit}</p>
           )}
         </div>
       </SidebarInset>

@@ -1,6 +1,6 @@
 import { dayIn } from "./time-zone";
 
-/** What counts as a Lượt mở, and which day it belongs to (CONTEXT.md). */
+/** What counts as a Visit, and which day it belongs to (CONTEXT.md). */
 
 /**
  * Fetchers that open a Link to build a preview, and crawlers, by the names they give themselves.
@@ -35,7 +35,7 @@ const isMachineAgent = (userAgent: string | null | undefined): boolean => !userA
 const visitDay = (at: Date, timeZone: string): string => dayIn(at, timeZone);
 
 /**
- * The country a Lượt mở came from, as the network in front of the system reports it - two capital
+ * The country a Visit came from, as the network in front of the system reports it - two capital
  * letters - or "" when it does not, or reports a placeholder (`XX` unknown, `T1` Tor). Read from a
  * header, so a server without such a network simply counts every opening as unknown.
  */
@@ -65,7 +65,7 @@ const SITE_ALIASES: Record<string, string> = {
 const WWW = /^www\./;
 
 /**
- * The site a Lượt mở came from: the host of the `Referer`, without `www.`, or "" when there is
+ * The site a Visit came from: the host of the `Referer`, without `www.`, or "" when there is
  * none - a scanned QR, a typed address and most chat apps send nothing. Only the host is kept: the
  * rest of the address can name a person or a private page. `ownHost` is this system: a Link opened
  * from its own pages did not come from anywhere else.

@@ -1,9 +1,10 @@
 import { CheckCircle2Icon, DownloadIcon, FileUpIcon, XCircleIcon } from "lucide-react";
 import { type ChangeEvent, useState } from "react";
-import { Button, ErrorText, Modal, TrialPrintWarning } from "@/components/app";
+import { Button, ErrorText, Modal } from "@/components/app";
 import { parseCsv, toCsv } from "../../domain/csv";
 import { api, type Link, type LinkGroup } from "../api";
-import { MAX_ROWS, type PlannedRow, planRows, TEMPLATE_HEADER, TEMPLATE_ROW } from "../lib/bulk";
+import { text } from "../i18n";
+import { MAX_ROWS, type PlannedRow, planRows, template } from "../lib/bulk";
 import { downloadQrZip, type QrFormat } from "../lib/qr-zip";
 import { messageOf } from "../messages";
 import { save } from "../qr";
@@ -16,16 +17,20 @@ import { save } from "../qr";
 
 type Outcome = { row: PlannedRow; link: Link | null; error: string };
 
+const t = text().bulk;
+
 const PLAN_ERRORS = {
-  "missing-columns": "Tệp cần có ít nhất hai cột Tên link và Đích ở dòng đầu tiên.",
-  "no-rows": "Tệp không có dòng nào dưới dòng tiêu đề.",
-  "too-many-rows": `Mỗi lần nhập tối đa ${MAX_ROWS} link. Hãy chia tệp ra.`
+  "missing-columns": t.missingColumns,
+  "no-rows": t.noRows,
+  "too-many-rows": t.tooManyRows(MAX_ROWS)
 };
 
-const downloadTemplate = () =>
-  save(new Blob([toCsv(TEMPLATE_HEADER, [TEMPLATE_ROW])], { type: "text/csv" }), "ou-link-mau-nhap.csv");
+const downloadTemplate = () => {
+  const { header, row } = template();
+  save(new Blob([toCsv(header, [row])], { type: "text/csv" }), t.templateFile);
+};
 
-/** The Nhóm each row names, made first when the Đơn vị does not have it yet. */
+/** The Group each row names, made first when the Unit does not have it yet. */
 const groupIdsFor = async (unitId: number, groups: LinkGroup[], rows: PlannedRow[]) => {
   const ids = new Map(groups.map((group) => [group.name, group.id]));
   for (const name of new Set(rows.map((row) => row.group).filter(Boolean))) {
@@ -46,24 +51,17 @@ const ChooseStep = ({ onRead }: { onRead: (text: string) => void }) => {
   };
   return (
     <div className='space-y-4 text-sm'>
-      <p>
-        Dòng đầu tiên của tệp là tên cột. Cần có <strong>Tên link</strong> và <strong>Đích</strong>; có thể thêm{" "}
-        <strong>Mã link</strong> (bỏ trống để hệ thống tự sinh), <strong>Nhóm</strong> (nhóm chưa có sẽ được tạo) và{" "}
-        <strong>Ghi chú</strong>. Cột khác được bỏ qua, nên tệp "Danh sách link" tải về từ đây cũng dùng được.
-      </p>
-      <p className='text-muted-foreground'>
-        Lưu từ Excel hoặc Google Sheets dưới dạng CSV (UTF-8). Dấu phẩy hay chấm phẩy đều được. Tối đa {MAX_ROWS} link
-        mỗi lần.
-      </p>
+      <p>{t.intro}</p>
+      <p className='text-muted-foreground'>{t.formats(MAX_ROWS)}</p>
       <div className='flex flex-col gap-2 sm:flex-row'>
         <label className='inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-md bg-primary px-4 font-medium text-primary-foreground text-sm focus-within:ring-[3px] focus-within:ring-ring/50 hover:bg-primary/90 md:h-9'>
           <FileUpIcon className='size-4' />
-          Chọn tệp CSV
+          {t.chooseFile}
           <input accept='.csv,text/csv' className='sr-only' onChange={choose} type='file' />
         </label>
         <Button onClick={downloadTemplate}>
           <DownloadIcon />
-          Tải tệp mẫu
+          {t.template}
         </Button>
       </div>
     </div>
@@ -75,9 +73,9 @@ const RowTable = ({ rows }: { rows: { row: PlannedRow; note: string; ok: boolean
     <table className='w-full text-left text-sm'>
       <thead className='sticky top-0 bg-muted text-muted-foreground text-xs'>
         <tr>
-          <th className='px-2 py-1.5 font-medium'>Dòng</th>
-          <th className='px-2 py-1.5 font-medium'>Tên link</th>
-          <th className='px-2 py-1.5 font-medium'>Mã / kết quả</th>
+          <th className='px-2 py-1.5 font-medium'>{t.line}</th>
+          <th className='px-2 py-1.5 font-medium'>{t.columnName}</th>
+          <th className='px-2 py-1.5 font-medium'>{t.result}</th>
         </tr>
       </thead>
       <tbody className='divide-y'>
@@ -85,9 +83,9 @@ const RowTable = ({ rows }: { rows: { row: PlannedRow; note: string; ok: boolean
           <tr className='align-top' key={row.line}>
             <td className='px-2 py-1.5 text-muted-foreground tabular-nums'>{row.line}</td>
             <td className='px-2 py-1.5'>
-              <p className='break-words'>{row.name || <span className='text-muted-foreground'>(trống)</span>}</p>
+              <p className='break-words'>{row.name || <span className='text-muted-foreground'>{t.empty}</span>}</p>
               <p className='break-all text-muted-foreground text-xs'>{row.target}</p>
-              {row.group && <p className='text-muted-foreground text-xs'>Nhóm: {row.group}</p>}
+              {row.group && <p className='text-muted-foreground text-xs'>{t.groupOf(row.group)}</p>}
             </td>
             <td className='px-2 py-1.5'>
               <span className={ok ? "flex items-start gap-1" : "flex items-start gap-1 text-destructive"}>
@@ -114,7 +112,7 @@ const ZipButtons = ({ codes }: { codes: string[] }) => {
     setError("");
     setDone(0);
     try {
-      await downloadQrZip(codes, format, `ou-link-qr-${format}.zip`, setDone);
+      await downloadQrZip(codes, format, `linkstead-qr-${format}.zip`, setDone);
     } catch (failure) {
       setError(messageOf(failure));
     }
@@ -125,18 +123,14 @@ const ZipButtons = ({ codes }: { codes: string[] }) => {
       <div className='flex flex-col gap-2 sm:flex-row'>
         <Button disabled={done !== null} onClick={() => run("svg")}>
           <DownloadIcon />
-          QR dạng SVG (.zip)
+          {t.svgZip}
         </Button>
         <Button disabled={done !== null} onClick={() => run("png")}>
           <DownloadIcon />
-          QR dạng PNG (.zip)
+          {t.pngZip}
         </Button>
       </div>
-      {done !== null && (
-        <p className='text-muted-foreground text-xs'>
-          Đang chuẩn bị {done}/{codes.length} mã QR...
-        </p>
-      )}
+      {done !== null && <p className='text-muted-foreground text-xs'>{t.preparing(done, codes.length)}</p>}
       <ErrorText>{error}</ErrorText>
     </div>
   );
@@ -154,7 +148,7 @@ const BulkCreateDialog = ({
   unitId: number;
   unitName: string;
   groups: LinkGroup[];
-  /** Links made, as they are made; and once at the end so the Nhóm are read again. */
+  /** Links made, as they are made; and once at the end so the Groups are read again. */
   onCreated: (links: Link[]) => void;
   onClose: () => void;
 }) => {
@@ -175,8 +169,8 @@ const BulkCreateDialog = ({
     onClose();
   };
 
-  const read = (text: string) => {
-    const plan = planRows(parseCsv(text), window.location.hostname);
+  const read = (content: string) => {
+    const plan = planRows(parseCsv(content), window.location.hostname);
     if ("error" in plan) {
       setFileError(PLAN_ERRORS[plan.error]);
       return;
@@ -222,10 +216,10 @@ const BulkCreateDialog = ({
 
   return (
     <Modal
-      description={`Các link mới thuộc về ${unitName}.`}
+      description={t.description(unitName)}
       onClose={progress === null ? close : () => undefined}
       open={open}
-      title='Tạo nhiều link từ CSV'
+      title={t.title}
       wide
     >
       {!(rows || outcomes) && (
@@ -238,28 +232,24 @@ const BulkCreateDialog = ({
       {rows && !outcomes && (
         <div className='space-y-4 text-sm'>
           <p>
-            <strong>{good.length}</strong> trong {rows.length} dòng tạo được.
-            {good.length < rows.length && " Các dòng có lỗi sẽ được bỏ qua - sửa tệp rồi nhập lại nếu cần."}
+            {t.readable(good.length, rows.length)}
+            {good.length < rows.length && t.skipped}
           </p>
           <RowTable
             rows={rows.map((row) => ({
-              note: row.problem ? messageOf(row.problem) : row.code || "tự sinh mã",
+              note: row.problem ? messageOf(row.problem) : row.code || t.autoCode,
               ok: !row.problem,
               row
             }))}
           />
           <ErrorText>{fileError}</ErrorText>
-          {progress !== null && (
-            <p className='text-muted-foreground'>
-              Đang tạo {progress}/{good.length} link...
-            </p>
-          )}
+          {progress !== null && <p className='text-muted-foreground'>{t.creatingProgress(progress, good.length)}</p>}
           <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
             <Button disabled={progress !== null} onClick={reset}>
-              Chọn tệp khác
+              {t.chooseAnother}
             </Button>
             <Button disabled={progress !== null || good.length === 0} onClick={create} variant='primary'>
-              {progress === null ? `Tạo ${good.length} link` : "Đang tạo..."}
+              {progress === null ? t.create(good.length) : t.creating}
             </Button>
           </div>
         </div>
@@ -268,8 +258,8 @@ const BulkCreateDialog = ({
       {outcomes && (
         <div className='space-y-4 text-sm'>
           <p>
-            Đã tạo <strong>{created.length}</strong> link
-            {created.length < outcomes.length && `, ${outcomes.length - created.length} dòng không tạo được`}.
+            {t.created(created.length)}
+            {created.length < outcomes.length && t.failedRows(outcomes.length - created.length)}.
           </p>
           <RowTable
             rows={outcomes.map((outcome) => ({
@@ -278,15 +268,10 @@ const BulkCreateDialog = ({
               row: outcome.row
             }))}
           />
-          {created.length > 0 && (
-            <>
-              <TrialPrintWarning />
-              <ZipButtons codes={created.map((outcome) => outcome.link?.code ?? "")} />
-            </>
-          )}
+          {created.length > 0 && <ZipButtons codes={created.map((outcome) => outcome.link?.code ?? "")} />}
           <div className='flex justify-end'>
             <Button onClick={close} variant='primary'>
-              Xong
+              {t.done}
             </Button>
           </div>
         </div>

@@ -1,12 +1,12 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import { ApiFailure, api, type Me, type UnitMembership } from "./api";
 
-const UNIT_KEY = "ou-link.unit";
+const UNIT_KEY = "linkstead.unit";
 
 type Session = {
   /** `undefined` while the first answer is on its way, `null` when nobody is signed in. */
   me: Me | null | undefined;
-  /** The Đơn vị the screens are showing: the remembered one if the account still belongs to it. */
+  /** The Unit the screens are showing: the remembered one if the account still belongs to it. */
   unit: UnitMembership | null;
   selectUnit: (unitId: number) => void;
   refresh: () => Promise<void>;

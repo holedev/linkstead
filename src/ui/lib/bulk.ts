@@ -1,23 +1,29 @@
 import { unguard } from "../../domain/csv";
 import { checkChosenCode, normalizeCode } from "../../domain/link-code";
 import { checkTarget } from "../../domain/target";
+import { text } from "../i18n";
 import { fold } from "./link-filter";
 
 /**
  * Many Links from one spreadsheet: which column is which, and what is wrong with a row before
- * anything is sent. The server still decides - a code may be taken, a Đích listed unsafe - but a
+ * anything is sent. The server still decides - a code may be taken, a Target listed unsafe - but a
  * typo is better caught here, in the list, than as a failure after the others were made.
  */
 
 type Field = "name" | "target" | "code" | "note" | "group";
 
-/** Column names a person or the system's own export uses, compared without case or marks. */
+/**
+ * Column names a person or the system's own export uses, in any language the UI speaks, compared
+ * without case or marks - so a file made under one language still reads under another.
+ */
 const HEADERS: Record<string, Field> = {
   code: "code",
   "dia chi dich": "target",
   dich: "target",
   "ghi chu": "note",
   group: "group",
+  "link code": "code",
+  "link name": "name",
   ma: "code",
   "ma link": "code",
   name: "name",
@@ -108,14 +114,13 @@ const planRows = (rows: readonly string[][], ownHost: string): Plan => {
   };
 };
 
-/** A file to start from: the columns read, and one example row. */
-const TEMPLATE_HEADER = ["Tên link", "Đích", "Mã link", "Nhóm", "Ghi chú"];
-const TEMPLATE_ROW = [
-  "Bài báo số 3 - Tạp chí 2027",
-  "https://journalofscience.ou.edu.vn/index.php/vi/article/view/3",
-  "",
-  "Tạp chí 2027",
-  "Bỏ trống Mã link để hệ thống tự sinh"
-];
+/** A file to start from, in the UI's language: the columns read, and one example row. */
+const template = (): { header: string[]; row: string[] } => {
+  const t = text().bulk;
+  return {
+    header: [t.columnName, t.columnTarget, t.columnCode, t.columnGroup, t.columnNote],
+    row: [t.exampleName, "https://example.org/articles/3", "", t.exampleGroup, t.exampleNote]
+  };
+};
 
-export { MAX_ROWS, type Plan, type PlannedRow, planRows, TEMPLATE_HEADER, TEMPLATE_ROW };
+export { MAX_ROWS, type Plan, type PlannedRow, planRows, template };

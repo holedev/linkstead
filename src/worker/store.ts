@@ -2,7 +2,7 @@
  * What the request handling needs from storage, and nothing about where storage lives.
  *
  * This seam is ADR-0001 in code: the app is written against `Store`, the Cloudflare adapter
- * (`store-d1.ts`) is one implementation of it, and moving to the university's servers means
+ * (`store-d1.ts`) is one implementation of it, and moving to the Organization's servers means
  * writing another - not touching the handlers.
  */
 
@@ -25,7 +25,7 @@ type LogoFiles = {
   delete: (key: string) => Promise<void>;
 };
 
-/** How a Link presents itself when pasted somewhere, as its Đơn vị set it. Empty means the Đích's. */
+/** How a Link presents itself when pasted somewhere, as its Unit set it. Empty means the Target's. */
 type LinkPreview = { previewTitle: string; previewDescription: string; previewImage: string };
 
 type OpenableLink = LinkPreview & {
@@ -34,7 +34,7 @@ type OpenableLink = LinkPreview & {
   enabled: boolean;
   /** Deleted: it opens nowhere, and its code is never given out again (ADR-0004). */
   deleted: boolean;
-  /** The daily check found the Đích listed as unsafe: visitors are warned instead of sent on. */
+  /** The daily check found the Target listed as unsafe: visitors are warned instead of sent on. */
   unsafe: boolean;
   /** Past this it shows the expired notice (ADR-0006). */
   expiresAt: Date | null;
@@ -50,23 +50,23 @@ type LinkRecord = LinkPreview & {
   target: string;
   unitId: number;
   enabled: boolean;
-  /** Switched off by a Quản trị hệ thống: only they switch it back on. */
+  /** Switched off by a System Administrator: only they switch it back on. */
   disabledBySystem: boolean;
-  /** The Nhóm it is sorted into, if any. */
+  /** The Group it is sorted into, if any. */
   groupId: number | null;
-  /** The QR's logo for this Link: the Đơn vị's, none, or its own file under `logoKey`. */
+  /** The QR's logo for this Link: the Unit's, none, or its own file under `logoKey`. */
   logoChoice: LogoChoice;
   logoKey: string | null;
   /** How much of the QR's logo box the logo fills, in percent. */
   logoScale: number;
-  /** Every Lượt mở the Link has had, all days together. */
+  /** Every Visits the Link has had, all days together. */
   visits: number;
   createdAt: Date;
-  /** Put away from the Đơn vị's list. It still opens. */
+  /** Put away from the Unit's list. It still opens. */
   archivedAt: Date | null;
-  /** Deleted (ADR-0004). Only a lookup by a Quản trị hệ thống ever returns such a Link. */
+  /** Deleted (ADR-0004). Only a lookup by a System Administrator ever returns such a Link. */
   deletedAt: Date | null;
-  /** Since when the daily check has found the Đích listed as unsafe, if it has. */
+  /** Since when the daily check has found the Target listed as unsafe, if it has. */
   unsafeSince: Date | null;
   /** Past this it stops opening (ADR-0006). */
   expiresAt: Date | null;
@@ -76,12 +76,12 @@ type LinkRecord = LinkPreview & {
   qrShape: QrShape;
 };
 
-/** Who made a change: a person or a Khóa API, never both. */
+/** Who made a change: a person or an API Key, never both. */
 type Author = { accountId: number | null; apiKeyId: number | null };
 
 type AuthorName = { kind: "account"; email: string } | { kind: "key"; name: string } | null;
 
-/** One line of a Link's history: its Đích was changed, or it was switched off or on. */
+/** One line of a Link's history: its Target was changed, or it was switched off or on. */
 type HistoryEntry = { at: Date; by: AuthorName } & (
   | { kind: "target"; oldTarget: string; newTarget: string }
   | { kind: "unit"; oldUnitName: string; newUnitName: string }
@@ -89,7 +89,7 @@ type HistoryEntry = { at: Date; by: AuthorName } & (
   | { kind: "deleted" }
 );
 
-/** What became of a change to a membership. A Đơn vị never loses its last Quản lý đơn vị. */
+/** What became of a change to a membership. A Unit never loses its last Unit Manager. */
 type MembershipOutcome = "done" | "last-manager" | "not-a-member";
 
 type UnitOverview = { id: number; name: string; linkCount: number; managers: string[] };
@@ -111,10 +111,10 @@ type Snapshot = {
 
 type DayVisits = { day: string; count: number };
 
-/** Where Lượt mở came from: a country (two letters) or a referring site; "" is "not known". */
+/** Where Visits came from: a country (two letters) or a referring site; "" is "not known". */
 type VisitSource = { kind: "country" | "referrer"; value: string; count: number };
 
-/** Which Lượt mở to add up: one Link's or a whole Đơn vị's, from a day on (`yyyy-mm-dd`) or ever. */
+/** Which Visits to add up: one Link's or a whole Unit's, from a day on (`yyyy-mm-dd`) or ever. */
 type VisitScope = ({ linkId: number } | { unitId: number }) & { since?: string };
 
 /** A Link to look at again in the daily safety check. */
@@ -131,7 +131,7 @@ type NewLink = {
   createdByApiKeyId: number | null;
 };
 
-/** A Nhóm: a Đơn vị's own way of sorting its Links. */
+/** A Group: a Unit's own way of sorting its Links. */
 type LinkGroup = { id: number; name: string; linkCount: number };
 
 /** The Organization as kept: its settings, and the key of the logo its UI shows, if one was uploaded. */
@@ -153,10 +153,10 @@ type ApiKeyRecord = { id: number; name: string; createdAt: Date; revokedAt: Date
 
 type Store = {
   // ── Opening a Link ────────────────────────────────────────────────────────
-  /** The Link behind a normalised Mã link, or null when there is none. */
+  /** The Link behind a normalised Link Code, or null when there is none. */
   findLinkByCode: (code: string) => Promise<OpenableLink | null>;
   /**
-   * Adds one Lượt mở to a Link's count for a day (`yyyy-mm-dd`), and to the counts of the country
+   * Adds one Visit to a Link's count for a day (`yyyy-mm-dd`), and to the counts of the country
    * and the site it came from ("" when not known).
    */
   recordVisit: (linkId: number, day: string, source: { country: string; referrer: string }) => Promise<void>;
@@ -164,20 +164,20 @@ type Store = {
   // ── Links ─────────────────────────────────────────────────────────────────
   /** Whether the administrators hold this code back, on top of the system's own list. */
   isReservedCode: (code: string) => Promise<boolean>;
-  /** Null when the Mã link is already taken - by any Link, open, switched off or deleted. */
+  /** Null when the Link Code is already taken - by any Link, open, switched off or deleted. */
   createLink: (link: NewLink) => Promise<LinkRecord | null>;
-  /** A Đơn vị's Links, archived ones included, deleted ones not. */
+  /** A Unit's Links, archived ones included, deleted ones not. */
   listLinksByUnit: (unitId: number) => Promise<LinkRecord[]>;
-  /** The whole Link behind a normalised Mã link - also a deleted one, which the caller turns away. */
+  /** The whole Link behind a normalised Link Code - also a deleted one, which the caller turns away. */
   findLink: (code: string) => Promise<LinkRecord | null>;
-  /** Puts a Link away from the Đơn vị's list, or back with null. It keeps opening either way. */
+  /** Puts a Link away from the Unit's list, or back with null. It keeps opening either way. */
   setLinkArchived: (linkId: number, at: Date | null) => Promise<void>;
   /**
    * Deletes a Link: from now on it opens nowhere and is listed nowhere, but its row - and so its
-   * Mã link - stays, never to be given out again (ADR-0004). False when it was already deleted.
+   * Link Code - stays, never to be given out again (ADR-0004). False when it was already deleted.
    */
   deleteLink: (deletion: { linkId: number; byAccountId: number; at: Date }) => Promise<boolean>;
-  /** Every Link that is not deleted, for the daily safety check of its Đích. */
+  /** Every Link that is not deleted, for the daily safety check of its Target. */
   listLinksToCheck: () => Promise<LinkToCheck[]>;
   /** Sets the password visitors must give, as its stored form, or none with null. */
   setLinkPassword: (linkId: number, passwordHash: string | null) => Promise<void>;
@@ -188,10 +188,10 @@ type Store = {
   passwordFailures: (linkId: number, minute: number) => Promise<number>;
   /** Counts one more wrong password in a minute, forgetting earlier minutes. */
   countPasswordFailure: (linkId: number, minute: number) => Promise<void>;
-  /** Marks a Link's Đích as found unsafe since a moment, or clears that with null. */
+  /** Marks a Link's Target as found unsafe since a moment, or clears that with null. */
   setLinkUnsafe: (linkId: number, since: Date | null) => Promise<void>;
   /**
-   * Replaces the Đích and records the change, together or not at all. False when the Đích was no
+   * Replaces the Target and records the change, together or not at all. False when the Target was no
    * longer `oldTarget` - somebody else changed it first, and nothing is written.
    */
   changeTarget: (change: {
@@ -209,23 +209,23 @@ type Store = {
     by: Author;
     at: Date;
   }) => Promise<boolean>;
-  /** Rewords the Tên link and its note. The Mã link and the Đích are not this method's to touch. */
+  /** Rewords the Link Name and its note. The Link Code and the Target are not this method's to touch. */
   updateLinkDetails: (linkId: number, name: string, note: string) => Promise<void>;
-  /** Sets how the Link presents itself when pasted somewhere. Empty parts follow the Đích. */
+  /** Sets how the Link presents itself when pasted somewhere. Empty parts follow the Target. */
   updateLinkPreview: (linkId: number, preview: LinkPreview) => Promise<void>;
   /** The per-Link choice of logo for its QR. `logoKey` is set only with `custom`. */
   setLinkLogo: (linkId: number, choice: LogoChoice, logoKey: string | null) => Promise<void>;
   /** How much of the QR's logo box the Link's logo fills, in percent. */
   setLinkLogoScale: (linkId: number, scale: number) => Promise<void>;
-  /** Every logo file a Đơn vị or a Link points at, for the export. */
+  /** Every logo file a Unit or a Link points at, for the export. */
   listLogoKeys: () => Promise<string[]>;
-  /** Every change of Đích and every switch-off and -on, newest first. */
+  /** Every change of Target and every switch-off and -on, newest first. */
   listHistory: (linkId: number) => Promise<HistoryEntry[]>;
-  /** Lượt mở per day, oldest first. Days with none have no row. */
+  /** Visits per day, oldest first. Days with none have no row. */
   listVisits: (linkId: number) => Promise<DayVisits[]>;
 
   /**
-   * Gives a Link to another Đơn vị and records it; its address does not change. False when the
+   * Gives a Link to another Unit and records it; its address does not change. False when the
    * Link was no longer in `fromUnitId`.
    */
   moveLink: (move: {
@@ -236,17 +236,17 @@ type Store = {
     at: Date;
   }) => Promise<boolean>;
 
-  /** Lượt mở of every Link a Đơn vị owns, by Mã link then day. */
+  /** Visits of every Link a Unit owns, by Link Code then day. */
   listVisitsByUnit: (unitId: number) => Promise<{ code: string; day: string; count: number }[]>;
-  /** Lượt mở of every Link a Đơn vị owns, by Mã link, day, and where they came from. */
+  /** Visits of every Link a Unit owns, by Link Code, day, and where they came from. */
   listVisitSourcesByUnit: (
     unitId: number
   ) => Promise<{ code: string; day: string; kind: "country" | "referrer"; value: string; count: number }[]>;
-  /** Lượt mở added up by country and by referring site, most first. */
+  /** Visits added up by country and by referring site, most first. */
   listVisitSources: (scope: VisitScope) => Promise<VisitSource[]>;
-  /** A Đơn vị's Lượt mở per day, all its Links together, oldest first. */
+  /** A Unit's Visits per day, all its Links together, oldest first. */
   listUnitVisitDays: (unitId: number, since?: string) => Promise<DayVisits[]>;
-  /** A Đơn vị's most opened Links over a stretch of days, most first. */
+  /** A Unit's most opened Links over a stretch of days, most first. */
   listUnitTopLinks: (
     unitId: number,
     since: string | undefined,
@@ -259,24 +259,24 @@ type Store = {
   saveOrganization: (organization: OrganizationRecord, at: Date) => Promise<void>;
   exportAll: (at: Date) => Promise<Snapshot>;
   /**
-   * Takes a snapshot into an installation nobody has used yet. `not-empty` when a Tài khoản or a
+   * Takes a snapshot into an installation nobody has used yet. `not-empty` when a Account or a
    * Link already exists; `bad-snapshot` when it cannot be read, in which case nothing is kept.
    */
   importAll: (snapshot: Snapshot) => Promise<"done" | "not-empty" | "bad-snapshot">;
 
-  // ── Nhóm ──────────────────────────────────────────────────────────────────
-  /** A Đơn vị's Nhóm by name, each with how many Links it holds. */
+  // ── Group ──────────────────────────────────────────────────────────────────
+  /** A Unit's Group by name, each with how many Links it holds. */
   listGroups: (unitId: number) => Promise<LinkGroup[]>;
   findGroup: (unitId: number, groupId: number) => Promise<{ id: number; name: string } | null>;
-  /** Null when the Đơn vị already has a Nhóm of that name. */
+  /** Null when the Unit already has a Group of that name. */
   createGroup: (unitId: number, name: string) => Promise<{ id: number; name: string } | null>;
   renameGroup: (unitId: number, groupId: number, name: string) => Promise<"done" | "taken" | "unknown">;
-  /** Removes a Nhóm; its Links stay, in no Nhóm. False when there is no such Nhóm in the Đơn vị. */
+  /** Removes a Group; its Links stay, in no Group. False when there is no such Group in the Unit. */
   deleteGroup: (unitId: number, groupId: number) => Promise<boolean>;
-  /** Sorts a Link into a Nhóm of its own Đơn vị, or into none. The caller checks the Nhóm is its. */
+  /** Sorts a Link into a Group of its own Unit, or into none. The caller checks the Group is its. */
   setLinkGroup: (linkId: number, groupId: number | null) => Promise<void>;
 
-  // ── Mã dành riêng ─────────────────────────────────────────────────────────
+  // ── Reserved Code ─────────────────────────────────────────────────────────
   listReservedCodes: () => Promise<ReservedCode[]>;
   /** False when the code is already held back. */
   addReservedCode: (code: string, note: string) => Promise<boolean>;
@@ -287,13 +287,13 @@ type Store = {
   findAccountById: (id: number) => Promise<AccountRecord | null>;
   createAccount: (email: string, isSystemAdmin: boolean) => Promise<AccountRecord>;
   countSystemAdmins: () => Promise<number>;
-  /** Every Quản trị hệ thống, by email. */
+  /** Every System Administrator, by email. */
   listSystemAdmins: () => Promise<{ email: string; hasPassword: boolean }[]>;
-  /** Makes an account a Quản trị hệ thống. False when it already is one. */
+  /** Makes an account a System Administrator. False when it already is one. */
   grantSystemAdmin: (accountId: number) => Promise<boolean>;
   /**
    * Takes the role away. `last-admin`, and nothing changes, when nobody else holds it: the system
-   * is never left without a Quản trị hệ thống.
+   * is never left without a System Administrator.
    */
   revokeSystemAdmin: (accountId: number) => Promise<"done" | "last-admin" | "not-an-admin">;
   /** Sets the password and forgets every failed attempt and lock before it. */
@@ -314,20 +314,20 @@ type Store = {
   deleteSession: (tokenHash: string) => Promise<void>;
   deleteSessionsOfAccount: (accountId: number) => Promise<void>;
 
-  // ── Đơn vị and their members ──────────────────────────────────────────────
-  /** Every Đơn vị that has not been dissolved. */
+  // ── Unit and their members ──────────────────────────────────────────────
+  /** Every Unit that has not been dissolved. */
   listUnits: () => Promise<{ id: number; name: string }[]>;
   unitExists: (unitId: number) => Promise<boolean>;
   findUnit: (unitId: number) => Promise<UnitRecord | null>;
-  /** The Đơn vị's own default logo for its QR, or null to follow the university's. */
+  /** The Unit's own default logo for its QR, or null to follow the Organization's. */
   setUnitLogo: (unitId: number, logoKey: string | null) => Promise<void>;
-  /** Every live Đơn vị with how many Links it owns and who manages it. */
+  /** Every live Unit with how many Links it owns and who manages it. */
   listUnitOverviews: () => Promise<UnitOverview[]>;
-  /** Null when the name is taken - also by a Đơn vị that was dissolved. */
+  /** Null when the name is taken - also by a Unit that was dissolved. */
   createUnit: (name: string) => Promise<{ id: number; name: string } | null>;
   /**
-   * Folds one live Đơn vị into another, in one transaction: its Links move (each noting it in its
-   * history), its Khóa API keep working for the other, its members join it - keeping the higher
+   * Folds one live Unit into another, in one transaction: its Links move (each noting it in its
+   * history), its API Key keep working for the other, its members join it - keeping the higher
    * role where someone was in both - its default logo is kept if the other has none, and it is
    * then dissolved. The caller checks first that both exist and differ.
    */
@@ -338,25 +338,25 @@ type Store = {
     at: Date;
   }) => Promise<{ links: number; members: number; keys: number }>;
   /**
-   * Dissolves a Đơn vị: its members leave and its Khóa API stop working. False, and nothing
+   * Dissolves a Unit: its members leave and its API Key stop working. False, and nothing
    * changes, while it still owns a Link.
    */
   dissolveUnit: (unitId: number, at: Date) => Promise<boolean>;
   listMemberships: (accountId: number) => Promise<Membership[]>;
   findRole: (accountId: number, unitId: number) => Promise<Role | null>;
   listMembers: (unitId: number) => Promise<MemberRecord[]>;
-  /** False when the account already belongs to that Đơn vị. */
+  /** False when the account already belongs to that Unit. */
   addMembership: (accountId: number, unitId: number, role: Role) => Promise<boolean>;
   removeMembership: (accountId: number, unitId: number) => Promise<MembershipOutcome>;
   setMembershipRole: (accountId: number, unitId: number, role: Role) => Promise<MembershipOutcome>;
 
-  // ── Khóa API ──────────────────────────────────────────────────────────────
+  // ── API Key ──────────────────────────────────────────────────────────────
   createApiKey: (key: { unitId: number; name: string; keyHash: string; createdByAccountId: number }) => Promise<number>;
-  /** Every key a Đơn vị ever had, newest first - never the key itself, which is not kept. */
+  /** Every key a Unit ever had, newest first - never the key itself, which is not kept. */
   listApiKeys: (unitId: number) => Promise<ApiKeyRecord[]>;
   /** The key behind a hash, unless it has been revoked. */
   findActiveApiKey: (keyHash: string) => Promise<{ id: number; unitId: number } | null>;
-  /** False when that Đơn vị has no such live key. */
+  /** False when that Unit has no such live key. */
   revokeApiKey: (keyId: number, unitId: number, at: Date) => Promise<boolean>;
   /** Counts one call by a key in a minute (minutes since 1970) and returns that minute's total. */
   countApiCall: (apiKeyId: number, minute: number) => Promise<number>;

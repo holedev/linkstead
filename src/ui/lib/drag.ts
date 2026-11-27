@@ -1,12 +1,12 @@
 import { type DragEvent, useState } from "react";
 
 /**
- * Dragging a Link onto a Nhóm. The browser's own drag and drop: it needs a mouse, so on a phone
- * the Link's "Chuyển nhóm" action does the same.
+ * Dragging a Link onto a Group. The browser's own drag and drop: it needs a mouse, so on a phone
+ * the Link's "Move to a Group" action does the same.
  */
 
-/** What a dragged Link carries: its Mã link, under a type nothing else on the page uses. */
-const LINK_DRAG_TYPE = "application/x-ou-link-code";
+/** What a dragged Link carries: its Link Code, under a type nothing else on the page uses. */
+const LINK_DRAG_TYPE = "application/x-linkstead-code";
 
 const carriesLink = (event: DragEvent): boolean => event.dataTransfer.types.includes(LINK_DRAG_TYPE);
 

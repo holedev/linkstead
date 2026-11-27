@@ -4,7 +4,7 @@ import type { LogoFiles, Store } from "./store";
 
 /**
  * Who is asking. Two kinds and never a blend: a person signed in through the UI, or an
- * application holding a Khóa API - which acts for one Đơn vị and nobody in particular.
+ * application holding an API Key - which acts for one Unit and nobody in particular.
  */
 type Actor =
   | { kind: "account"; accountId: number; email: string; isSystemAdmin: boolean; sessionHash: string }
@@ -13,25 +13,25 @@ type Actor =
 type AppDeps = {
   store: Store;
   /**
-   * Runs work the response must not wait for - counting a Lượt mở. On Workers this is
+   * Runs work the response must not wait for - counting a Visit. On Workers this is
    * `ctx.waitUntil`; elsewhere it can simply let the promise run.
    */
   defer: (work: Promise<unknown>) => void;
   now?: () => Date;
   /**
-   * Reads a Đích's page for the preview a chat app shows (`fetch-page.ts`). Replaceable so tests
+   * Reads a Target's page for the preview a chat app shows (`fetch-page.ts`). Replaceable so tests
    * need not reach the internet; unset means the real one.
    */
   fetchPage?: (url: string) => Promise<{ html: string; url: string } | null>;
   /**
-   * Looks a Đích up in a list of unsafe sites (`safety.ts`). Unset where none is set up: then
+   * Looks a Target up in a list of unsafe sites (`safety.ts`). Unset where none is set up: then
    * nothing is refused for being unsafe.
    */
   checkSafety?: SafetyCheck;
   /** Where logo files are kept. Unset where no file storage is attached: QR then carry no logo. */
   logos?: LogoFiles;
   /**
-   * What lets the very first Quản trị hệ thống be created. Unset means that door stays shut, and
+   * What lets the very first System Administrator be created. Unset means that door stays shut, and
    * it shuts for good once one exists.
    */
   bootstrapToken?: string;

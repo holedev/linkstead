@@ -19,7 +19,7 @@ const visits = async () =>
   ).results;
 
 describe("creating a Link", () => {
-  it("takes a chosen Mã link and answers with the address to print", async () => {
+  it("takes a chosen Link Code and answers with the address to print", async () => {
     const admin = await h.signedInAdmin();
     const created = await admin.post("/api/links", {
       code: "CFP-2027",
@@ -47,7 +47,7 @@ describe("creating a Link", () => {
     expect(((await created.json()) as { code: string }).code).toMatch(GENERATED);
   });
 
-  it("never gives a taken code to a second Link, whatever its case or Đơn vị", async () => {
+  it("never gives a taken code to a second Link, whatever its case or Unit", async () => {
     const admin = await h.signedInAdmin();
     await admin.post("/api/links", { code: "cfp-2027", name: "Một", target: TARGET, unitId: 1 });
 
@@ -78,7 +78,7 @@ describe("creating a Link", () => {
     expect(await attempt("TuyenSinh")).toEqual({ error: "bad-code", problem: "reserved" });
   });
 
-  it("refuses a Đích that is not https or points back at this system", async () => {
+  it("refuses a Target that is not https or points back at this system", async () => {
     const admin = await h.signedInAdmin();
     const attempt = async (target: string) =>
       (await (await admin.post("/api/links", { name: "Thử", target, unitId: 1 })).json()) as object;
@@ -88,12 +88,12 @@ describe("creating a Link", () => {
     expect(await attempt("example.org")).toEqual({ error: "bad-target", problem: "not-a-url" });
   });
 
-  it("requires a Tên link", async () => {
+  it("requires a Link Name", async () => {
     const admin = await h.signedInAdmin();
     expect((await admin.post("/api/links", { name: "  ", target: TARGET, unitId: 1 })).status).toBe(422);
   });
 
-  it("is refused to someone not signed in, and to a member of another Đơn vị", async () => {
+  it("is refused to someone not signed in, and to a member of another Unit", async () => {
     const admin = await h.signedInAdmin();
     const added = await admin.post("/api/units/2/members", { email: "nxb@example.org" });
     const publisher = h.client();
@@ -109,7 +109,7 @@ describe("creating a Link", () => {
 });
 
 describe("reading one Link", () => {
-  it("answers a member of its Đơn vị, whatever the case of the code", async () => {
+  it("answers a member of its Unit, whatever the case of the code", async () => {
     const admin = await h.signedInAdmin();
     await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: TARGET, unitId: 1 });
 
@@ -119,7 +119,7 @@ describe("reading one Link", () => {
     expect((await admin.get("/api/links/khong-co")).status).toBe(404);
   });
 
-  it("is refused to a stranger, a member of another Đơn vị and every Khóa API", async () => {
+  it("is refused to a stranger, a member of another Unit and every API Key", async () => {
     const admin = await h.signedInAdmin();
     await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: TARGET, unitId: 1 });
     const added = await admin.post("/api/units/2/members", { email: "nxb@example.org" });
@@ -131,13 +131,13 @@ describe("reading one Link", () => {
 
     expect((await h.client().get("/api/links/cfp-2027")).status).toBe(401);
     expect((await publisher.get("/api/links/cfp-2027")).status).toBe(403);
-    // The API reads a Đơn vị's Links as a list and nothing else (AGENTS.md).
+    // The API reads a Unit's Links as a list and nothing else (AGENTS.md).
     expect((await h.client().get("/api/links/cfp-2027", { headers: bearer(key) })).status).toBe(403);
   });
 });
 
-describe("a Khóa API and Links", () => {
-  it("creates in its own Đơn vị whatever the request names, and lists only that Đơn vị", async () => {
+describe("an API Key and Links", () => {
+  it("creates in its own Unit whatever the request names, and lists only that Unit", async () => {
     const admin = await h.signedInAdmin();
     const { key } = (await (await admin.post("/api/units/2/keys", { name: "NXB" })).json()) as { key: string };
     await admin.post("/api/links", { code: "cua-tap-chi", name: "Tạp chí", target: TARGET, unitId: 1 });
@@ -177,7 +177,7 @@ describe("opening a Link", () => {
     await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: TARGET, unitId: 1 });
   };
 
-  it("sends the visitor to the Đích with a temporary, uncached redirect, whatever the case typed", async () => {
+  it("sends the visitor to the Target with a temporary, uncached redirect, whatever the case typed", async () => {
     await create();
     const response = await h.client().get("/CFP-2027");
 
@@ -186,7 +186,7 @@ describe("opening a Link", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("counts Lượt mở per Vietnamese day, adding to the same row", async () => {
+  it("counts Visits per Vietnamese day, adding to the same row", async () => {
     await create();
     const visitor = h.client();
     await visitor.get("/cfp-2027");
@@ -234,7 +234,7 @@ describe("opening a Link", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("<title>Example University</title>");
-    expect(body).toContain("--org:#114fa0");
+    expect(body).toContain("--org:#1d4ed8");
     expect(body).toContain('href="/app"');
     expect(body).not.toContain('name="robots"');
   });
@@ -254,7 +254,7 @@ describe("opening a Link", () => {
     expect(english).not.toContain('class="en" lang="en"');
   });
 
-  it("shows a different notice for a Link bị tắt, and does not count the opening", async () => {
+  it("shows a different notice for a Disabled Link, and does not count the opening", async () => {
     await create();
     await h.db.prepare("UPDATE links SET enabled = 0").run();
     const response = await h.client().get("/cfp-2027");

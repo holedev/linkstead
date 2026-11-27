@@ -120,7 +120,7 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
     }
   };
 
-  /** A Đơn vị's Links, one row each, for a spreadsheet. */
+  /** A Unit's Links, one row each, for a spreadsheet. */
   app.get("/api/units/:unitId/links.csv", async (c) => {
     const unit = await memberUnit(c, store);
     if (unit instanceof Response) {
@@ -148,7 +148,7 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
     return download(c, csv, "text/csv; charset=utf-8", `linkstead-unit-${unit.id}-links.csv`);
   });
 
-  /** A Đơn vị's Lượt mở, one row per Link per day that had any. */
+  /** A Unit's Visits, one row per Link per day that had any. */
   app.get("/api/units/:unitId/visits.csv", async (c) => {
     const unit = await memberUnit(c, store);
     if (unit instanceof Response) {
@@ -163,7 +163,7 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
     return download(c, csv, "text/csv; charset=utf-8", `linkstead-unit-${unit.id}-visits.csv`);
   });
 
-  /** Where a Đơn vị's Lượt mở came from: one row per Link, day, and country or referring site. */
+  /** Where a Unit's Visits came from: one row per Link, day, and country or referring site. */
   app.get("/api/units/:unitId/visit-sources.csv", async (c) => {
     const unit = await memberUnit(c, store);
     if (unit instanceof Response) {

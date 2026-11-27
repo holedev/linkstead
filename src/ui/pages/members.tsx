@@ -14,32 +14,32 @@ import {
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api, type Role } from "../api";
+import { text } from "../i18n";
 import { messageOf } from "../messages";
+import { exampleEmail } from "../organization";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
 
 type Issued = { email: string; setupUrl: string | null };
 
+const t = text().members;
+const { nav } = text();
+
 /** What to do with a one-time link, said where the link appears - the system sends no mail. */
 const IssuedLink = ({ issued }: { issued: Issued }) =>
   issued.setupUrl ? (
     <div className='mt-4 space-y-2 rounded-md border border-ok/30 bg-ok/5 p-3'>
-      <p className='text-sm'>
-        Hãy tự gửi đường dẫn này cho <strong>{issued.email}</strong> (qua Zalo, email...). Đường dẫn dùng được{" "}
-        <strong>một lần</strong>, trong <strong>7 ngày</strong>, và sẽ không hiện lại ở đây.
-      </p>
+      <p className='text-sm'>{t.sendLink(issued.email)}</p>
       <SecretBox value={issued.setupUrl} />
     </div>
   ) : (
-    <p className='mt-4 rounded-md border border-ok/30 bg-ok/5 p-3 text-sm'>
-      Đã thêm <strong>{issued.email}</strong>. Người này đã có mật khẩu nên không cần đường dẫn mới.
-    </p>
+    <p className='mt-4 rounded-md border border-ok/30 bg-ok/5 p-3 text-sm'>{t.added(issued.email)}</p>
   );
 
 /**
- * Who belongs to one Đơn vị, and the changes a Quản lý đơn vị - or a Quản trị hệ thống, for any
- * Đơn vị - may make: add, change a role, remove, issue a one-time link. The server refuses whatever
- * would leave the Đơn vị without a Quản lý đơn vị. `onChanged` hears about every change made.
+ * Who belongs to one Unit, and the changes a Unit Manager - or a System Administrator, for any
+ * Unit - may make: add, change a role, remove, issue a one-time link. The server refuses whatever
+ * would leave the Unit without a Unit Manager. `onChanged` hears about every change made.
  */
 const UnitMembers = ({ unitId, unitName, onChanged }: { unitId: number; unitName: string; onChanged?: () => void }) => {
   const { me, refresh } = useSession();
@@ -96,30 +96,30 @@ const UnitMembers = ({ unitId, unitName, onChanged }: { unitId: number; unitName
   return (
     <>
       <Card>
-        <h2 className='font-semibold text-lg'>Thêm thành viên vào {unitName}</h2>
+        <h2 className='font-semibold text-lg'>{t.addTo(unitName)}</h2>
         <form className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_12rem_auto] sm:items-end' onSubmit={add}>
-          <Field label='Email'>
+          <Field label={t.email}>
             {(props) => (
               <input
                 {...props}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder='ten@ou.edu.vn'
+                placeholder={exampleEmail()}
                 required
                 type='email'
                 value={email}
               />
             )}
           </Field>
-          <Field label='Vai trò'>
+          <Field label={t.role}>
             {(props) => (
               <select {...props} onChange={(event) => setRole(event.target.value as Role)} value={role}>
-                <option value='member'>Thành viên</option>
-                <option value='manager'>Quản lý đơn vị</option>
+                <option value='member'>{nav.member}</option>
+                <option value='manager'>{nav.manager}</option>
               </select>
             )}
           </Field>
           <Button disabled={busy} type='submit' variant='primary'>
-            Thêm
+            {t.add}
           </Button>
         </form>
         <div className='mt-4'>
@@ -129,33 +129,31 @@ const UnitMembers = ({ unitId, unitName, onChanged }: { unitId: number; unitName
       </Card>
 
       <Card flush>
-        <TableCardTitle count={data?.length} title='Thành viên' />
+        <TableCardTitle count={data?.length} title={t.title} />
         {error && (
           <div className='p-4'>
             <ErrorText>{error}</ErrorText>
           </div>
         )}
-        {!(data || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
+        {!(data || error) && <p className='p-4 text-muted-foreground'>{text().common.loading}</p>}
         {data && data.length > 0 && (
           <Table>
             <TableHeader className='hidden bg-muted/40 md:table-header-group'>
               <TableRow className='hover:bg-transparent'>
-                <TableHead className='pl-5'>Email</TableHead>
-                <TableHead>Vai trò</TableHead>
-                <TableHead>Mật khẩu</TableHead>
+                <TableHead className='pl-5'>{t.email}</TableHead>
+                <TableHead>{t.role}</TableHead>
+                <TableHead>{t.password}</TableHead>
                 <TableHead className='w-12'>
-                  <span className='sr-only'>Thao tác</span>
+                  <span className='sr-only'>{text().linkRow.actions}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.map((member) => {
-                const roleBadge = (
-                  <Badge tone='muted'>{member.role === "manager" ? "Quản lý đơn vị" : "Thành viên"}</Badge>
-                );
+                const roleBadge = <Badge tone='muted'>{member.role === "manager" ? nav.manager : nav.member}</Badge>;
                 const passwordBadge = (
                   <Badge tone={member.hasPassword ? "ok" : "danger"}>
-                    {member.hasPassword ? "Đã đặt mật khẩu" : "Chưa đặt mật khẩu"}
+                    {member.hasPassword ? t.passwordSet : t.passwordUnset}
                   </Badge>
                 );
                 return (
@@ -164,7 +162,7 @@ const UnitMembers = ({ unitId, unitName, onChanged }: { unitId: number; unitName
                       <p className='break-all font-medium'>
                         {member.email}
                         {member.email === me?.email && (
-                          <span className='font-normal text-muted-foreground'> (bạn)</span>
+                          <span className='font-normal text-muted-foreground'>{t.you}</span>
                         )}
                       </p>
                       {/* On a phone the other columns are hidden: their gist is this line. */}
@@ -176,10 +174,10 @@ const UnitMembers = ({ unitId, unitName, onChanged }: { unitId: number; unitName
                     <TableCell className='hidden md:table-cell'>{roleBadge}</TableCell>
                     <TableCell className='hidden md:table-cell'>{passwordBadge}</TableCell>
                     <TableCell className='w-12 pr-3 text-right'>
-                      <RowMenu disabled={busy} label={`Thao tác với ${member.email}`}>
+                      <RowMenu disabled={busy} label={t.actionsFor(member.email)}>
                         <DropdownMenuItem onSelect={() => run(() => api.reissueSetup(unitId, member.email))}>
                           <KeyRoundIcon />
-                          Cấp đường dẫn đặt mật khẩu
+                          {t.issueLink}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onSelect={() =>
@@ -189,12 +187,12 @@ const UnitMembers = ({ unitId, unitName, onChanged }: { unitId: number; unitName
                           }
                         >
                           <UserCogIcon />
-                          {member.role === "manager" ? "Chuyển thành Thành viên" : "Đặt làm Quản lý đơn vị"}
+                          {member.role === "manager" ? t.makeMember : t.makeManager}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={() => setRemoveEmail(member.email)} variant='destructive'>
                           <UserMinusIcon />
-                          Xóa khỏi đơn vị
+                          {t.remove}
                         </DropdownMenuItem>
                       </RowMenu>
                     </TableCell>
@@ -208,21 +206,19 @@ const UnitMembers = ({ unitId, unitName, onChanged }: { unitId: number; unitName
 
       <ConfirmDialog
         busy={busy}
-        confirmLabel='Xóa khỏi đơn vị'
+        confirmLabel={t.remove}
         onCancel={() => setRemoveEmail(null)}
         onConfirm={() => change(() => api.removeMember(unitId, removeEmail ?? ""))}
         open={removing !== null}
-        title='Xóa thành viên khỏi đơn vị'
+        title={t.removeTitle}
       >
-        Xóa {removing?.email === me?.email ? "chính bạn" : removing?.email} khỏi {unitName}? Người này sẽ không còn tạo
-        hay sửa được link của đơn vị. Các link họ đã tạo vẫn thuộc đơn vị và tiếp tục hoạt động; tài khoản của họ vẫn
-        còn và có thể được thêm lại.
+        {t.removeBody(removing?.email === me?.email ? t.yourself : (removing?.email ?? ""), unitName)}
       </ConfirmDialog>
     </>
   );
 };
 
-/** The members of the Đơn vị chosen in the sidebar. */
+/** The members of the Unit chosen in the sidebar. */
 const MembersPage = () => {
   const { unit } = useSession();
   return unit ? <UnitMembers unitId={unit.unitId} unitName={unit.unitName} /> : null;

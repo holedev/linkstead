@@ -88,10 +88,10 @@
 }
 
 /*
- * shadcn's tokens in the university's colours. The blue is the one in its logo (#114FA0): the
- * sidebar is filled with it, under the white logo, and it is the one colour that means "act" in
- * the work area. Red means "this cannot be taken back", green "done", amber the trial and nothing
- * else. Light only: the QR on screen has to look like the QR on paper.
+ * shadcn's tokens in the Organization's colour, `--org`, which `organization.ts` sets from its
+ * settings: the sidebar is filled with it, and it is the one colour that means "act" in the work
+ * area. Red means "this cannot be taken back", green "done", amber "take care". Light only: the QR
+ * on screen has to look like the QR on paper.
  */
 @theme inline {
   --font-sans:
@@ -137,15 +137,17 @@
 
 :root {
   --radius: 0.625rem;
-  --brand: #114fa0;
-  --brand-soft: #e7eef8;
+  /* The Organization's colour, until its settings arrive. Always dark enough for white text. */
+  --org: #0f766e;
+  --brand: var(--org);
+  --brand-soft: color-mix(in srgb, var(--org) 10%, #fff);
   --background: #f5f7fb;
   --foreground: #0f1b2d;
   --card: #ffffff;
   --card-foreground: #0f1b2d;
   --popover: #ffffff;
   --popover-foreground: #0f1b2d;
-  --primary: #114fa0;
+  --primary: var(--org);
   --primary-foreground: #ffffff;
   --secondary: #eef2f8;
   --secondary-foreground: #1b2a44;
@@ -158,16 +160,16 @@
   --warn: #8a4b06;
   --border: #e2e8f1;
   --input: #d6deea;
-  --ring: #7fa2dd;
-  /* The sidebar is the brand band: blue, white text, the current screen a white tab. */
-  --sidebar: #114fa0;
+  --ring: color-mix(in srgb, var(--org) 50%, #fff);
+  /* The sidebar is the brand band: the Organization's colour, white text, the current screen a white tab. */
+  --sidebar: var(--org);
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #ffffff;
-  --sidebar-primary-foreground: #114fa0;
+  --sidebar-primary-foreground: var(--org);
   --sidebar-accent: rgb(255 255 255 / 0.12);
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgb(255 255 255 / 0.16);
-  --sidebar-ring: #b7caeb;
+  --sidebar-ring: color-mix(in srgb, var(--org) 30%, #fff);
 }
 
 @layer base {

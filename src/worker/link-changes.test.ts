@@ -14,14 +14,14 @@ const PASSWORD = "mat-khau-du-dai";
 
 type Browser = ReturnType<typeof h.client>;
 
-/** The administrator, with one Link of Đơn vị 1 behind the code `cfp-2027`. */
+/** The administrator, with one Link of Unit 1 behind the code `cfp-2027`. */
 const withLink = async () => {
   const admin = await h.signedInAdmin();
   await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: OLD, unitId: 1 });
   return admin;
 };
 
-/** A Thành viên who is not a Quản trị hệ thống, signed in. */
+/** A Member who is not a System Administrator, signed in. */
 const member = async (admin: Browser, unitId: number, email: string) => {
   const added = await admin.post(`/api/units/${unitId}/members`, { email });
   const browser = h.client();
@@ -37,8 +37,8 @@ const keyOf = async (admin: Browser, unitId: number, name: string) =>
 const historyOf = async (browser: Browser) =>
   ((await (await browser.get("/api/links/cfp-2027/history")).json()) as { history: object[] }).history;
 
-describe("changing a Đích", () => {
-  it("sends the next visitor to the new Đích and records who changed it", async () => {
+describe("changing a Target", () => {
+  it("sends the next visitor to the new Target and records who changed it", async () => {
     const admin = await withLink();
     const changed = await admin.put("/api/links/CFP-2027/target", { expectedTarget: OLD, target: NEW });
 
@@ -56,7 +56,7 @@ describe("changing a Đích", () => {
     ]);
   });
 
-  it("writes nothing when the Đích is no longer the one that was confirmed", async () => {
+  it("writes nothing when the Target is no longer the one that was confirmed", async () => {
     const admin = await withLink();
     await admin.put("/api/links/cfp-2027/target", { target: NEW });
 
@@ -69,7 +69,7 @@ describe("changing a Đích", () => {
     expect(await historyOf(admin)).toHaveLength(1);
   });
 
-  it("refuses a bad Đích and one that changes nothing, and records neither", async () => {
+  it("refuses a bad Target and one that changes nothing, and records neither", async () => {
     const admin = await withLink();
     const attempt = async (target: string) =>
       (await (await admin.put("/api/links/cfp-2027/target", { target })).json()) as object;
@@ -80,7 +80,7 @@ describe("changing a Đích", () => {
     expect(await historyOf(admin)).toEqual([]);
   });
 
-  it("is logged under the Khóa API that made it, and a key cannot touch another Đơn vị's Link", async () => {
+  it("is logged under the API Key that made it, and a key cannot touch another Unit's Link", async () => {
     const admin = await withLink();
     const own = await keyOf(admin, 1, "CRM của Tạp chí");
     const other = await keyOf(admin, 2, "NXB");
@@ -91,7 +91,7 @@ describe("changing a Đích", () => {
     expect(await historyOf(admin)).toMatchObject([{ by: { kind: "key", name: "CRM của Tạp chí" }, newTarget: NEW }]);
   });
 
-  it("is refused to a stranger, to another Đơn vị's member, and for an unknown Link", async () => {
+  it("is refused to a stranger, to another Unit's member, and for an unknown Link", async () => {
     const admin = await withLink();
     const publisher = await member(admin, 2, "nxb@example.org");
 
@@ -102,14 +102,14 @@ describe("changing a Đích", () => {
     expect((await h.client().get("/cfp-2027")).headers.get("location")).toBe(OLD);
   });
 
-  it("keeps the history from a Khóa API: reading it is not one of the things the API does", async () => {
+  it("keeps the history from an API Key: reading it is not one of the things the API does", async () => {
     const admin = await withLink();
     const key = await keyOf(admin, 1, "CRM");
     expect((await h.client().get("/api/links/cfp-2027/history", { headers: bearer(key) })).status).toBe(403);
   });
 });
 
-describe("rewording a Tên link", () => {
+describe("rewording a Link Name", () => {
   it("changes the name and the note, and nothing else about the Link", async () => {
     const admin = await withLink();
     const editor = await member(admin, 1, "bien-tap@example.org");
@@ -145,7 +145,7 @@ describe("rewording a Tên link", () => {
     expect(await attempt({ name: "Poster", note: "x".repeat(1001) })).toEqual({ error: "bad-note" });
   });
 
-  it("is for the Đơn vị's own members: not another's, not a Khóa API, not an outside administrator", async () => {
+  it("is for the Unit's own members: not another's, not an API Key, not an outside administrator", async () => {
     const admin = await withLink();
     const publisher = await member(admin, 2, "nxb@example.org");
     const key = await keyOf(admin, 1, "CRM");
@@ -161,7 +161,7 @@ describe("rewording a Tên link", () => {
 });
 
 describe("switching a Link off and on", () => {
-  it("lets a Thành viên switch their Đơn vị's Link off and back on, and records both", async () => {
+  it("lets a Member switch their Unit's Link off and back on, and records both", async () => {
     const admin = await withLink();
     const editor = await member(admin, 1, "bien-tap@example.org");
 
@@ -189,7 +189,7 @@ describe("switching a Link off and on", () => {
     expect(await historyOf(editor)).toHaveLength(1);
   });
 
-  it("leaves a Link a Quản trị hệ thống switched off for them alone to switch back on", async () => {
+  it("leaves a Link a System Administrator switched off for them alone to switch back on", async () => {
     const admin = await withLink();
     const editor = await member(admin, 1, "bien-tap@example.org");
     const key = await keyOf(admin, 1, "CRM");
@@ -200,7 +200,7 @@ describe("switching a Link off and on", () => {
     expect(refused.status).toBe(403);
     expect(await refused.json()).toEqual({ error: "disabled-by-system" });
     expect((await h.client().post("/api/links/cfp-2027/enable", undefined, { headers: bearer(key) })).status).toBe(403);
-    // Switching it off again as a member must not hand it back to the Đơn vị either.
+    // Switching it off again as a member must not hand it back to the Unit either.
     expect(await (await editor.post("/api/links/cfp-2027/disable")).json()).toMatchObject({ disabledBySystem: true });
     expect((await editor.post("/api/links/cfp-2027/enable")).status).toBe(403);
 
@@ -208,7 +208,7 @@ describe("switching a Link off and on", () => {
     expect((await h.client().get("/cfp-2027")).status).toBe(302);
   });
 
-  it("lets a Quản trị hệ thống take over a Link its Đơn vị had already switched off", async () => {
+  it("lets a System Administrator take over a Link its Unit had already switched off", async () => {
     const admin = await withLink();
     const editor = await member(admin, 1, "bien-tap@example.org");
     await editor.post("/api/links/cfp-2027/disable");
@@ -216,7 +216,7 @@ describe("switching a Link off and on", () => {
     expect((await editor.post("/api/links/cfp-2027/enable")).status).toBe(403);
   });
 
-  it("lets a Quản trị hệ thống switch off a Link of a Đơn vị they do not belong to - and nothing more", async () => {
+  it("lets a System Administrator switch off a Link of a Unit they do not belong to - and nothing more", async () => {
     const admin = await withLink();
     await h.db.prepare("DELETE FROM memberships WHERE unit_id = 1").run();
 
@@ -225,7 +225,7 @@ describe("switching a Link off and on", () => {
     expect((await admin.get("/api/links/cfp-2027/history")).status).toBe(403);
   });
 
-  it("is refused to another Đơn vị's member and its Khóa API", async () => {
+  it("is refused to another Unit's member and its API Key", async () => {
     const admin = await withLink();
     const publisher = await member(admin, 2, "nxb@example.org");
     const key = await keyOf(admin, 2, "NXB");
@@ -238,8 +238,8 @@ describe("switching a Link off and on", () => {
   });
 });
 
-describe("reading Lượt mở", () => {
-  it("answers per Vietnamese day, country and referring site, to a member and to the Đơn vị's key", async () => {
+describe("reading Visits", () => {
+  it("answers per Vietnamese day, country and referring site, to a member and to the Unit's key", async () => {
     const admin = await withLink();
     const key = await keyOf(admin, 1, "CRM");
     const visitor = h.client();
@@ -271,7 +271,7 @@ describe("reading Lượt mở", () => {
     );
   });
 
-  it("shows each Link's total in the Đơn vị's list", async () => {
+  it("shows each Link's total in the Unit's list", async () => {
     const admin = await withLink();
     await admin.post("/api/links/cfp-2027/disable");
     await admin.post("/api/links", { code: "chua-mo", name: "Chưa mở", target: OLD, unitId: 1 });
@@ -286,7 +286,7 @@ describe("reading Lượt mở", () => {
     ]);
   });
 
-  it("is refused to another Đơn vị", async () => {
+  it("is refused to another Unit", async () => {
     const admin = await withLink();
     const publisher = await member(admin, 2, "nxb@example.org");
     expect((await publisher.get("/api/links/cfp-2027/visits")).status).toBe(403);

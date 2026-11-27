@@ -1,11 +1,11 @@
-/** The rules of a Đích (CONTEXT.md): any `https` address that does not point back at this system. */
+/** The rules of a Target (CONTEXT.md): any `https` address that does not point back at this system. */
 
 const MAX_LENGTH = 2048;
 
 type TargetProblem = "not-a-url" | "not-https" | "points-at-self" | "too-long";
 
 /**
- * Why an address cannot be a Đích, or null when it can.
+ * Why an address cannot be a Target, or null when it can.
  *
  * `ownHosts` are the hostnames this installation answers on. A Link aimed at them would loop, or
  * dress one Link up as another.

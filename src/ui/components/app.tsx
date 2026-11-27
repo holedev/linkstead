@@ -1,13 +1,4 @@
-import {
-  CheckIcon,
-  CircleAlertIcon,
-  CopyIcon,
-  DownloadIcon,
-  EllipsisIcon,
-  EyeIcon,
-  EyeOffIcon,
-  TriangleAlertIcon
-} from "lucide-react";
+import { CheckIcon, CircleAlertIcon, CopyIcon, DownloadIcon, EllipsisIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { type ComponentProps, type ReactNode, useEffect, useId, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -24,8 +15,9 @@ import { Card as UiCard } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { locale, text } from "@/i18n";
 import { cn } from "@/lib/utils";
+import { organization } from "@/organization";
 
 /**
  * The few building blocks every screen uses, on top of shadcn's. Screens speak in what a thing
@@ -96,15 +88,16 @@ const PasswordInput = ({
   ...rest
 }: Omit<ComponentProps<"input">, "type"> & { shown?: boolean }) => {
   const [shown, setShown] = useState(initiallyShown);
+  const t = text().common;
   return (
     <div className='relative'>
       <input {...rest} className={cn(className, "pr-11")} type={shown ? "text" : "password"} />
       <button
-        aria-label={shown ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+        aria-label={shown ? t.hidePassword : t.showPassword}
         aria-pressed={shown}
         className='absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50'
         onClick={() => setShown((value) => !value)}
-        title={shown ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+        title={shown ? t.hidePassword : t.showPassword}
         type='button'
       >
         {shown ? <EyeOffIcon className='size-4' /> : <EyeIcon className='size-4' />}
@@ -139,7 +132,7 @@ const Badge = ({ tone, children }: { tone: keyof typeof BADGE; children: ReactNo
 );
 
 /** Copies a value and says so. The label flips back by itself so the button can be used again. */
-const CopyButton = ({ value, label = "Sao chép" }: { value: string; label?: string }) => {
+const CopyButton = ({ value, label = text().common.copy }: { value: string; label?: string }) => {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -159,7 +152,7 @@ const CopyButton = ({ value, label = "Sao chép" }: { value: string; label?: str
       }}
     >
       {copied ? <CheckIcon className='text-ok' /> : <CopyIcon />}
-      {copied ? "Đã sao chép" : label}
+      {copied ? text().common.copied : label}
     </Button>
   );
 };
@@ -178,14 +171,14 @@ const CopyIconButton = ({ value, label }: { value: string; label: string }) => {
 
   return (
     <UiButton
-      aria-label={copied ? "Đã sao chép" : label}
+      aria-label={copied ? text().common.copied : label}
       className='size-9 shrink-0 text-muted-foreground md:size-7'
       onClick={async () => {
         await navigator.clipboard.writeText(value);
         setCopied(true);
       }}
       size='icon'
-      title={copied ? "Đã sao chép" : label}
+      title={copied ? text().common.copied : label}
       type='button'
       variant='ghost'
     >
@@ -274,7 +267,7 @@ const ConfirmDialog = ({
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
-        <Button onClick={onCancel}>Hủy</Button>
+        <Button onClick={onCancel}>{text().common.cancel}</Button>
         {/* A plain button, not the dialog's own action: the screen closes it once the write is under way. */}
         <Button disabled={busy} onClick={onConfirm} variant={tone}>
           {confirmLabel}
@@ -282,43 +275,6 @@ const ConfirmDialog = ({
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>
-);
-
-/** What the trial means for anything printed, said once here for the badge and the warnings. */
-const TRIAL_TITLE = "Bản thử nghiệm trên tên miền tạm";
-const TRIAL_TEXT =
-  "Chưa in QR hay tài liệu nào từ các link này - chúng sẽ ngừng hoạt động khi đổi sang tên miền chính thức.";
-
-/** In the header of every screen: a small amber "Thử nghiệm" that opens the whole sentence. */
-const TrialBadge = () => (
-  <Popover>
-    <PopoverTrigger asChild>
-      <button
-        className='flex shrink-0 items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 font-semibold text-amber-900 text-xs outline-none hover:bg-amber-100 focus-visible:ring-[3px] focus-visible:ring-ring/50'
-        type='button'
-      >
-        <span aria-hidden='true' className='size-1.5 rounded-full bg-amber-500' />
-        Thử nghiệm
-      </button>
-    </PopoverTrigger>
-    <PopoverContent align='end' className='w-80 text-sm'>
-      <p className='font-semibold'>{TRIAL_TITLE}</p>
-      <p className='mt-1 text-muted-foreground'>{TRIAL_TEXT}</p>
-    </PopoverContent>
-  </Popover>
-);
-
-/** Beside every way to download a QR: the moment someone is about to print one. */
-const TrialPrintWarning = () => (
-  <div
-    className='flex gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-amber-950 text-sm'
-    role='note'
-  >
-    <TriangleAlertIcon aria-hidden='true' className='mt-0.5 size-4 shrink-0 text-amber-600' />
-    <p>
-      <strong>Chưa in QR này.</strong> {TRIAL_TEXT}
-    </p>
-  </div>
 );
 
 /** The top of a screen: its title, a line under it, and the screen's own buttons on the right. */
@@ -340,43 +296,65 @@ const PageHeader = ({
   </div>
 );
 
-/** The university's logo in white, for the brand blue. Served from `public/brand`. */
-const LOGO_WHITE = `${import.meta.env.BASE_URL}brand/logo-ou-white.avif`;
+/**
+ * The Organization's mark: its uploaded logo on a white chip, so any logo reads on its colour -
+ * or the first letter of its name - and the name beside it.
+ */
+const OrganizationMark = ({ className }: { className?: string }) => {
+  const { name, uiLogo } = organization();
+  return (
+    <span className={cn("flex min-w-0 items-center gap-3", className)}>
+      {uiLogo ? (
+        <img
+          alt=''
+          className='h-9 w-auto max-w-32 shrink-0 rounded-md bg-white object-contain px-1.5 py-1'
+          height={36}
+          src={uiLogo}
+          width={128}
+        />
+      ) : (
+        <span
+          aria-hidden='true'
+          className='flex size-9 shrink-0 items-center justify-center rounded-md bg-white font-bold text-brand'
+        >
+          {name.charAt(0).toUpperCase()}
+        </span>
+      )}
+      <span className='truncate font-semibold leading-tight'>{name}</span>
+    </span>
+  );
+};
 
 /**
- * Signing in and setting a password: the university's blue with its logo beside the form, above
- * it on a phone. The only screens a person sees before being inside, so they say whose system it is.
+ * Signing in and setting a password: the Organization's colour with its mark beside the form,
+ * above it on a phone. The only screens a person sees before being inside, so they say whose
+ * system it is.
  */
-const SignInFrame = ({ title, children }: { title: string; children: ReactNode }) => (
-  <div className='grid min-h-dvh md:grid-cols-2'>
-    <aside className='relative flex flex-col justify-between gap-6 overflow-hidden bg-brand px-5 py-5 text-white md:p-10'>
-      <img
-        alt='Trường Đại học Mở Thành phố Hồ Chí Minh'
-        className='h-9 w-auto max-w-full self-start md:h-13'
-        height={69}
-        src={LOGO_WHITE}
-        width={384}
-      />
-      <div className='hidden max-w-md md:block'>
-        <p className='text-balance font-bold text-3xl leading-tight tracking-tight'>Link và QR cố định của Trường</p>
-        <p className='mt-3 text-white/80'>
-          In một lần, đổi nơi đến bất cứ lúc nào. Mỗi link thuộc về đơn vị, không thuộc về một người.
-        </p>
-      </div>
-      <p className='hidden text-white/60 text-xs md:block'>OU Link · Trường Đại học Mở Thành phố Hồ Chí Minh</p>
-      <span
-        aria-hidden='true'
-        className='pointer-events-none absolute -right-28 -bottom-32 hidden size-104 rounded-full border-56 border-white/5 md:block'
-      />
-    </aside>
-    <main className='flex flex-col justify-center px-4 py-8 md:px-10'>
-      <div className='mx-auto w-full max-w-sm space-y-4'>
-        <h1 className='font-bold text-2xl tracking-tight'>{title}</h1>
-        {children}
-      </div>
-    </main>
-  </div>
-);
+const SignInFrame = ({ title, children }: { title: string; children: ReactNode }) => {
+  const t = text().signIn;
+  return (
+    <div className='grid min-h-dvh md:grid-cols-2'>
+      <aside className='relative flex flex-col justify-between gap-6 overflow-hidden bg-brand px-5 py-5 text-white md:p-10'>
+        <OrganizationMark className='text-lg' />
+        <div className='hidden max-w-md md:block'>
+          <p className='text-balance font-bold text-3xl leading-tight tracking-tight'>{t.headline}</p>
+          <p className='mt-3 text-white/80'>{t.lead}</p>
+        </div>
+        <p className='hidden text-white/60 text-xs md:block'>{organization().name} · linkstead</p>
+        <span
+          aria-hidden='true'
+          className='pointer-events-none absolute -right-28 -bottom-32 hidden size-104 rounded-full border-56 border-white/5 md:block'
+        />
+      </aside>
+      <main className='flex flex-col justify-center px-4 py-8 md:px-10'>
+        <div className='mx-auto w-full max-w-sm space-y-4'>
+          <h1 className='font-bold text-2xl tracking-tight'>{title}</h1>
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+};
 
 /**
  * The actions of one row of a table, behind a "⋯" at its end. `label` names the row for a screen
@@ -412,10 +390,15 @@ const TableCardTitle = ({ title, count, children }: { title: string; count?: num
   </div>
 );
 
+/** A moment as the Organization's clocks show it, in its language. */
 const formatDateTime = (iso: string): string =>
-  new Date(iso).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" });
+  new Date(iso).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short", timeZone: organization().timeZone });
 
-const formatDate = (iso: string): string => new Date(iso).toLocaleDateString("vi-VN");
+const formatDate = (iso: string): string =>
+  new Date(iso).toLocaleDateString(locale(), { timeZone: organization().timeZone });
+
+/** A number as the Organization's language writes it. */
+const formatNumber = (value: number): string => new Intl.NumberFormat(locale()).format(value);
 
 export {
   Badge,
@@ -430,15 +413,14 @@ export {
   Field,
   formatDate,
   formatDateTime,
-  LOGO_WHITE,
+  formatNumber,
   Modal,
   Notice,
+  OrganizationMark,
   PageHeader,
   PasswordInput,
   RowMenu,
   SecretBox,
   SignInFrame,
-  TableCardTitle,
-  TrialBadge,
-  TrialPrintWarning
+  TableCardTitle
 };

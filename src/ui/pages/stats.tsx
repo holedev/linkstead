@@ -1,28 +1,31 @@
 import { useState } from "react";
 import { Link as RouterLink, useSearchParams } from "react-router";
-import { Card, ErrorText } from "@/components/app";
+import { Card, ErrorText, formatNumber } from "@/components/app";
 import { cn } from "@/lib/utils";
 import { api, type UnitVisits } from "../api";
+import { text } from "../i18n";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
 import { VisitSources } from "./visit-sources";
 
 /**
- * A Đơn vị's Lượt mở at a glance: how many over a stretch of days, how they spread over the days,
+ * A Unit's Visits at a glance: how many over a stretch of days, how they spread over the days,
  * which Links were opened most, and where the openings came from. Estimates, and said to be.
  */
 
-const RANGES = [
-  { days: 7, label: "7 ngày" },
-  { days: 30, label: "30 ngày" },
-  { days: 90, label: "90 ngày" },
-  { days: 365, label: "1 năm" },
-  { days: null, label: "Từ đầu" }
-] as const;
+const t = text().stats;
+
+const RANGES: { days: 7 | 30 | 90 | 365 | null; label: string }[] = [
+  { days: 7, label: t.rangeDays(7) },
+  { days: 30, label: t.rangeDays(30) },
+  { days: 90, label: t.rangeDays(90) },
+  { days: 365, label: t.oneYear },
+  { days: null, label: t.allTime }
+];
 
 type RangeDays = (typeof RANGES)[number]["days"];
 
-const number = new Intl.NumberFormat("vi-VN");
+const number = { format: formatNumber };
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Past this many days a bar per day is too thin to read, and the chart shows months. */
 const MAX_DAY_BARS = 92;
@@ -67,7 +70,7 @@ const barsOf = (data: UnitVisits): Bar[] => {
   return [...months].map(([month, count]) => ({
     count,
     key: month,
-    label: `tháng ${month.slice(5)}/${month.slice(0, 4)}`
+    label: t.month(month.slice(5), month.slice(0, 4))
   }));
 };
 
@@ -85,15 +88,17 @@ const BarChart = ({ bars, unit }: { bars: Bar[]; unit: "day" | "month" }) => {
   const peak = Math.max(1, ...bars.map((bar) => bar.count));
   const [first] = bars;
   const last = bars.at(-1);
+  const hint = unit === "day" ? t.hoverDay : t.hoverMonth;
   return (
     <div>
       <p aria-hidden='true' className='h-5 text-muted-foreground text-sm'>
         {active ? (
           <>
-            {active.label}: <span className='font-medium text-foreground'>{number.format(active.count)}</span> lượt mở
+            {active.label}: <span className='font-medium text-foreground'>{number.format(active.count)}</span>{" "}
+            {t.visits}
           </>
         ) : (
-          `Rê chuột lên một cột để xem số lượt mở ${unit === "day" ? "của ngày" : "của tháng"} đó.`
+          hint
         )}
       </p>
       <div
@@ -123,7 +128,7 @@ const BarChart = ({ bars, unit }: { bars: Bar[]; unit: "day" | "month" }) => {
         <span>{last?.label}</span>
       </div>
       <table className='sr-only'>
-        <caption>Lượt mở theo {unit === "day" ? "ngày" : "tháng"}</caption>
+        <caption>{unit === "day" ? t.tableByDay : t.tableByMonth}</caption>
         <tbody>
           {bars.map((bar) => (
             <tr key={bar.key}>
@@ -140,7 +145,7 @@ const BarChart = ({ bars, unit }: { bars: Bar[]; unit: "day" | "month" }) => {
 const TopLinks = ({ links }: { links: UnitVisits["topLinks"] }) => {
   const peak = Math.max(1, ...links.map((link) => link.count));
   if (links.length === 0) {
-    return <p className='text-muted-foreground text-sm'>Chưa có link nào được mở trong khoảng này.</p>;
+    return <p className='text-muted-foreground text-sm'>{t.noneInRange}</p>;
   }
   return (
     <ol className='space-y-2.5'>
@@ -186,13 +191,11 @@ const StatsPage = () => {
     <>
       <div className='flex flex-wrap items-end justify-between gap-3'>
         <div>
-          <h1 className='font-bold text-2xl tracking-tight'>Lượt mở</h1>
-          <p className='text-muted-foreground text-sm'>
-            Mọi link của {unit?.unitName}. Con số ước tính: lượt xem trước của Zalo, Facebook được bỏ qua khi nhận ra.
-          </p>
+          <h1 className='font-bold text-2xl tracking-tight'>{t.title}</h1>
+          <p className='text-muted-foreground text-sm'>{t.subtitle(unit?.unitName ?? "")}</p>
         </div>
         <fieldset className='flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-1'>
-          <legend className='sr-only'>Khoảng thời gian</legend>
+          <legend className='sr-only'>{t.range}</legend>
           {RANGES.map((option) => (
             <button
               aria-pressed={option.days === range}
@@ -211,45 +214,45 @@ const StatsPage = () => {
       </div>
 
       <ErrorText>{error}</ErrorText>
-      {!(data || error) && <p className='text-muted-foreground'>Đang tải...</p>}
+      {!(data || error) && <p className='text-muted-foreground'>{text().common.loading}</p>}
 
       {data && (
         <>
           <div className='grid gap-3 sm:grid-cols-3'>
             <Tile
-              hint={data.since ? `Từ ${formatDay(data.since)} đến hôm nay` : "Từ khi có link đầu tiên"}
-              label='Tổng lượt mở'
+              hint={data.since ? t.sinceUntilToday(formatDay(data.since)) : t.sinceFirstLink}
+              label={t.total}
               value={number.format(data.total)}
             />
             <Tile
-              label='Trung bình mỗi ngày'
+              label={t.average}
               value={number.format(dayCount ? Math.round((data.total / dayCount) * 10) / 10 : 0)}
             />
             <Tile
               hint={busiest ? formatDay(busiest.day) : undefined}
-              label='Ngày nhiều nhất'
+              label={t.busiest}
               value={busiest ? number.format(busiest.count) : "0"}
             />
           </div>
 
           <Card>
-            <h2 className='font-medium'>Theo {bars.length > 0 && bars[0]?.key.length === 7 ? "tháng" : "ngày"}</h2>
+            <h2 className='font-medium'>{bars.length > 0 && bars[0]?.key.length === 7 ? t.byMonth : t.byDay}</h2>
             {bars.length > 0 ? (
               <div className='mt-3'>
                 <BarChart bars={bars} unit={bars[0]?.key.length === 7 ? "month" : "day"} />
               </div>
             ) : (
-              <p className='mt-2 text-muted-foreground text-sm'>Chưa có lượt mở nào.</p>
+              <p className='mt-2 text-muted-foreground text-sm'>{t.noVisits}</p>
             )}
           </Card>
 
           <div className='grid gap-4'>
             <Card>
-              <h2 className='mb-3 font-medium'>Link được mở nhiều nhất</h2>
+              <h2 className='mb-3 font-medium'>{t.topLinks}</h2>
               <TopLinks links={data.topLinks} />
             </Card>
             <Card>
-              <h2 className='mb-3 font-medium'>Mở từ đâu</h2>
+              <h2 className='mb-3 font-medium'>{t.sources}</h2>
               <VisitSources countries={data.countries} referrers={data.referrers} />
             </Card>
           </div>

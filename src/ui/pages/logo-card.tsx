@@ -1,10 +1,11 @@
 import { type ReactNode, useState } from "react";
 import { Button, Card, ErrorText } from "@/components/app";
+import { text } from "../i18n";
 import { messageOf } from "../messages";
 import { LogoUpload, QrPicture, useQr } from "../qr";
 
 /**
- * A default logo - a Đơn vị's or the university's - shown on a sample QR, with the two things
+ * A default logo - a Unit's or the Organization's - shown on a sample QR, with the two things
  * that can be done to it: put another in its place, or take it away.
  */
 const LogoCard = ({
@@ -48,13 +49,13 @@ const LogoCard = ({
     <Card>
       <h2 className='font-semibold text-lg'>{title}</h2>
       <div className='mt-4 flex flex-col gap-4 sm:flex-row'>
-        <QrPicture name='qr-vi-du' source={source} />
+        <QrPicture name='qr-example' source={source} />
         <div className='min-w-0 flex-1 space-y-3'>
           <div className='space-y-2 text-muted-foreground text-sm'>{children}</div>
           <div className='flex flex-wrap gap-2'>
             <LogoUpload
               disabled={busy}
-              label={hasLogo ? "Đổi logo" : "Tải lên logo"}
+              label={hasLogo ? text().logo.change : text().logo.upload}
               onFile={(file) => run(() => onUpload(file))}
             />
             {hasLogo && (
@@ -63,10 +64,7 @@ const LogoCard = ({
               </Button>
             )}
           </div>
-          <p className='text-muted-foreground text-xs'>
-            Ảnh PNG hoặc JPEG. Viền trắng hoặc trong suốt quanh logo được tự cắt bỏ để logo lấp đầy khung. QR bên cạnh
-            là mẫu để xem logo, không phải link thật.
-          </p>
+          <p className='text-muted-foreground text-xs'>{text().logo.hint}</p>
           <ErrorText>{actionError || error}</ErrorText>
         </div>
       </div>

@@ -12,7 +12,7 @@ const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
 const PASSWORD = "mat-khau-du-dai";
 
-describe("the first Quản trị hệ thống", () => {
+describe("the first System Administrator", () => {
   it("is created once, by whoever holds the deploy secret", async () => {
     const anyone = h.client();
 
@@ -34,14 +34,14 @@ describe("the first Quản trị hệ thống", () => {
     expect(again.status).toBe(409);
   });
 
-  it("must have a university address", async () => {
+  it("must have an address at one of the Organization's domains", async () => {
     const response = await h
       .client()
       .post("/api/bootstrap", { email: "a@gmail.com" }, { headers: bearer(BOOTSTRAP_TOKEN) });
     expect(response.status).toBe(422);
   });
 
-  it("manages every Đơn vị that exists when they are created", async () => {
+  it("manages every Unit that exists when they are created", async () => {
     const admin = await h.signedInAdmin();
     const me = (await (await admin.get("/api/auth/me")).json()) as { isSystemAdmin: boolean; units: unknown[] };
 

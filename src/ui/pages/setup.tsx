@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { Button, Card, ErrorText, Field, PasswordInput, SignInFrame } from "@/components/app";
 import { checkNewPassword } from "../../domain/password";
 import { api } from "../api";
+import { text } from "../i18n";
 import { messageOf } from "../messages";
 
 /**
@@ -18,6 +19,7 @@ const SetupPage = () => {
   const [done, setDone] = useState(false);
   // Whose password this is: shown so nobody sets it for the wrong account, and needed to stretch it.
   const [email, setEmail] = useState("");
+  const t = text().setup;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: asked once, with the token the page opened with
   useEffect(() => {
@@ -33,12 +35,12 @@ const SetupPage = () => {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (password !== repeat) {
-      setError("Hai lần nhập mật khẩu không giống nhau.");
+      setError(t.mismatch);
       return;
     }
     // Checked here because only the browser ever sees the password itself.
     if (checkNewPassword(password)) {
-      setError("Mật khẩu phải có ít nhất 12 ký tự.");
+      setError(t.tooShort);
       return;
     }
     setBusy(true);
@@ -53,25 +55,25 @@ const SetupPage = () => {
   };
 
   return (
-    <SignInFrame title='Đặt mật khẩu'>
+    <SignInFrame title={t.title}>
       <Card>
         {done ? (
           <div className='space-y-4'>
-            <p>Đã đặt mật khẩu. Đường dẫn vừa dùng không còn hiệu lực.</p>
+            <p>{t.done}</p>
             <Link className='font-medium text-primary underline' to='/login'>
-              Đến trang đăng nhập
+              {t.toLogin}
             </Link>
           </div>
         ) : (
           <form className='space-y-4' onSubmit={submit}>
             {email && (
               <p className='text-sm'>
-                Đặt mật khẩu cho tài khoản <strong className='break-all'>{email}</strong>.
+                {t.forAccount} <strong className='break-all'>{email}</strong>.
               </p>
             )}
             {/* Lets a password manager file the new password under the right account. */}
             <input autoComplete='username' hidden readOnly type='email' value={email} />
-            <Field hint='Ít nhất 12 ký tự.' label='Mật khẩu mới'>
+            <Field hint={t.minLength} label={t.newPassword}>
               {(props) => (
                 <PasswordInput
                   {...props}
@@ -83,7 +85,7 @@ const SetupPage = () => {
                 />
               )}
             </Field>
-            <Field label='Nhập lại mật khẩu'>
+            <Field label={t.repeat}>
               {(props) => (
                 <PasswordInput
                   {...props}
@@ -94,9 +96,9 @@ const SetupPage = () => {
                 />
               )}
             </Field>
-            <ErrorText>{token ? error : "Đường dẫn này thiếu mã. Hãy mở lại đúng đường dẫn bạn được gửi."}</ErrorText>
+            <ErrorText>{token ? error : t.missingToken}</ErrorText>
             <Button className='w-full' disabled={busy || !(token && email)} type='submit' variant='primary'>
-              {busy ? "Đang lưu..." : "Đặt mật khẩu"}
+              {busy ? text().common.saving : t.submit}
             </Button>
           </form>
         )}

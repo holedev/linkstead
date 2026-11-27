@@ -136,10 +136,10 @@ const readDomains = (stored: string): string[] => {
 const oldUnits = alias(units, "old_units");
 const newUnits = alias(units, "new_units");
 
-/** True when that Đơn vị would still have a Quản lý đơn vị without this membership as one. */
+/** True when that Unit would still have a Unit Manager without this membership as one. */
 const KEEPS_A_MANAGER = `(role != 'manager' OR (SELECT count(*) FROM memberships WHERE unit_id = ?2 AND role = 'manager') > 1)`;
 
-/** One Link's rows, or every Link a Đơn vị owns that is not deleted. */
+/** One Link's rows, or every Link a Unit owns that is not deleted. */
 const scopeOf = (scope: VisitScope) =>
   "linkId" in scope ? eq(links.id, scope.linkId) : and(eq(links.unitId, scope.unitId), isNull(links.deletedAt));
 
@@ -197,7 +197,7 @@ const createD1Store = (database: D1Database): Store => {
 
     changeTarget: async ({ linkId, oldTarget, newTarget, by, at }) => {
       // One batch, so one transaction: the history line is written from the row as it stands, and
-      // only if the Đích is still the one the caller saw. Neither statement runs without the other.
+      // only if the Target is still the one the caller saw. Neither statement runs without the other.
       const [, updated] = await database.batch([
         database
           .prepare(
@@ -206,7 +206,7 @@ const createD1Store = (database: D1Database): Store => {
           )
           .bind(newTarget, by.accountId, by.apiKeyId, at.getTime(), linkId, oldTarget),
         database
-          // A new Đích was checked on its way in: whatever the daily check said of the old one goes.
+          // A new Target was checked on its way in: whatever the daily check said of the old one goes.
           .prepare("UPDATE links SET target = ?1, unsafe_since = NULL WHERE id = ?2 AND target = ?3")
           .bind(newTarget, linkId, oldTarget)
       ]);
@@ -349,7 +349,7 @@ const createD1Store = (database: D1Database): Store => {
              AND EXISTS (SELECT 1 FROM units WHERE id = ?1 AND dissolved_at = ?2)`
           )
           .bind(unitId, at.getTime()),
-        // Its Nhóm hold no Link - it owns none - so they simply go.
+        // Its Group hold no Link - it owns none - so they simply go.
         database
           .prepare(
             "DELETE FROM link_groups WHERE unit_id = ?1 AND EXISTS (SELECT 1 FROM units WHERE id = ?1 AND dissolved_at = ?2)"
@@ -780,7 +780,7 @@ const createD1Store = (database: D1Database): Store => {
       const into = intoUnitId;
       // One batch, so one transaction: a merge never stops half-way.
       const [, , , , linksMoved, keysMoved, , , membersMoved] = await database.batch([
-        // A Nhóm whose name the other Đơn vị already has joins that one; the rest move across.
+        // A Group whose name the other Unit already has joins that one; the rest move across.
         database
           .prepare(
             `UPDATE links SET group_id = (
@@ -823,7 +823,7 @@ const createD1Store = (database: D1Database): Store => {
              WHERE id = ?2 AND logo_key IS NULL`
           )
           .bind(from, into),
-        // The file now belongs to the other Đơn vị, so the dissolved one stops pointing at it.
+        // The file now belongs to the other Unit, so the dissolved one stops pointing at it.
         database
           .prepare(
             "UPDATE units SET logo_key = NULL WHERE id = ?1 AND logo_key = (SELECT logo_key FROM units WHERE id = ?2)"
@@ -847,7 +847,7 @@ const createD1Store = (database: D1Database): Store => {
           )
           .bind(toUnitId, byAccountId, at.getTime(), linkId, fromUnitId),
         database
-          // A Nhóm belongs to its Đơn vị, so a Link moving away leaves it.
+          // A Group belongs to its Unit, so a Link moving away leaves it.
           .prepare("UPDATE links SET unit_id = ?1, group_id = NULL WHERE id = ?2 AND unit_id = ?3")
           .bind(toUnitId, linkId, fromUnitId)
       ]);
@@ -985,7 +985,7 @@ const createD1Store = (database: D1Database): Store => {
     },
 
     setLinkStatus: async ({ linkId, enabled, bySystem, by, at }) => {
-      // As with a Đích: the line and the switch in one transaction, and neither when nothing changes.
+      // As with a Target: the line and the switch in one transaction, and neither when nothing changes.
       const [, updated] = await database.batch([
         database
           .prepare(

@@ -15,7 +15,7 @@ const PASSWORD = "mat-khau-du-dai";
 
 type Browser = ReturnType<typeof h.client>;
 
-/** The administrator - a Quản lý đơn vị of Đơn vị 1 too - with the Link `cfp-2027`. */
+/** The administrator - a Unit Manager of Unit 1 too - with the Link `cfp-2027`. */
 const withLink = async () => {
   const admin = await h.signedInAdmin();
   await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: TARGET, unitId: 1 });
@@ -37,7 +37,7 @@ const codesOf = async (browser: Browser) =>
   );
 
 describe("archiving a Link", () => {
-  it("puts it away and back for any Thành viên, while it keeps opening and counting", async () => {
+  it("puts it away and back for any Member, while it keeps opening and counting", async () => {
     const admin = await withLink();
     const thanh = await member(admin, 1, "thanh@example.org");
 
@@ -59,7 +59,7 @@ describe("archiving a Link", () => {
 });
 
 describe("deleting a Link", () => {
-  it("takes the Mã link typed back, then the Link opens nowhere and is listed nowhere", async () => {
+  it("takes the Link Code typed back, then the Link opens nowhere and is listed nowhere", async () => {
     const admin = await withLink();
 
     expect((await admin.delete("/api/links/cfp-2027", { body: { confirmCode: "cfp" } })).status).toBe(422);
@@ -75,7 +75,7 @@ describe("deleting a Link", () => {
     expect((await admin.delete("/api/links/cfp-2027", { body: { confirmCode: "cfp-2027" } })).status).toBe(404);
   });
 
-  it("never gives its Mã link out again", async () => {
+  it("never gives its Link Code out again", async () => {
     const admin = await withLink();
     await admin.delete("/api/links/cfp-2027", { body: { confirmCode: "cfp-2027" } });
 
@@ -85,7 +85,7 @@ describe("deleting a Link", () => {
     expect((await admin.post("/api/admin/reserved-codes", { code: "cfp-2027" })).status).toBe(409);
   });
 
-  it("is for a Quản lý đơn vị or a Quản trị hệ thống - not a plain Thành viên, not a key", async () => {
+  it("is for a Unit Manager or a System Administrator - not a plain Member, not a key", async () => {
     const admin = await withLink();
     const thanh = await member(admin, 1, "thanh@example.org");
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
@@ -97,7 +97,7 @@ describe("deleting a Link", () => {
     expect((await thanh.delete("/api/links/cfp-2027", { body })).status).toBe(204);
   });
 
-  it("stays visible to a Quản trị hệ thống's lookup, with who deleted it", async () => {
+  it("stays visible to a System Administrator's lookup, with who deleted it", async () => {
     const admin = await withLink();
     await admin.delete("/api/links/cfp-2027", { body: { confirmCode: "cfp-2027" } });
 
@@ -115,7 +115,7 @@ describe("deleting a Link", () => {
   });
 });
 
-describe("an unsafe Đích", () => {
+describe("an unsafe Target", () => {
   it("is refused on its way in, when created or changed to", async () => {
     const admin = await withLink();
     h.unsafe.add(PHISHING);
@@ -127,7 +127,7 @@ describe("an unsafe Đích", () => {
     expect(await changed.json()).toEqual({ error: "bad-target", problem: "unsafe" });
   });
 
-  it("found by the daily check, warns visitors instead of sending them, until the Đích changes", async () => {
+  it("found by the daily check, warns visitors instead of sending them, until the Target changes", async () => {
     const admin = await withLink();
     h.unsafe.add(TARGET);
 
@@ -166,7 +166,7 @@ describe("an unsafe Đích", () => {
   });
 });
 
-describe("a Đơn vị's Lượt mở at a glance", () => {
+describe("a Unit's Visits at a glance", () => {
   it("adds up its Links per day, names the most opened, and says where they came from", async () => {
     const admin = await withLink();
     await admin.post("/api/links", { code: "so-3", name: "Số 3", target: TARGET, unitId: 1 });
@@ -212,7 +212,7 @@ describe("a Đơn vị's Lượt mở at a glance", () => {
     });
   });
 
-  it("leaves out deleted Links, and is for the Đơn vị's own Thành viên", async () => {
+  it("leaves out deleted Links, and is for the Unit's own Member", async () => {
     const admin = await withLink();
     await h.client().get("/cfp-2027");
     await admin.delete("/api/links/cfp-2027", { body: { confirmCode: "cfp-2027" } });
@@ -222,7 +222,7 @@ describe("a Đơn vị's Lượt mở at a glance", () => {
     expect((await outsider.get("/api/units/1/visits")).status).toBe(403);
   });
 
-  it("downloads where Lượt mở came from as CSV", async () => {
+  it("downloads where Visits came from as CSV", async () => {
     const admin = await withLink();
     await h.client().get("/cfp-2027", { headers: { "cf-ipcountry": "VN" } });
 

@@ -10,12 +10,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { LinkGroup } from "../api";
+import { text } from "../i18n";
 import { useLinkDrop } from "../lib/drag";
 import { messageOf } from "../messages";
 
 /**
- * A Nhóm as a folder: open it to see its Links; rename or delete it from its menu. Deleting keeps
- * its Links - they come back out to the top, with the Đơn vị's shared ones.
+ * A Group as a folder: open it to see its Links; rename or delete it from its menu. Deleting keeps
+ * its Links - they come back out to the top, with the Unit's shared ones.
  */
 const FolderTile = ({
   group,
@@ -31,6 +32,7 @@ const FolderTile = ({
   onDropLink: (code: string) => void;
 }) => {
   const { dropProps, over } = useLinkDrop(onDropLink);
+  const t = text().groups;
   return (
     <li className='group/folder relative' {...dropProps}>
       <button
@@ -47,14 +49,14 @@ const FolderTile = ({
         <span className='min-w-0'>
           <span className='block truncate font-semibold text-sm'>{group.name}</span>
           <span className='block text-muted-foreground text-xs'>
-            {over ? "Thả để chuyển vào nhóm" : `${group.linkCount} link`}
+            {over ? t.dropHere : t.linkCount(group.linkCount)}
           </span>
         </span>
       </button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <UiButton
-            aria-label={`Thao tác với nhóm ${group.name}`}
+            aria-label={t.actionsFor(group.name)}
             className='absolute top-1/2 right-1 size-8 -translate-y-1/2'
             size='icon'
             variant='ghost'
@@ -65,11 +67,11 @@ const FolderTile = ({
         <DropdownMenuContent align='end' className='min-w-44'>
           <DropdownMenuItem onSelect={onRename}>
             <PencilIcon />
-            Đổi tên
+            {t.rename}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onDelete} variant='destructive'>
             <Trash2Icon />
-            Xóa nhóm
+            {t.delete}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -77,7 +79,7 @@ const FolderTile = ({
   );
 };
 
-/** A Đơn vị's Nhóm, shown as folders at the top of its Links. */
+/** A Unit's Groups, shown as folders at the top of its Links. */
 const FolderGrid = ({
   groups,
   onOpen,
@@ -89,10 +91,10 @@ const FolderGrid = ({
   onOpen: (group: LinkGroup) => void;
   onRename: (group: LinkGroup) => void;
   onDelete: (group: LinkGroup) => void;
-  /** A Link dropped on a folder: its Mã link, and the Nhóm it goes into. */
+  /** A Link dropped on a folder: its Link Code, and the Group it goes into. */
   onDropLink: (code: string, group: LinkGroup) => void;
 }) => (
-  <ul aria-label='Nhóm' className='grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4'>
+  <ul aria-label={text().groups.label} className='grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4'>
     {groups.map((group) => (
       <FolderTile
         group={group}
@@ -106,7 +108,7 @@ const FolderGrid = ({
   </ul>
 );
 
-/** Names a Nhóm, new or renamed. Closes itself once the name is saved. */
+/** Names a Group, new or renamed. Closes itself once the name is saved. */
 const GroupNameForm = ({
   initial = "",
   submitLabel,
@@ -121,6 +123,7 @@ const GroupNameForm = ({
   const [name, setName] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const t = text();
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -137,13 +140,13 @@ const GroupNameForm = ({
 
   return (
     <form className='space-y-4' onSubmit={save}>
-      <Field hint='Chỉ để sắp xếp link trong đơn vị. Địa chỉ link và QR đã in không đổi.' label='Tên nhóm'>
+      <Field hint={t.groups.nameHint} label={t.groups.name}>
         {(props) => (
           <input
             {...props}
             maxLength={100}
             onChange={(event) => setName(event.target.value)}
-            placeholder='Hội thảo 2027'
+            placeholder={t.groups.namePlaceholder}
             required
             value={name}
           />
@@ -151,9 +154,9 @@ const GroupNameForm = ({
       </Field>
       <ErrorText>{error}</ErrorText>
       <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-        <Button onClick={onDone}>Hủy</Button>
+        <Button onClick={onDone}>{t.common.cancel}</Button>
         <Button disabled={busy} type='submit' variant='primary'>
-          {busy ? "Đang lưu..." : submitLabel}
+          {busy ? t.common.saving : submitLabel}
         </Button>
       </div>
     </form>

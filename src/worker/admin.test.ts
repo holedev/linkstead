@@ -31,8 +31,8 @@ const codesOf = async (browser: Browser, unitId: number) =>
     (link) => link.code
   );
 
-describe("Đơn vị, as a Quản trị hệ thống", () => {
-  it("creates a Đơn vị with its first Quản lý đơn vị, who can then work in it", async () => {
+describe("Unit, as a System Administrator", () => {
+  it("creates a Unit with its first Unit Manager, who can then work in it", async () => {
     const admin = await h.signedInAdmin();
     const created = await admin.post("/api/admin/units", { managerEmail: "Khoa.CNTT@example.org", name: "Khoa CNTT" });
     const body = (await created.json()) as { id: number; setupUrl: string };
@@ -45,7 +45,7 @@ describe("Đơn vị, as a Quản trị hệ thống", () => {
     expect((await manager.post("/api/units/3/members", { email: "gv@example.org" })).status).toBe(201);
   });
 
-  it("refuses a name already used and a manager outside the university", async () => {
+  it("refuses a name already used and a manager outside the Organization", async () => {
     const admin = await h.signedInAdmin();
     const attempt = async (body: object) => (await (await admin.post("/api/admin/units", body)).json()) as object;
 
@@ -56,7 +56,7 @@ describe("Đơn vị, as a Quản trị hệ thống", () => {
     expect(await attempt({ managerEmail: "a@example.org", name: " " })).toEqual({ error: "bad-name" });
   });
 
-  it("lists each Đơn vị with its Links counted and its managers named", async () => {
+  it("lists each Unit with its Links counted and its managers named", async () => {
     const admin = await h.signedInAdmin();
     await admin.post("/api/links", { code: "mot-link", name: "Một", target: TARGET, unitId: 2 });
 
@@ -68,7 +68,7 @@ describe("Đơn vị, as a Quản trị hệ thống", () => {
     });
   });
 
-  it("will not dissolve a Đơn vị that still owns a Link", async () => {
+  it("will not dissolve a Unit that still owns a Link", async () => {
     const admin = await h.signedInAdmin();
     await admin.post("/api/links", { code: "con-link", name: "Còn", target: TARGET, unitId: 2 });
 
@@ -78,7 +78,7 @@ describe("Đơn vị, as a Quản trị hệ thống", () => {
     expect(await codesOf(admin, 2)).toEqual(["con-link"]);
   });
 
-  it("dissolves an empty Đơn vị: its members leave and its Khóa API stops working", async () => {
+  it("dissolves an empty Unit: its members leave and its API Key stops working", async () => {
     const admin = await h.signedInAdmin();
     const publisher = await member(admin, 2, "nxb@example.org");
     const { key } = (await (await admin.post("/api/units/2/keys", { name: "NXB" })).json()) as { key: string };
@@ -92,7 +92,7 @@ describe("Đơn vị, as a Quản trị hệ thống", () => {
     expect(((await (await admin.get("/api/admin/units")).json()) as { units: unknown[] }).units).toHaveLength(1);
   });
 
-  it("is closed to a Quản lý đơn vị, to a Khóa API and to a stranger", async () => {
+  it("is closed to a Unit Manager, to an API Key and to a stranger", async () => {
     const admin = await h.signedInAdmin();
     const manager = await member(admin, 1, "quan-ly@example.org", "manager");
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
@@ -105,7 +105,7 @@ describe("Đơn vị, as a Quản trị hệ thống", () => {
   });
 });
 
-describe("a second Quản trị hệ thống", () => {
+describe("a second System Administrator", () => {
   it("is named by an existing one, sets a password, and can then do what an administrator does", async () => {
     const admin = await h.signedInAdmin();
     const granted = await admin.post("/api/admin/admins", { email: "Phong.CNTT@example.org" });
@@ -122,7 +122,7 @@ describe("a second Quản trị hệ thống", () => {
 
     const second = await signIn("phong.cntt@example.org", body.setupUrl);
     const me = (await (await second.get("/api/auth/me")).json()) as { isSystemAdmin: boolean; units: unknown[] };
-    // The role is not membership: they are in no Đơn vị.
+    // The role is not membership: they are in no Unit.
     expect(me).toMatchObject({ isSystemAdmin: true, units: [] });
     expect((await second.post("/api/admin/reserved-codes", { code: "tuyensinh" })).status).toBe(201);
     expect((await second.post("/api/links", { name: "Thử", target: TARGET, unitId: 1 })).status).toBe(403);
@@ -144,7 +144,7 @@ describe("a second Quản trị hệ thống", () => {
     expect((await admin.post("/api/admin/admins", { email: "ai-do@gmail.com" })).status).toBe(422);
   });
 
-  it("loses the role at once when it is taken away, and keeps the account and its Đơn vị", async () => {
+  it("loses the role at once when it is taken away, and keeps the account and its Unit", async () => {
     const admin = await h.signedInAdmin();
     const editor = await member(admin, 1, "bien-tap@example.org");
     await admin.post("/api/admin/admins", { email: "bien-tap@example.org" });
@@ -175,7 +175,7 @@ describe("a second Quản trị hệ thống", () => {
     expect(reopened.status).toBe(409);
   });
 
-  it("is closed to a Quản lý đơn vị, to a Khóa API and to a stranger", async () => {
+  it("is closed to a Unit Manager, to an API Key and to a stranger", async () => {
     const admin = await h.signedInAdmin();
     const manager = await member(admin, 1, "quan-ly@example.org", "manager");
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
@@ -189,8 +189,8 @@ describe("a second Quản trị hệ thống", () => {
   });
 });
 
-describe("Mã dành riêng", () => {
-  it("holds a code back from everyone, until a Quản trị hệ thống hands it out", async () => {
+describe("Reserved Code", () => {
+  it("holds a code back from everyone, until a System Administrator hands it out", async () => {
     const admin = await h.signedInAdmin();
     const manager = await member(admin, 2, "nxb@example.org", "manager");
     await h.db.prepare("DELETE FROM memberships WHERE account_id = 1").run();
@@ -204,7 +204,7 @@ describe("Mã dành riêng", () => {
     const taken = await manager.post("/api/links", { code: "tuyensinh", name: "Thử", target: TARGET, unitId: 2 });
     expect(await taken.json()).toEqual({ error: "bad-code", problem: "reserved" });
 
-    // Handed out to a Đơn vị the administrator does not belong to.
+    // Handed out to a Unit the administrator does not belong to.
     const handed = await admin.post("/api/admin/links", {
       code: "tuyensinh",
       name: "Trang tuyển sinh",
@@ -247,8 +247,8 @@ describe("Mã dành riêng", () => {
   });
 });
 
-describe("a Link of any Đơn vị", () => {
-  it("is found by its code with the Đơn vị that owns it", async () => {
+describe("a Link of any Unit", () => {
+  it("is found by its code with the Unit that owns it", async () => {
     const admin = await h.signedInAdmin();
     await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: TARGET, unitId: 2 });
     await h.db.prepare("DELETE FROM memberships WHERE account_id = 1").run();
@@ -262,7 +262,7 @@ describe("a Link of any Đơn vị", () => {
     expect((await admin.get("/api/admin/links/khong-co")).status).toBe(404);
   });
 
-  it("moves to another Đơn vị with its address, Đích and Lượt mở unchanged, and says so in its history", async () => {
+  it("moves to another Unit with its address, Target and Visits unchanged, and says so in its history", async () => {
     const admin = await h.signedInAdmin();
     const editor = await member(admin, 1, "bien-tap@example.org");
     const publisher = await member(admin, 2, "nxb@example.org");
@@ -289,7 +289,7 @@ describe("a Link of any Đơn vị", () => {
     });
   });
 
-  it("does not move to the Đơn vị it is in, to an unknown one, or to a dissolved one", async () => {
+  it("does not move to the Unit it is in, to an unknown one, or to a dissolved one", async () => {
     const admin = await h.signedInAdmin();
     await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: TARGET, unitId: 1 });
     await admin.delete("/api/admin/units/2");
@@ -301,7 +301,7 @@ describe("a Link of any Đơn vị", () => {
     expect(await attempt(9)).toEqual({ error: "unknown-unit" });
   });
 
-  it("lets a Đơn vị be dissolved once its last Link has moved away", async () => {
+  it("lets a Unit be dissolved once its last Link has moved away", async () => {
     const admin = await h.signedInAdmin();
     await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: TARGET, unitId: 2 });
     await admin.post("/api/admin/links/cfp-2027/move", { unitId: 1 });
@@ -314,8 +314,8 @@ describe("a Link of any Đơn vị", () => {
   });
 });
 
-describe("merging one Đơn vị into another", () => {
-  it("moves its Links, Khóa API and members across, then dissolves it", async () => {
+describe("merging one Unit into another", () => {
+  it("moves its Links, API Key and members across, then dissolves it", async () => {
     const admin = await h.signedInAdmin();
     const accountant = await member(admin, 2, "ke-toan@example.org");
     await admin.post("/api/units/1/members", { email: "ca-hai@example.org" });
@@ -331,7 +331,7 @@ describe("merging one Đơn vị into another", () => {
       moved: { keys: 1, links: 1, members: 3 }
     });
 
-    // One Đơn vị left, holding both Links; every address still opens.
+    // One Unit left, holding both Links; every address still opens.
     expect(((await (await admin.get("/api/admin/units")).json()) as { units: { id: number }[] }).units).toMatchObject([
       { id: 1, linkCount: 2 }
     ]);
@@ -348,7 +348,7 @@ describe("merging one Đơn vị into another", () => {
       ]
     });
 
-    // The key works on, now for the Đơn vị it was merged into; members of either belong to it,
+    // The key works on, now for the Unit it was merged into; members of either belong to it,
     // keeping the higher of two roles.
     const viaKey = (await (await h.client().get("/api/links", { headers: bearer(key) })).json()) as {
       links: object[];
@@ -365,7 +365,7 @@ describe("merging one Đơn vị into another", () => {
     expect((await accountant.get("/api/links?unitId=2")).status).toBe(403);
   });
 
-  it("refuses the same Đơn vị, an unknown or dissolved one, and anyone but a Quản trị hệ thống", async () => {
+  it("refuses the same Unit, an unknown or dissolved one, and anyone but a System Administrator", async () => {
     const admin = await h.signedInAdmin();
     const manager = await member(admin, 2, "quan-ly@example.org", "manager");
     const merge = async (from: number, intoUnitId: number) =>
@@ -382,8 +382,8 @@ describe("merging one Đơn vị into another", () => {
   });
 });
 
-describe("changing who belongs to a Đơn vị", () => {
-  it("is open to a Quản trị hệ thống for any Đơn vị, one they do not belong to included", async () => {
+describe("changing who belongs to a Unit", () => {
+  it("is open to a System Administrator for any Unit, one they do not belong to included", async () => {
     const admin = await h.signedInAdmin();
     await admin.post("/api/admin/units", { managerEmail: "truong-khoa@example.org", name: "Khoa Luật" });
     const roles = async () =>
@@ -399,16 +399,16 @@ describe("changing who belongs to a Đơn vị", () => {
     expect((await admin.post("/api/units/3/members/password-setup", { email: "giang-vien@example.org" })).status).toBe(
       201
     );
-    // Still never without a Quản lý đơn vị, whoever asks.
+    // Still never without a Unit Manager, whoever asks.
     expect((await admin.delete("/api/units/3/members/giang-vien@example.org")).status).toBe(409);
     expect(await roles()).toEqual([{ email: "giang-vien@example.org", hasPassword: false, role: "manager" }]);
 
-    // Managing a Đơn vị's members does not make the administrator one of them.
+    // Managing a Unit's members does not make the administrator one of them.
     const me = (await (await admin.get("/api/auth/me")).json()) as { units: { unitId: number }[] };
     expect(me.units.map((unit) => unit.unitId)).not.toContain(3);
   });
 
-  it("removes a Thành viên, who keeps their Tài khoản but loses the Đơn vị's Links", async () => {
+  it("removes a Member, who keeps their Account but loses the Unit's Links", async () => {
     const admin = await h.signedInAdmin();
     const editor = await member(admin, 1, "bien-tap@example.org");
 
@@ -418,7 +418,7 @@ describe("changing who belongs to a Đơn vị", () => {
     expect((await admin.delete("/api/units/1/members/bien-tap@example.org")).status).toBe(404);
   });
 
-  it("promotes and demotes, but never leaves a Đơn vị without a Quản lý đơn vị", async () => {
+  it("promotes and demotes, but never leaves a Unit without a Unit Manager", async () => {
     const admin = await h.signedInAdmin();
     const editor = await member(admin, 1, "bien-tap@example.org");
 
@@ -436,7 +436,7 @@ describe("changing who belongs to a Đơn vị", () => {
     expect((await editor.put("/api/units/1/members/bien-tap@example.org", { role: "member" })).status).toBe(409);
   });
 
-  it("is a Quản lý đơn vị's to do, not a Thành viên's", async () => {
+  it("is a Unit Manager's to do, not a Member's", async () => {
     const admin = await h.signedInAdmin();
     const editor = await member(admin, 1, "bien-tap@example.org");
     await member(admin, 1, "khac@example.org");
@@ -447,7 +447,7 @@ describe("changing who belongs to a Đơn vị", () => {
   });
 });
 
-describe("the rate limit of a Khóa API", () => {
+describe("the rate limit of an API Key", () => {
   it("refuses a key past its calls for the minute, and lets it through again the next minute", async () => {
     const admin = await h.signedInAdmin();
     const { id, key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as {

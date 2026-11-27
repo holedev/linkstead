@@ -25,9 +25,12 @@ import {
 import { TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { api, type Link, type LinkGroup } from "../api";
+import { text } from "../i18n";
 import { startLinkDrag } from "../lib/drag";
 import { messageOf } from "../messages";
 import { DisableLinkDialog, GroupBadge, number, StatusBadge, useLinkRights } from "./link-forms";
+
+const t = text().linkRow;
 
 /** The address of a Link's own page, at one of its tabs. */
 const linkPage = (code: string, tab?: string): string => `/links/${code}${tab ? `?tab=${tab}` : ""}`;
@@ -37,17 +40,17 @@ const LinkTableHeader = () => (
   <TableHeader className='hidden bg-muted/40 md:table-header-group'>
     <TableRow className='hover:bg-transparent'>
       <TableHead className='w-6'>
-        <span className='sr-only'>Kéo</span>
+        <span className='sr-only'>{t.drag}</span>
       </TableHead>
       <TableHead className='w-14'>QR</TableHead>
-      <TableHead>Tên link</TableHead>
-      <TableHead>Mã link</TableHead>
-      <TableHead className='hidden lg:table-cell'>Đích</TableHead>
-      <TableHead className='text-right' title='Ước tính: lượt xem trước của Zalo, Facebook được bỏ qua khi nhận ra'>
-        Lượt mở
+      <TableHead>{t.name}</TableHead>
+      <TableHead>{t.code}</TableHead>
+      <TableHead className='hidden lg:table-cell'>{t.target}</TableHead>
+      <TableHead className='text-right' title={t.visitsHint}>
+        {t.visits}
       </TableHead>
       <TableHead className='w-12'>
-        <span className='sr-only'>Thao tác</span>
+        <span className='sr-only'>{t.actions}</span>
       </TableHead>
     </TableRow>
   </TableHeader>
@@ -74,7 +77,7 @@ const RowActions = ({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <UiButton
-          aria-label={`Thao tác với link ${link.name}`}
+          aria-label={t.actionsFor(link.name)}
           className='size-9 shrink-0 text-muted-foreground md:size-8'
           disabled={busy}
           size='icon'
@@ -86,35 +89,35 @@ const RowActions = ({
       <DropdownMenuContent align='end' className='min-w-52'>
         <DropdownMenuItem onSelect={() => navigate(linkPage(link.code))}>
           <SquareArrowOutUpRightIcon />
-          Mở trang của link
+          {t.openPage}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate(`${linkPage(link.code)}?task=target`)}>
           <ArrowRightLeftIcon />
-          Đổi đích
+          {t.changeTarget}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate(linkPage(link.code, "qr"))}>
           <QrCodeIcon />
-          QR và logo
+          {t.qrAndLogo}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate(linkPage(link.code, "visits"))}>
           <ChartNoAxesColumnIcon />
-          Lượt mở
+          {t.visits}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {link.enabled ? (
           <DropdownMenuItem onSelect={onDisable} variant='destructive'>
             <PowerOffIcon />
-            Tắt link
+            {t.disable}
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem disabled={!canEnable} onSelect={onEnable}>
             <PowerIcon />
-            Bật lại link
+            {t.enable}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onSelect={onArchive}>
           {link.archived ? <ArchiveRestoreIcon /> : <ArchiveIcon />}
-          {link.archived ? "Bỏ lưu trữ" : "Lưu trữ"}
+          {link.archived ? t.unarchive : t.archive}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -131,9 +134,9 @@ const actsItself = (event: MouseEvent<HTMLElement>): boolean =>
   event.target.closest("a, button") !== null;
 
 /**
- * One Link in the list: its QR, name, code, Đích and Lượt mở at a glance. The whole row opens its
+ * One Link in the list: its QR, name, code, Target and Visits at a glance. The whole row opens its
  * page; switching off, on and archiving stay here, for doing to several in a row. Nothing here can
- * change the Mã link.
+ * change the Link Code.
  */
 const LinkRow = ({
   link,
@@ -142,9 +145,9 @@ const LinkRow = ({
   onChanged
 }: {
   link: Link;
-  /** The Đơn vị's Nhóm, to name the Link's. */
+  /** The Unit's Groups, to name the Link's. */
   groups: LinkGroup[];
-  /** Off inside a Nhóm, where every Link shown is in it. */
+  /** Off inside a Group, where every Link shown is in it. */
   showGroup?: boolean;
   onChanged: (link: Link) => void;
 }) => {
@@ -175,7 +178,7 @@ const LinkRow = ({
       onClick={(event) => !actsItself(event) && navigate(linkPage(link.code))}
       ref={row}
     >
-      {/* Drag by this grip onto a Nhóm. A mouse only: on a phone, the page's "Chuyển nhóm" does the same. */}
+      {/* Drag by this grip onto a Group. A mouse only: on a phone, the Link's page does the same. */}
       <TableCell className='hidden w-6 pr-0 md:table-cell'>
         <span
           aria-hidden='true'
@@ -186,7 +189,7 @@ const LinkRow = ({
             setDragging(true);
             startLinkDrag(event, link.code, row.current);
           }}
-          title='Kéo vào một nhóm'
+          title={t.dragHint}
         >
           <GripVerticalIcon className='size-4' />
         </span>
@@ -220,7 +223,7 @@ const LinkRow = ({
           {/* On a phone the other columns are hidden: their gist is this line. */}
           <p className='flex flex-wrap gap-x-1.5 text-muted-foreground text-xs md:hidden'>
             <span className='font-mono text-primary'>{link.code}</span>
-            <span>· {number.format(link.visits)} lượt mở</span>
+            <span>· {t.visitCount(number.format(link.visits))}</span>
           </p>
           <ErrorText>{error}</ErrorText>
         </div>
@@ -229,7 +232,7 @@ const LinkRow = ({
       <TableCell className='hidden md:table-cell'>
         <div className='flex items-center gap-0.5'>
           <span className='font-mono text-primary text-sm'>{link.code}</span>
-          <CopyIconButton label='Sao chép link' value={link.url} />
+          <CopyIconButton label={t.copyLink} value={link.url} />
         </div>
       </TableCell>
 

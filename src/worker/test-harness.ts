@@ -19,7 +19,7 @@ const OTHER_UNIT = "Accounting";
  * means something, and one email domain, so the rule about it is exercised.
  */
 const ORGANIZATION = {
-  brandColor: "#114fa0",
+  brandColor: "#1d4ed8",
   emailDomains: ["example.org"],
   language: "vi",
   name: "Example University",

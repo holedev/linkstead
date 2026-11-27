@@ -1,6 +1,7 @@
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/app";
 import { contentBox } from "../domain/logo-trim";
+import { text } from "./i18n";
 import { messageOf } from "./messages";
 
 const PNG_MIN_PIXELS = 1024;
@@ -19,10 +20,10 @@ const useQr = (stamp: string, load: () => Promise<string>) => {
     let current = true;
     setError("");
     load()
-      .then((text) => {
+      .then((svg) => {
         if (current) {
-          url = URL.createObjectURL(new Blob([text], { type: "image/svg+xml" }));
-          setSource({ text, url });
+          url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+          setSource({ text: svg, url });
         }
       })
       .catch((failure) => current && setError(messageOf(failure)));
@@ -108,16 +109,16 @@ const QrPicture = ({
           className='flex-1 whitespace-nowrap px-2!'
           onClick={() => save(new Blob([source.text], { type: "image/svg+xml" }), `${name}.svg`)}
         >
-          Tải SVG
+          {text().qr.downloadSvg}
         </Button>
         <Button
           className='flex-1 whitespace-nowrap px-2!'
           onClick={() => savePng(source.url, `${name}.png`).catch(() => setFailed(true))}
         >
-          Tải PNG
+          {text().qr.downloadPng}
         </Button>
       </div>
-      {failed && <p className='text-destructive text-xs'>Trình duyệt không tạo được PNG. Hãy tải SVG.</p>}
+      {failed && <p className='text-destructive text-xs'>{text().qr.pngFailed}</p>}
     </div>
   );
 };

@@ -10,7 +10,7 @@ beforeEach(() => h.reset());
 
 const TARGET = "https://journalofscience.example.org/cfp";
 const PNG_HEAD = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-/** Three logos told apart by their last byte: the university's, a Đơn vị's, a Link's own. */
+/** Three logos told apart by their last byte: the Organization's, a Unit's, a Link's own. */
 const png = (mark: number) => new Uint8Array([...PNG_HEAD, 0, 0, 0, mark]);
 const ORGANIZATION_LOGO = png(1);
 const UNIT = png(2);
@@ -37,7 +37,7 @@ const member = async (admin: Browser, unitId: number, email: string) => {
 const qrOf = async (browser: Browser, code = "cfp-2027") => (await browser.get(`/api/links/${code}/qr`)).text();
 
 describe("a Link's QR", () => {
-  it("is an SVG that can load and run nothing, for a member and for the Đơn vị's Khóa API", async () => {
+  it("is an SVG that can load and run nothing, for a member and for the Unit's API Key", async () => {
     const admin = await withLink();
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
 
@@ -53,18 +53,18 @@ describe("a Link's QR", () => {
     expect(await (await h.client().get("/api/links/cfp-2027/qr", { headers: bearer(key) })).text()).toBe(picture);
   });
 
-  it("carries the Link and not the Đích, so it is the same picture after the Đích changes", async () => {
+  it("carries the Link and not the Target, so it is the same picture after the Target changes", async () => {
     const admin = await withLink();
     const before = await qrOf(admin);
     await admin.put("/api/links/cfp-2027/target", { target: "https://example.org/noi-khac" });
     expect(await qrOf(admin)).toBe(before);
 
-    // A Link with the same Đích and another code is another picture.
+    // A Link with the same Target and another code is another picture.
     await admin.post("/api/links", { code: "cfp-2028", name: "Khác", target: TARGET, unitId: 1 });
     expect(await qrOf(admin, "cfp-2028")).not.toBe(before);
   });
 
-  it("is refused to another Đơn vị, to its key and to a stranger", async () => {
+  it("is refused to another Unit, to its key and to a stranger", async () => {
     const admin = await withLink();
     const publisher = await member(admin, 2, "nxb@example.org");
     const { key } = (await (await admin.post("/api/units/2/keys", { name: "NXB" })).json()) as { key: string };
@@ -152,7 +152,7 @@ describe("the logo on a QR", () => {
     expect((await admin.put("/api/links/cfp-2027/qr-logo", {})).status).toBe(422);
   });
 
-  it("keeps a Link's own choice whatever its Đơn vị or the university changes later", async () => {
+  it("keeps a Link's own choice whatever its Unit or the Organization changes later", async () => {
     const admin = await withLink();
     await admin.upload("/api/links/cfp-2027/qr-logo", OWN);
     const printed = await qrOf(admin);
@@ -194,7 +194,7 @@ describe("the logo on a QR", () => {
     expect((await admin.put("/api/links/cfp-2027/qr-logo", { choice: "custom" })).status).toBe(422);
   });
 
-  it("is each level's own to set: a member for a Link, a Quản lý đơn vị for the Đơn vị, an administrator for all", async () => {
+  it("is each level's own to set: a member for a Link, a Unit Manager for the Unit, an administrator for all", async () => {
     const admin = await withLink();
     const editor = await member(admin, 1, "bien-tap@example.org");
     const publisher = await member(admin, 2, "nxb@example.org");
@@ -222,12 +222,12 @@ describe("the logo on a QR", () => {
     expect(await (await admin.get("/api/admin/qr-logo")).json()).toEqual({ set: true });
   });
 
-  it("follows a Link into the Đơn vị it is merged into, which keeps its own logo if it has one", async () => {
+  it("follows a Link into the Unit it is merged into, which keeps its own logo if it has one", async () => {
     const admin = await withLink();
     await admin.upload("/api/units/2/qr-logo", UNIT);
     await admin.post("/api/links", { code: "cua-nxb", name: "NXB", target: TARGET, unitId: 2 });
 
-    // The Đơn vị merged into has no logo of its own, so it takes the other's.
+    // The Unit merged into has no logo of its own, so it takes the other's.
     await admin.post("/api/admin/units/2/merge", { intoUnitId: 1 });
     expect(await qrOf(admin, "cua-nxb")).toContain(dataOf(UNIT));
     expect(await qrOf(admin)).toContain(dataOf(UNIT));

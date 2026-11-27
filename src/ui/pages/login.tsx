@@ -2,7 +2,9 @@ import { type FormEvent, useState } from "react";
 import { Navigate } from "react-router";
 import { Button, Card, ErrorText, Field, PasswordInput, SignInFrame } from "@/components/app";
 import { api } from "../api";
+import { text } from "../i18n";
 import { messageOf } from "../messages";
+import { exampleEmail } from "../organization";
 import { useSession } from "../session";
 
 const LoginPage = () => {
@@ -11,6 +13,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const t = text().login;
 
   if (me) {
     return <Navigate replace to='/' />;
@@ -30,23 +33,23 @@ const LoginPage = () => {
   };
 
   return (
-    <SignInFrame title='Đăng nhập'>
+    <SignInFrame title={t.title}>
       <Card>
         <form className='space-y-4' onSubmit={submit}>
-          <Field label='Email'>
+          <Field label={t.email}>
             {(props) => (
               <input
                 {...props}
                 autoComplete='username'
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder='ten@ou.edu.vn'
+                placeholder={exampleEmail()}
                 required
                 type='email'
                 value={email}
               />
             )}
           </Field>
-          <Field label='Mật khẩu'>
+          <Field label={t.password}>
             {(props) => (
               <PasswordInput
                 {...props}
@@ -59,13 +62,11 @@ const LoginPage = () => {
           </Field>
           <ErrorText>{error}</ErrorText>
           <Button className='w-full' disabled={busy} type='submit' variant='primary'>
-            {busy ? "Đang đăng nhập..." : "Đăng nhập"}
+            {busy ? t.signingIn : t.signIn}
           </Button>
         </form>
       </Card>
-      <p className='text-muted-foreground text-sm'>
-        Chưa có tài khoản hoặc quên mật khẩu? Hãy nhờ Quản lý đơn vị của bạn cấp đường dẫn đặt mật khẩu.
-      </p>
+      <p className='text-muted-foreground text-sm'>{t.noAccount}</p>
     </SignInFrame>
   );
 };

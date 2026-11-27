@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { messageOf } from "./messages";
 
 /**
- * Loads a list for the Đơn vị on screen and reloads when the Đơn vị changes.
+ * Loads a list for the Unit on screen and reloads when the Unit changes.
  *
- * `data` stays `null` until the first answer for a Đơn vị arrives, so "still loading" and "loaded,
+ * `data` stays `null` until the first answer for a Unit arrives, so "still loading" and "loaded,
  * and empty" are two states a screen can tell apart. A `reload` keeps showing what was there until
  * the new answer replaces it: emptying it in between would unmount whatever the screen renders
- * from it, and with that lose what the person had just been shown. An answer for a Đơn vị the
+ * from it, and with that lose what the person had just been shown. An answer for a Unit the
  * user has already left is dropped.
  */
 const useLoaded = <T, K extends number | string = number>(unitId: K, load: (unitId: K) => Promise<T>) => {

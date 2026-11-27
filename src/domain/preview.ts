@@ -1,11 +1,13 @@
 /**
  * What a chat app or social site shows when a Link is pasted into it (CONTEXT.md: the Link stays
  * the address; this is only how it looks). Their fetchers read Open Graph tags from the page they
- * are given, and not all of them follow a redirect to read the Đích's, so a fetcher is answered
+ * are given, and not all of them follow a redirect to read the Target's, so a fetcher is answered
  * with a small page carrying the tags itself. People are still redirected (`worker/app.tsx`).
  *
- * The Tên link is never shown here: it is the Đơn vị's own note on what the Link is for.
+ * The Link Name is never shown here: it is the Unit's own note on what the Link is for.
  */
+
+import type { Language } from "./organization";
 
 type Preview = { title: string; description: string; image: string };
 
@@ -79,7 +81,7 @@ const readPreview = (html: string, pageUrl: string): Preview => {
   };
 };
 
-/** Each part the Link sets itself wins over what the Đích says. */
+/** Each part the Link sets itself wins over what the Target says. */
 const mergePreview = (own: Preview, fromTarget: Preview | null): Preview => ({
   description: own.description || fromTarget?.description || "",
   image: own.image || fromTarget?.image || "",
@@ -87,24 +89,32 @@ const mergePreview = (own: Preview, fromTarget: Preview | null): Preview => ({
 });
 
 /**
- * What a Link with a password shows when pasted somewhere: what its Đơn vị set by hand, and for
- * the rest these words - never anything read from the Đích, which stays behind the password
+ * What a Link with a password shows when pasted somewhere: what its Unit set by hand, and for
+ * the rest these words - never anything read from the Target, which stays behind the password
  * (ADR-0006).
  */
-const LOCKED_PREVIEW: Preview = {
-  description: "Nhập mật khẩu mà đơn vị phát hành đã gửi cho bạn để mở liên kết này.",
-  image: "",
-  title: "Liên kết cần mật khẩu"
+/** What a Link with a password says of itself where its Unit set nothing, in each language. */
+const LOCKED_PREVIEWS: Record<Language, Preview> = {
+  en: {
+    description: "Enter the password its publisher gave you to open this link.",
+    image: "",
+    title: "This link needs a password"
+  },
+  vi: {
+    description: "Nhập mật khẩu mà đơn vị phát hành đã gửi cho bạn để mở liên kết này.",
+    image: "",
+    title: "Liên kết cần mật khẩu"
+  }
 };
 
-const lockedPreview = (own: Preview): Preview => mergePreview(own, LOCKED_PREVIEW);
+const lockedPreview = (own: Preview, language: Language): Preview => mergePreview(own, LOCKED_PREVIEWS[language]);
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 
 /**
  * Whether the server may fetch an address to read its tags. Only https, and never a bare IP or a
- * name that only means something inside a network: once this runs on the university's own
- * servers, a Đích must not become a way to make them read their neighbours (ADR-0001).
+ * name that only means something inside a network: once this runs on the Organization's own
+ * servers, a Target must not become a way to make them read their neighbours (ADR-0001).
  */
 const isFetchableTarget = (raw: string): boolean => {
   if (!URL.canParse(raw)) {
@@ -174,7 +184,7 @@ const renderPreviewPage = ({
 export {
   EMPTY as EMPTY_PREVIEW,
   isFetchableTarget,
-  LOCKED_PREVIEW,
+  LOCKED_PREVIEWS,
   lockedPreview,
   MAX_DESCRIPTION as MAX_PREVIEW_DESCRIPTION,
   MAX_TITLE as MAX_PREVIEW_TITLE,

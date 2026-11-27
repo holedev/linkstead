@@ -2,22 +2,22 @@ import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
- * The whole model of the first version. Names follow CONTEXT.md: account = Tài khoản, unit = Đơn
- * vị, link = Link, target = Đích, visit = Lượt mở.
+ * The whole model. Names follow CONTEXT.md: account = Account, unit = Unit, link = Link,
+ * target = Target, visit = Visit.
  *
  * Nothing here has a delete path on purpose - a Link is switched off, never removed (ADR-0002).
  */
 
 const createdAt = () => integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`);
 
-/** Tài khoản. Known by its university email and by nothing else (ADR-0003). */
+/** Account. Known by its email and by nothing else (ADR-0003). */
 const accounts = sqliteTable("accounts", {
   createdAt: createdAt(),
   email: text("email").notNull().unique(),
   /** Consecutive wrong passwords since the last right one. Five lock the account for a while. */
   failedLogins: integer("failed_logins").notNull().default(0),
   id: integer("id").primaryKey({ autoIncrement: true }),
-  /** Quản trị hệ thống. A flag on the account, not a membership: it belongs to no Đơn vị. */
+  /** System Administrator. A flag on the account, not a membership: it belongs to no Unit. */
   isSystemAdmin: integer("is_system_admin", { mode: "boolean" }).notNull().default(false),
   lockedUntil: integer("locked_until", { mode: "timestamp_ms" }),
   /** Null until the one-time setup link has been used. */
@@ -49,21 +49,21 @@ const sessions = sqliteTable(
   (table) => [index("sessions_account_idx").on(table.accountId)]
 );
 
-/** Đơn vị. */
+/** Unit. */
 const units = sqliteTable("units", {
   createdAt: createdAt(),
   /**
-   * Set when a Quản trị hệ thống dissolved the Đơn vị - possible only once it owns no Link. The
+   * Set when a System Administrator dissolved the Unit - possible only once it owns no Link. The
    * row stays: Links that moved away and their history still name it.
    */
   dissolvedAt: integer("dissolved_at", { mode: "timestamp_ms" }),
   id: integer("id").primaryKey({ autoIncrement: true }),
-  /** The Đơn vị's own default logo, as a storage key. Null means the university's. */
+  /** The Unit's own default logo, as a storage key. Null means the Organization's. */
   logoKey: text("logo_key"),
   name: text("name").notNull().unique()
 });
 
-/** Thành viên: which Tài khoản belongs to which Đơn vị, and whether as its Quản lý đơn vị. */
+/** Member: which Account belongs to which Unit, and whether as its Unit Manager. */
 const memberships = sqliteTable(
   "memberships",
   {
@@ -79,7 +79,7 @@ const memberships = sqliteTable(
   (table) => [primaryKey({ columns: [table.accountId, table.unitId] })]
 );
 
-/** Khóa API. Belongs to a Đơn vị, never to a person. Only the hash is kept. */
+/** API Key. Belongs to a Unit, never to a person. Only the hash is kept. */
 const apiKeys = sqliteTable("api_keys", {
   createdAt: createdAt(),
   createdByAccountId: integer("created_by_account_id").references(() => accounts.id),
@@ -92,7 +92,7 @@ const apiKeys = sqliteTable("api_keys", {
     .references(() => units.id)
 });
 
-/** Mã dành riêng the administrators keep, on top of the system's own in `domain/link-code.ts`. */
+/** Reserved Code the administrators keep, on top of the system's own in `domain/link-code.ts`. */
 const reservedCodes = sqliteTable("reserved_codes", {
   code: text("code").primaryKey(),
   createdAt: createdAt(),
@@ -100,8 +100,8 @@ const reservedCodes = sqliteTable("reserved_codes", {
 });
 
 /**
- * Nhóm: a Đơn vị's own way of sorting its Links - by event, by year, by issue. A Link is in at most
- * one. Unlike a Link, a Nhóm can be renamed and deleted: nothing printed carries it.
+ * Group: a Unit's own way of sorting its Links - by event, by year, by issue. A Link is in at most
+ * one. Unlike a Link, a Group can be renamed and deleted: nothing printed carries it.
  */
 const linkGroups = sqliteTable(
   "link_groups",
@@ -121,11 +121,11 @@ const links = sqliteTable(
   "links",
   {
     /**
-     * When it was put away from the Đơn vị's list. It still opens: tidying, not switching off.
+     * When it was put away from the Unit's list. It still opens: tidying, not switching off.
      */
     archivedAt: integer("archived_at", { mode: "timestamp_ms" }),
     /**
-     * Mã link, stored normalised. Unique for ever: a deleted Link keeps its row, so its code is
+     * Link Code, stored normalised. Unique for ever: a deleted Link keeps its row, so its code is
      * never handed out again (ADR-0004).
      */
     code: text("code").notNull(),
@@ -135,25 +135,25 @@ const links = sqliteTable(
     /** Who deleted it, and when (ADR-0004). A deleted Link opens nowhere and is listed nowhere. */
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
     deletedByAccountId: integer("deleted_by_account_id").references(() => accounts.id),
-    /** Set when a Quản trị hệ thống switched it off: then only they switch it back on. */
+    /** Set when a System Administrator switched it off: then only they switch it back on. */
     disabledBySystem: integer("disabled_by_system", { mode: "boolean" }).notNull().default(false),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
     /**
      * When it stops opening, if ever (ADR-0006). Past it the Link shows the expired notice; its
-     * Mã link stays taken, and a later date - or none - brings it back.
+     * Link Code stays taken, and a later date - or none - brings it back.
      */
     expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
-    /** The Nhóm it is sorted into, of its own Đơn vị, if any. */
+    /** The Group it is sorted into, of its own Unit, if any. */
     groupId: integer("group_id").references(() => linkGroups.id),
     id: integer("id").primaryKey({ autoIncrement: true }),
-    /** `inherit` follows the Đơn vị, then the university. `custom` reads `logoKey`. */
+    /** `inherit` follows the Unit, then the Organization. `custom` reads `logoKey`. */
     logoChoice: text("logo_choice", { enum: ["inherit", "none", "custom"] })
       .notNull()
       .default("inherit"),
     logoKey: text("logo_key"),
     /** How much of the QR's logo box the logo fills, in percent (`domain/qr.ts`). The box itself is fixed. */
     logoScale: integer("logo_scale").notNull().default(100),
-    /** Tên link. */
+    /** Link Name. */
     name: text("name").notNull(),
     note: text("note").notNull().default(""),
     /**
@@ -162,8 +162,8 @@ const links = sqliteTable(
      */
     passwordHash: text("password_hash"),
     /**
-     * How the Link looks when pasted into a chat or a post, where its Đơn vị wants that set by hand.
-     * Empty takes the Đích's own (`domain/preview.ts`). Public, unlike the Tên link and the note.
+     * How the Link looks when pasted into a chat or a post, where its Unit wants that set by hand.
+     * Empty takes the Target's own (`domain/preview.ts`). Public, unlike the Link Name and the note.
      */
     previewDescription: text("preview_description").notNull().default(""),
     previewImage: text("preview_image").notNull().default(""),
@@ -172,21 +172,21 @@ const links = sqliteTable(
     qrShape: text("qr_shape", { enum: ["square", "dots"] })
       .notNull()
       .default("square"),
-    /** Đích - the only column here that is expected to change. */
+    /** Target - the only column here that is expected to change. */
     target: text("target").notNull(),
     unitId: integer("unit_id")
       .notNull()
       .references(() => units.id),
     /**
-     * When the daily check found the Đích listed as unsafe. Visitors then meet a warning instead
-     * of the redirect, until the Đích is changed or a later check clears it.
+     * When the daily check found the Target listed as unsafe. Visitors then meet a warning instead
+     * of the redirect, until the Target is changed or a later check clears it.
      */
     unsafeSince: integer("unsafe_since", { mode: "timestamp_ms" })
   },
   (table) => [uniqueIndex("links_code_unique").on(table.code), index("links_unit_idx").on(table.unitId)]
 );
 
-/** The history of a Link's Đích: every change, and who or which key made it. */
+/** The history of a Link's Target: every change, and who or which key made it. */
 const targetChanges = sqliteTable(
   "target_changes",
   {
@@ -203,7 +203,7 @@ const targetChanges = sqliteTable(
   (table) => [index("target_changes_link_idx").on(table.linkId)]
 );
 
-/** Every move of a Link from one Đơn vị to another. Its address does not change (ADR-0002). */
+/** Every move of a Link from one Unit to another. Its address does not change (ADR-0002). */
 const unitChanges = sqliteTable(
   "unit_changes",
   {
@@ -224,7 +224,7 @@ const unitChanges = sqliteTable(
 );
 
 /**
- * How many calls a Khóa API made in one minute, for the rate limit. `minute` counts minutes since
+ * How many calls an API Key made in one minute, for the rate limit. `minute` counts minutes since
  * 1970; rows of earlier minutes are removed as the key is used.
  */
 const apiKeyUsage = sqliteTable(
@@ -241,7 +241,7 @@ const apiKeyUsage = sqliteTable(
 
 /**
  * Every time a Link was switched off or on, and who or which key did it. `bySystem` marks a
- * switch-off made as Quản trị hệ thống - the kind only they undo.
+ * switch-off made as System Administrator - the kind only they undo.
  */
 const statusChanges = sqliteTable(
   "status_changes",
@@ -275,7 +275,7 @@ const linkPasswordFailures = sqliteTable(
   (table) => [primaryKey({ columns: [table.linkId, table.minute] })]
 );
 
-/** Lượt mở, one row per Link per Vietnamese day. A count and nothing about who. */
+/** Visits, one row per Link per Vietnamese day. A count and nothing about who. */
 const dailyVisits = sqliteTable(
   "daily_visits",
   {
@@ -290,7 +290,7 @@ const dailyVisits = sqliteTable(
 );
 
 /**
- * Lượt mở by where they came from, one row per Link per day per country or per referring site
+ * Visits by where they came from, one row per Link per day per country or per referring site
  * (ADR-0005). Counts only: the country is the one the network reports, the site is a host name,
  * and nothing ties a row to a person. An empty `value` is "not known" - a scanned QR sends no site.
  */

@@ -24,7 +24,7 @@ const member = async (admin: Browser, unitId: number, email: string) => {
   return browser;
 };
 
-describe("a Đơn vị's CSV", () => {
+describe("a Unit's CSV", () => {
   it("lists its Links, one row each, readable by a spreadsheet", async () => {
     const admin = await h.signedInAdmin();
     await admin.post("/api/links", { code: "cfp-2027", name: 'Poster "A3", sảnh A', target: TARGET, unitId: 1 });
@@ -45,7 +45,7 @@ describe("a Đơn vị's CSV", () => {
     ]);
   });
 
-  it("lists its Lượt mở per Link per day", async () => {
+  it("lists its Visits per Link per day", async () => {
     const admin = await h.signedInAdmin();
     await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: TARGET, unitId: 1 });
     await admin.post("/api/links", { code: "bai-bao", name: "Bài báo", target: TARGET, unitId: 1 });
@@ -65,7 +65,7 @@ describe("a Đơn vị's CSV", () => {
     ]);
   });
 
-  it("is for the Đơn vị's own members, not another's, not a Khóa API", async () => {
+  it("is for the Unit's own members, not another's, not an API Key", async () => {
     const admin = await h.signedInAdmin();
     const publisher = await member(admin, 2, "nxb@example.org");
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
@@ -99,7 +99,7 @@ describe("the whole installation", () => {
     return { admin, exported, key };
   };
 
-  it("exports to a Quản trị hệ thống only, without sessions or one-time links", async () => {
+  it("exports to a System Administrator only, without sessions or one-time links", async () => {
     const { admin, exported } = await used();
     const manager = await member(admin, 1, "bien-tap@example.org");
     const snapshot = (await exported.json()) as { version: number; tables: Record<string, unknown[]> };
@@ -156,7 +156,7 @@ describe("the whole installation", () => {
       codes: [{ code: "tuyensinh", note: "Phòng Đào tạo" }]
     });
 
-    // New rows carry on after the imported ones: no id, and so no Mã link's owner, is ever reused.
+    // New rows carry on after the imported ones: no id, and so no Link Code's owner, is ever reused.
     const created = await admin.post("/api/admin/units", { managerEmail: "moi@example.org", name: "Khoa Mới" });
     expect(((await created.json()) as { id: number }).id).toBe(4);
   });
@@ -180,7 +180,7 @@ describe("the whole installation", () => {
 
     expect((await post({ tables: {}, version: 2 })).status).toBe(422);
     expect((await post({ ...snapshot, tables: { ...snapshot.tables, links: undefined } })).status).toBe(422);
-    // A Link pointing at a Đơn vị the snapshot does not hold fails part-way through.
+    // A Link pointing at a Unit the snapshot does not hold fails part-way through.
     const broken = structuredClone(snapshot);
     for (const link of broken.tables.links ?? []) {
       link.unit_id = 99;

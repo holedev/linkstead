@@ -1,14 +1,14 @@
 import type { LinkToCheck, Store } from "./store";
 
 /**
- * Whether a Đích is safe to send people to. A Link under the university's domain that leads to a
- * phishing page borrows the university's name, so a Đích is checked on its way in, and every Đích
+ * Whether a Target is safe to send people to. A Link under the Organization's domain that leads to a
+ * phishing page borrows the Organization's name, so a Target is checked on its way in, and every Target
  * is checked again each day - a domain can change hands long after its Link was printed.
  */
 
 /**
  * Looks addresses up and answers the ones listed as unsafe, or null when the lookup could not be
- * made. Null lets the work go on: an unreachable list must not stop a Đơn vị changing its Đích.
+ * made. Null lets the work go on: an unreachable list must not stop a Unit changing its Target.
  */
 type SafetyCheck = (urls: readonly string[]) => Promise<ReadonlySet<string> | null>;
 
@@ -56,12 +56,12 @@ const googleSafeBrowsing =
     }
   };
 
-/** Whether a single Đích is listed. Unknown - no check set up, or none possible - counts as not. */
+/** Whether a single Target is listed. Unknown - no check set up, or none possible - counts as not. */
 const isListedUnsafe = async (check: SafetyCheck | undefined, target: string): Promise<boolean> =>
   (await check?.([target]))?.has(target) ?? false;
 
 /**
- * The daily check: looks every Link's Đích up again, marks the ones newly listed and clears the
+ * The daily check: looks every Link's Target up again, marks the ones newly listed and clears the
  * ones no longer listed. A lookup that fails leaves its Links as they were. Answers how many
  * Links are marked unsafe once it is done.
  */

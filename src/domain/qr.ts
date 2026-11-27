@@ -12,7 +12,7 @@ import {
 } from "./qr-style";
 
 /**
- * The picture of a QR (CONTEXT.md). The caller passes the Link's address - never the Đích - and
+ * The picture of a QR (CONTEXT.md). The caller passes the Link's address - never the Target - and
  * at most a logo. Size, position and error correction are decided here and nowhere else: nobody
  * can tune them.
  */

@@ -1,6 +1,6 @@
 /**
  * What an uploaded logo may be: PNG or JPEG, told by its first bytes and never by what the upload
- * says it is. Never SVG - it can carry script and would come back under the university's domain.
+ * says it is. Never SVG - it can carry script and would come back under the Organization's domain.
  */
 
 type LogoType = "image/png" | "image/jpeg";

@@ -17,12 +17,17 @@ import {
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api, type Link, type UnitOverview } from "../api";
+import { text } from "../i18n";
 import { messageOf } from "../messages";
+import { exampleEmail } from "../organization";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
 import { AdminLinkLookup } from "./admin-link";
 import { LogoCard } from "./logo-card";
 import { UnitMembers } from "./members";
+
+const t = text().admin;
+const { common } = text();
 
 /** One busy flag and one error line for a card's writes. `run` answers whether the write went through. */
 const useAction = () => {
@@ -49,7 +54,7 @@ type MergeResult = Awaited<ReturnType<typeof api.adminMergeUnit>>;
 type CreatedUnit = { name: string; managerEmail: string; setupUrl: string | null };
 
 /**
- * Every Đơn vị: its name (to its own screen), how many Links it owns, its managers, and merging or
+ * Every Unit: its name (to its own screen), how many Links it owns, its managers, and merging or
  * dissolving it. Only one that owns no Link is offered dissolving; one that does is merged instead.
  */
 const UnitsTable = ({
@@ -66,11 +71,11 @@ const UnitsTable = ({
   <Table>
     <TableHeader className='hidden bg-muted/40 md:table-header-group'>
       <TableRow className='hover:bg-transparent'>
-        <TableHead className='pl-5'>Đơn vị</TableHead>
-        <TableHead className='text-right'>Link</TableHead>
-        <TableHead>Quản lý đơn vị</TableHead>
+        <TableHead className='pl-5'>{t.unit}</TableHead>
+        <TableHead className='text-right'>{t.links}</TableHead>
+        <TableHead>{t.managers}</TableHead>
         <TableHead className='w-12'>
-          <span className='sr-only'>Thao tác</span>
+          <span className='sr-only'>{text().linkRow.actions}</span>
         </TableHead>
       </TableRow>
     </TableHeader>
@@ -85,8 +90,8 @@ const UnitsTable = ({
               {unit.name}
               <ChevronRightIcon aria-hidden='true' className='size-4 shrink-0 text-muted-foreground' />
             </RouterLink>
-            <p className='text-muted-foreground text-xs md:hidden'>
-              {unit.linkCount} link - Quản lý: <span className='break-all'>{unit.managers.join(", ")}</span>
+            <p className='break-all text-muted-foreground text-xs md:hidden'>
+              {t.linkCount(unit.linkCount, unit.managers.join(", "))}
             </p>
           </TableCell>
           <TableCell className='hidden text-right tabular-nums md:table-cell'>{unit.linkCount}</TableCell>
@@ -95,18 +100,18 @@ const UnitsTable = ({
           </TableCell>
           <TableCell className='w-12 pr-3 text-right'>
             {(units.length > 1 || unit.linkCount === 0) && (
-              <RowMenu disabled={busy} label={`Thao tác với đơn vị ${unit.name}`}>
+              <RowMenu disabled={busy} label={t.actionsForUnit(unit.name)}>
                 {units.length > 1 && (
                   <DropdownMenuItem onSelect={() => onMerge(unit.id)}>
                     <MergeIcon />
-                    Gộp vào đơn vị khác...
+                    {t.merge}
                   </DropdownMenuItem>
                 )}
-                {/* A Đơn vị that still owns Links is merged, never dissolved. */}
+                {/* A Unit that still owns Links is merged, never dissolved. */}
                 {unit.linkCount === 0 && (
                   <DropdownMenuItem onSelect={() => onDissolve(unit.id)} variant='destructive'>
                     <Trash2Icon />
-                    Giải thể
+                    {t.dissolve}
                   </DropdownMenuItem>
                 )}
               </RowMenu>
@@ -133,7 +138,7 @@ const UnitsCard = ({
   const [created, setCreated] = useState<CreatedUnit | null>(null);
   const [dissolveId, setDissolveId] = useState<number | null>(null);
   const dissolving = units?.find((unit) => unit.id === dissolveId) ?? null;
-  // Merging is two steps: choose the Đơn vị to merge into, then confirm on its own dialog.
+  // Merging is two steps: choose the Unit to merge into, then confirm on its own dialog.
   const [mergeId, setMergeId] = useState<number | null>(null);
   const [mergeInto, setMergeInto] = useState("");
   const [confirmingMerge, setConfirmingMerge] = useState(false);
@@ -141,6 +146,8 @@ const UnitsCard = ({
   const merging = units?.find((unit) => unit.id === mergeId) ?? null;
   const mergeTarget = units?.find((unit) => String(unit.id) === mergeInto) ?? null;
   const mergeTargets = units?.filter((unit) => unit.id !== mergeId) ?? [];
+  // Named once for the dialogs, which are drawn whether or not one is open.
+  const names = { dissolving: dissolving?.name ?? "", from: merging?.name ?? "", into: mergeTarget?.name ?? "" };
   const stopMerging = () => {
     setMergeId(null);
     setMergeInto("");
@@ -183,26 +190,26 @@ const UnitsCard = ({
   return (
     <Card flush>
       <div className='border-border border-b p-4 sm:p-5'>
-        <h2 className='font-semibold text-lg'>Tạo đơn vị</h2>
+        <h2 className='font-semibold text-lg'>{t.createUnit}</h2>
         <form className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end' onSubmit={create}>
-          <Field label='Tên đơn vị mới'>
+          <Field label={t.newUnitName}>
             {(props) => (
               <input
                 {...props}
                 maxLength={100}
                 onChange={(event) => setName(event.target.value)}
-                placeholder='Khoa Công nghệ thông tin'
+                placeholder={t.newUnitPlaceholder}
                 required
                 value={name}
               />
             )}
           </Field>
-          <Field label='Email Quản lý đơn vị đầu tiên'>
+          <Field label={t.firstManager}>
             {(props) => (
               <input
                 {...props}
                 onChange={(event) => setManagerEmail(event.target.value)}
-                placeholder='ten@ou.edu.vn'
+                placeholder={exampleEmail()}
                 required
                 type='email'
                 value={managerEmail}
@@ -210,7 +217,7 @@ const UnitsCard = ({
             )}
           </Field>
           <Button disabled={busy} type='submit' variant='primary'>
-            Tạo đơn vị
+            {t.createUnit}
           </Button>
         </form>
         <div className='mt-4'>
@@ -219,10 +226,7 @@ const UnitsCard = ({
         {created && (
           <div className='mt-4 space-y-2 rounded-md border border-ok/30 bg-ok/5 p-3'>
             <p className='text-sm'>
-              Đã tạo đơn vị "{created.name}" với Quản lý đơn vị <strong>{created.managerEmail}</strong>.{" "}
-              {created.setupUrl
-                ? "Hãy tự gửi đường dẫn đặt mật khẩu này cho họ; đường dẫn dùng được một lần, trong 7 ngày, và sẽ không hiện lại."
-                : "Người này đã có mật khẩu nên không cần đường dẫn mới."}
+              {t.unitCreated(created.name, created.managerEmail)} {created.setupUrl ? t.sendSetup : t.hasPassword}
             </p>
             {created.setupUrl && <SecretBox value={created.setupUrl} />}
           </div>
@@ -233,23 +237,21 @@ const UnitsCard = ({
         <div className='border-border border-b p-4 sm:p-5'>
           <Notice>
             <p>
-              Đã gộp <strong>{merged.from}</strong> vào <strong>{merged.into.name}</strong>: {merged.moved.links} link,{" "}
-              {merged.moved.members} thành viên và {merged.moved.keys} khóa API đã chuyển sang. Địa chỉ các link không
-              đổi.
+              {t.mergeDone(merged.from, merged.into.name, merged.moved.links, merged.moved.members, merged.moved.keys)}
             </p>
           </Notice>
         </div>
       )}
-      {!(units || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
+      {!(units || error) && <p className='p-4 text-muted-foreground'>{common.loading}</p>}
       {units && units.length > 0 && (
         <UnitsTable busy={busy} onDissolve={setDissolveId} onMerge={setMergeId} units={units} />
       )}
 
       <Modal
-        description='Đơn vị được chọn sẽ nhận toàn bộ link, thành viên và khóa API, còn đơn vị này bị giải thể.'
+        description={t.mergeLead}
         onClose={stopMerging}
         open={merging !== null && !confirmingMerge}
-        title={`Gộp "${merging?.name}" vào đơn vị khác`}
+        title={t.mergeTitle(names.from)}
       >
         <form
           className='space-y-4'
@@ -258,10 +260,10 @@ const UnitsCard = ({
             setConfirmingMerge(true);
           }}
         >
-          <Field label='Gộp vào đơn vị'>
+          <Field label={t.mergeInto}>
             {(props) => (
               <select {...props} onChange={(event) => setMergeInto(event.target.value)} required value={mergeInto}>
-                <option value=''>Chọn đơn vị nhận</option>
+                <option value=''>{t.pickReceiving}</option>
                 {mergeTargets.map((unit) => (
                   <option key={unit.id} value={unit.id}>
                     {unit.name}
@@ -271,9 +273,9 @@ const UnitsCard = ({
             )}
           </Field>
           <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-            <Button onClick={stopMerging}>Hủy</Button>
+            <Button onClick={stopMerging}>{common.cancel}</Button>
             <Button disabled={!mergeTarget} type='submit' variant='primary'>
-              Tiếp tục
+              {t.continue}
             </Button>
           </div>
         </form>
@@ -281,47 +283,37 @@ const UnitsCard = ({
 
       <ConfirmDialog
         busy={busy}
-        confirmLabel='Gộp đơn vị'
+        confirmLabel={t.mergeConfirm}
         onCancel={() => setConfirmingMerge(false)}
         onConfirm={merge}
         open={confirmingMerge && merging !== null && mergeTarget !== null}
-        title={`Gộp "${merging?.name}" vào "${mergeTarget?.name}"?`}
+        title={t.mergeConfirmTitle(names.from, names.into)}
       >
         <ul className='list-disc space-y-1 pl-5'>
+          <li>{t.mergeBodyLinks(merging?.linkCount ?? 0, names.into)}</li>
+          <li>{t.mergeBodyMembers(names.from, names.into)}</li>
+          <li>{t.mergeBodyKeys(names.from, names.into)}</li>
           <li>
-            {merging?.linkCount} link chuyển sang {mergeTarget?.name}. Địa chỉ link và QR đã in không đổi; lịch sử của
-            mỗi link ghi lại việc chuyển.
-          </li>
-          <li>
-            Thành viên của {merging?.name} trở thành thành viên của {mergeTarget?.name}. Ai đã ở cả hai thì giữ vai trò
-            cao hơn.
-          </li>
-          <li>
-            Khóa API của {merging?.name} vẫn hoạt động, nay cho {mergeTarget?.name}.
-          </li>
-          <li>
-            {merging?.name} bị giải thể. <strong>Việc này không hoàn tác được</strong>, và tên "{merging?.name}" không
-            dùng lại được.
+            <strong>{t.mergeBodyName(names.from)}</strong>
           </li>
         </ul>
       </ConfirmDialog>
 
       <ConfirmDialog
         busy={busy}
-        confirmLabel='Giải thể đơn vị'
+        confirmLabel={t.dissolveUnit}
         onCancel={() => setDissolveId(null)}
         onConfirm={dissolve}
         open={dissolving !== null}
-        title={`Giải thể "${dissolving?.name}"`}
+        title={t.dissolveTitle(names.dissolving)}
       >
-        Mọi thành viên sẽ rời đơn vị và mọi khóa API của đơn vị ngừng hoạt động ngay. Việc này không hoàn tác được, và
-        tên "{dissolving?.name}" không dùng lại được cho đơn vị mới.
+        {t.dissolveBody(names.dissolving)}
       </ConfirmDialog>
     </Card>
   );
 };
 
-/** Who else holds the role. Anyone here can do everything on this screen, for every Đơn vị. */
+/** Who else holds the role. Anyone here can do everything on this screen, for every Unit. */
 const AdminsCard = () => {
   const { me, refresh } = useSession();
   const { data, error, reload } = useLoaded(0, () => api.adminAdmins().then((answer) => answer.admins));
@@ -357,17 +349,15 @@ const AdminsCard = () => {
   return (
     <Card flush>
       <div className='border-border border-b p-4 sm:p-5'>
-        <h2 className='font-semibold text-lg'>Quản trị hệ thống</h2>
-        <p className='mt-1 text-muted-foreground text-sm'>
-          Người có vai trò này làm được mọi việc trên trang này với mọi đơn vị. Vai trò này không đưa họ vào đơn vị nào.
-        </p>
+        <h2 className='font-semibold text-lg'>{t.admins}</h2>
+        <p className='mt-1 text-muted-foreground text-sm'>{t.adminsLead}</p>
         <form className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto] sm:items-end' onSubmit={grant}>
-          <Field label='Email người được thêm'>
+          <Field label={t.adminEmail}>
             {(props) => (
               <input
                 {...props}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder='ten@ou.edu.vn'
+                placeholder={exampleEmail()}
                 required
                 type='email'
                 value={email}
@@ -375,7 +365,7 @@ const AdminsCard = () => {
             )}
           </Field>
           <Button disabled={busy} type='submit' variant='primary'>
-            Thêm Quản trị hệ thống
+            {t.addAdmin}
           </Button>
         </form>
         <div className='mt-4'>
@@ -384,38 +374,33 @@ const AdminsCard = () => {
         {granted && (
           <div className='mt-4 space-y-2 rounded-md border border-ok/30 bg-ok/5 p-3'>
             <p className='text-sm'>
-              <strong>{granted.email}</strong> đã là Quản trị hệ thống.{" "}
-              {granted.setupUrl
-                ? "Hãy tự gửi đường dẫn đặt mật khẩu này cho họ; đường dẫn dùng được một lần, trong 7 ngày, và sẽ không hiện lại."
-                : "Người này đã có mật khẩu nên không cần đường dẫn mới."}
+              {t.granted(granted.email)} {granted.setupUrl ? t.sendSetup : t.hasPassword}
             </p>
             {granted.setupUrl && <SecretBox value={granted.setupUrl} />}
           </div>
         )}
       </div>
-      {!(data || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
+      {!(data || error) && <p className='p-4 text-muted-foreground'>{common.loading}</p>}
       <ul className='divide-y divide-border'>
         {data?.map((admin) => (
           <li className='flex flex-col gap-2 p-4 sm:flex-row sm:items-center' key={admin.email}>
             <div className='min-w-0 flex-1'>
               <p className='break-all font-medium'>
                 {admin.email}
-                {admin.email === me?.email && <span className='font-normal text-muted-foreground'> (bạn)</span>}
+                {admin.email === me?.email && <span className='font-normal text-muted-foreground'>{t.you}</span>}
               </p>
               {!admin.hasPassword && (
                 <div className='mt-1'>
-                  <Badge tone='danger'>Chưa đặt mật khẩu</Badge>
+                  <Badge tone='danger'>{t.passwordUnset}</Badge>
                 </div>
               )}
             </div>
             {data.length > 1 ? (
               <Button disabled={busy} onClick={() => setRevokeEmail(admin.email)} variant='danger'>
-                Thu hồi vai trò
+                {t.revokeRole}
               </Button>
             ) : (
-              <p className='text-muted-foreground text-xs sm:max-w-48 sm:text-right'>
-                Quản trị hệ thống duy nhất nên không thu hồi được.
-              </p>
+              <p className='text-muted-foreground text-xs sm:max-w-48 sm:text-right'>{t.onlyAdmin}</p>
             )}
           </li>
         ))}
@@ -423,16 +408,13 @@ const AdminsCard = () => {
 
       <ConfirmDialog
         busy={busy}
-        confirmLabel='Thu hồi vai trò'
+        confirmLabel={t.revokeRole}
         onCancel={() => setRevokeEmail(null)}
         onConfirm={revoke}
         open={revoking !== null}
-        title='Thu hồi vai trò Quản trị hệ thống'
+        title={t.revokeTitle}
       >
-        {isSelf
-          ? "Thu hồi vai trò Quản trị hệ thống của chính bạn? Bạn sẽ rời trang này ngay và không tự lấy lại được vai trò - phải nhờ một Quản trị hệ thống khác thêm lại."
-          : `Thu hồi vai trò Quản trị hệ thống của ${revoking?.email}? Họ mất quyền ngay lập tức.`}{" "}
-        Tài khoản và các đơn vị họ đang thuộc về vẫn giữ nguyên.
+        {isSelf ? t.revokeSelf : t.revokeOther(revoking?.email ?? "")} {t.revokeTrail}
       </ConfirmDialog>
     </Card>
   );
@@ -457,47 +439,44 @@ const ReservedCodesCard = () => {
   return (
     <Card flush>
       <div className='border-border border-b p-4 sm:p-5'>
-        <h2 className='font-semibold text-lg'>Mã dành riêng</h2>
-        <p className='mt-1 text-muted-foreground text-sm'>
-          Mã không ai tự lấy được - tên khoa, tên chương trình của trường. Chỉ Quản trị hệ thống cấp, bằng mục "Tạo link
-          cho đơn vị" ở trang "Link của mọi đơn vị".
-        </p>
+        <h2 className='font-semibold text-lg'>{t.reservedTitle}</h2>
+        <p className='mt-1 text-muted-foreground text-sm'>{t.reservedLead}</p>
         <form className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end' onSubmit={add}>
-          <Field label='Mã'>
+          <Field label={t.codeLabel}>
             {(props) => (
               <input
                 {...props}
                 autoCapitalize='none'
                 maxLength={50}
                 onChange={(event) => setCode(event.target.value)}
-                placeholder='tuyensinh'
+                placeholder={t.codePlaceholder}
                 required
                 spellCheck={false}
                 value={code}
               />
             )}
           </Field>
-          <Field label='Dành cho (không bắt buộc)'>
+          <Field label={t.reservedFor}>
             {(props) => (
               <input
                 {...props}
                 maxLength={200}
                 onChange={(event) => setNote(event.target.value)}
-                placeholder='Phòng Quản lý đào tạo'
+                placeholder={t.reservedForPlaceholder}
                 value={note}
               />
             )}
           </Field>
           <Button disabled={busy} type='submit' variant='primary'>
-            Dành riêng
+            {t.reserve}
           </Button>
         </form>
         <div className='mt-4'>
           <ErrorText>{actionError || error}</ErrorText>
         </div>
       </div>
-      {!(data || error) && <p className='p-4 text-muted-foreground'>Đang tải...</p>}
-      {data?.length === 0 && <p className='p-4 text-muted-foreground'>Chưa có mã dành riêng nào.</p>}
+      {!(data || error) && <p className='p-4 text-muted-foreground'>{common.loading}</p>}
+      {data?.length === 0 && <p className='p-4 text-muted-foreground'>{t.noReserved}</p>}
       <ul className='divide-y divide-border'>
         {data?.map((reserved) => (
           <li className='flex flex-col gap-2 p-4 sm:flex-row sm:items-center' key={reserved.code}>
@@ -514,7 +493,7 @@ const ReservedCodesCard = () => {
                 })
               }
             >
-              Bỏ dành riêng
+              {t.unreserve}
             </Button>
           </li>
         ))}
@@ -525,7 +504,7 @@ const ReservedCodesCard = () => {
 
 const EMPTY = { code: "", name: "", target: "", unitId: "" };
 
-/** Creates a Link for any Đơn vị - the one way a Mã dành riêng is handed out. */
+/** Creates a Link for any Unit - the one way a Reserved Code is handed out. */
 const HandOutCard = ({ units, onCreated }: { units: UnitOverview[]; onCreated: () => void }) => {
   const { busy, error, run } = useAction();
   const [form, setForm] = useState(EMPTY);
@@ -544,16 +523,14 @@ const HandOutCard = ({ units, onCreated }: { units: UnitOverview[]; onCreated: (
 
   return (
     <Card>
-      <h2 className='font-semibold text-lg'>Tạo link cho đơn vị</h2>
-      <p className='mt-1 text-muted-foreground text-sm'>
-        Link thuộc về đơn vị được chọn ngay từ đầu. Ở đây dùng được cả mã dành riêng; mã vẫn không đổi được sau khi tạo.
-      </p>
+      <h2 className='font-semibold text-lg'>{t.handOut}</h2>
+      <p className='mt-1 text-muted-foreground text-sm'>{t.handOutLead}</p>
       <form className='mt-4 space-y-4' onSubmit={submit}>
         <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-          <Field label='Đơn vị nhận link'>
+          <Field label={t.receivingUnit}>
             {(props) => (
               <select {...props} onChange={set("unitId")} required value={form.unitId}>
-                <option value=''>Chọn đơn vị</option>
+                <option value=''>{t.pickUnit}</option>
                 {units.map((unit) => (
                   <option key={unit.id} value={unit.id}>
                     {unit.name}
@@ -562,14 +539,14 @@ const HandOutCard = ({ units, onCreated }: { units: UnitOverview[]; onCreated: (
               </select>
             )}
           </Field>
-          <Field label='Mã link'>
+          <Field label={t.linkCode}>
             {(props) => (
               <input
                 {...props}
                 autoCapitalize='none'
                 maxLength={50}
                 onChange={set("code")}
-                placeholder='tuyensinh'
+                placeholder={t.codePlaceholder}
                 required
                 spellCheck={false}
                 value={form.code}
@@ -577,19 +554,19 @@ const HandOutCard = ({ units, onCreated }: { units: UnitOverview[]; onCreated: (
             )}
           </Field>
         </div>
-        <Field label='Tên link'>
+        <Field label={t.linkName}>
           {(props) => (
             <input
               {...props}
               maxLength={200}
               onChange={set("name")}
-              placeholder='Trang tuyển sinh'
+              placeholder={t.linkNamePlaceholder}
               required
               value={form.name}
             />
           )}
         </Field>
-        <Field label='Đích'>
+        <Field label={t.target}>
           {(props) => (
             <input
               {...props}
@@ -604,12 +581,12 @@ const HandOutCard = ({ units, onCreated }: { units: UnitOverview[]; onCreated: (
         </Field>
         <ErrorText>{error}</ErrorText>
         <Button disabled={busy} type='submit' variant='primary'>
-          {busy ? "Đang tạo..." : "Tạo link"}
+          {busy ? t.creating : t.create}
         </Button>
       </form>
       {created && (
         <div className='mt-4 space-y-2 rounded-md border border-ok/30 bg-ok/5 p-3'>
-          <p className='font-medium text-ok text-sm'>Đã tạo link "{created.name}".</p>
+          <p className='font-medium text-ok text-sm'>{t.created(created.name)}</p>
           <SecretBox value={created.url} />
         </div>
       )}
@@ -618,10 +595,10 @@ const HandOutCard = ({ units, onCreated }: { units: UnitOverview[]; onCreated: (
 };
 
 /**
- * The university's logo on QR: what every QR shows unless its Đơn vị or the Link itself chose
- * otherwise. Until one is uploaded, the one built into the Worker (`worker/default-logo.ts`).
+ * The Organization's logo on QR: what every QR shows unless its Unit or the Link itself chose
+ * otherwise. Until one is uploaded, QR carry no logo - nothing is built in.
  */
-const UniversityLogoCard = () => {
+const OrganizationLogoCard = () => {
   const { data, reload } = useLoaded(0, () => api.adminLogo());
   return (
     <LogoCard
@@ -635,24 +612,17 @@ const UniversityLogoCard = () => {
         await api.adminUploadLogo(file);
         reload();
       }}
-      removeLabel='Về logo mặc định'
+      removeLabel={t.removeLogo}
       stamp={String(data?.set)}
-      title='Logo QR của Trường'
+      title={t.organizationLogo}
     >
-      <p>
-        {data?.set
-          ? "QR đang dùng logo đã tải lên ở đây. Bỏ nó thì QR quay về logo mặc định của Trường."
-          : "QR đang dùng logo mặc định của Trường, có sẵn trong hệ thống. Tải lên logo khác để thay."}
-      </p>
-      <p>
-        Áp dụng cho mọi QR, trừ khi đơn vị đặt logo riêng hoặc link chọn logo riêng hay không logo. Logo này chỉ đặt
-        giữa QR, không đổi logo trên giao diện.
-      </p>
+      <p>{data?.set ? t.organizationLogoSet : t.organizationLogoUnset}</p>
+      <p>{t.organizationLogoApplies}</p>
     </LogoCard>
   );
 };
 
-/** Every Đơn vị, for the screens that offer a choice of them. */
+/** Every Unit, for the screens that offer a choice of them. */
 const useUnits = () => useLoaded(0, () => api.adminUnits().then((answer) => answer.units));
 
 /** The gate in front of every system-wide screen. The server refuses everyone else regardless. */
@@ -661,7 +631,7 @@ const SystemAdminOnly = () => {
   return me?.isSystemAdmin ? <Outlet /> : <Navigate replace to='/' />;
 };
 
-/** Finds a Link of any Đơn vị, and creates one for any Đơn vị - with a Mã dành riêng if need be. */
+/** Finds a Link of any Unit, and creates one for any Unit - with a Reserved Code if need be. */
 const AdminLinksPage = () => {
   const { data: units, reload } = useUnits();
   return (
@@ -675,7 +645,7 @@ const AdminLinksPage = () => {
 const AdminUnitsPage = () => {
   const { refresh } = useSession();
   const { data: units, error, reload } = useUnits();
-  // A Đơn vị created or dissolved changes the administrator's own list of units too.
+  // A Unit created or dissolved changes the administrator's own list of units too.
   const unitsChanged = () => {
     reload();
     refresh();
@@ -684,7 +654,7 @@ const AdminUnitsPage = () => {
 };
 
 /**
- * One Đơn vị seen from the whole system: who manages it, how many Links it owns, and every one of
+ * One Unit seen from the whole system: who manages it, how many Links it owns, and every one of
  * its members - to add, change the role of, or remove - whether or not the administrator belongs.
  */
 const AdminUnitPage = () => {
@@ -699,24 +669,24 @@ const AdminUnitPage = () => {
         to='/admin/units'
       >
         <ArrowLeftIcon className='size-4' />
-        Tất cả đơn vị
+        {t.allUnits}
       </RouterLink>
       <ErrorText>{error}</ErrorText>
-      {!(units || error) && <p className='text-muted-foreground'>Đang tải...</p>}
+      {!(units || error) && <p className='text-muted-foreground'>{common.loading}</p>}
       {units && !unit && (
         <Card>
-          <p className='text-muted-foreground'>Không tìm thấy đơn vị này. Có thể đơn vị đã bị giải thể.</p>
+          <p className='text-muted-foreground'>{t.noUnit}</p>
         </Card>
       )}
       {unit && (
         <>
           <div>
             <h1 className='break-words font-bold text-2xl tracking-tight'>{unit.name}</h1>
-            <p className='text-muted-foreground text-sm'>
-              {unit.linkCount} link - Quản lý: <span className='break-all'>{unit.managers.join(", ")}</span>
+            <p className='break-all text-muted-foreground text-sm'>
+              {t.linkCount(unit.linkCount, unit.managers.join(", "))}
             </p>
           </div>
-          {/* Keyed by the Đơn vị, so moving from one to another starts afresh. */}
+          {/* Keyed by the Unit, so moving from one to another starts afresh. */}
           <UnitMembers key={unit.id} onChanged={reload} unitId={unit.id} unitName={unit.name} />
         </>
       )}
@@ -726,12 +696,9 @@ const AdminUnitPage = () => {
 
 const AdminExportPage = () => (
   <Card>
-    <h2 className='font-semibold text-lg'>Xuất toàn bộ dữ liệu</h2>
-    <p className='mt-1 mb-4 text-muted-foreground text-sm'>
-      Một tệp chứa mọi tài khoản, đơn vị, link, lịch sử, lượt mở và logo, để chuyển sang một bản cài đặt khác. Tệp có
-      chứa mật khẩu và khóa API ở dạng đã băm - hãy cất giữ như dữ liệu mật và không gửi qua kênh không an toàn.
-    </p>
-    <DownloadLink href='/api/admin/export'>Tải tệp xuất (JSON)</DownloadLink>
+    <h2 className='font-semibold text-lg'>{t.export}</h2>
+    <p className='mt-1 mb-4 text-muted-foreground text-sm'>{t.exportLead}</p>
+    <DownloadLink href='/api/admin/export'>{t.exportDownload}</DownloadLink>
   </Card>
 );
 
@@ -741,7 +708,7 @@ export {
   AdminsCard as AdminAdminsPage,
   AdminUnitPage,
   AdminUnitsPage,
+  OrganizationLogoCard as AdminLogoPage,
   ReservedCodesCard as AdminCodesPage,
-  SystemAdminOnly,
-  UniversityLogoCard as AdminLogoPage
+  SystemAdminOnly
 };

@@ -35,8 +35,8 @@ const linksOf = async (browser: Browser, unitId: number) =>
     }
   ).links;
 
-describe("a Nhóm", () => {
-  it("is made, renamed and listed by a Thành viên, with how many Links it holds", async () => {
+describe("a Group", () => {
+  it("is made, renamed and listed by a Member, with how many Links it holds", async () => {
     const admin = await h.signedInAdmin();
     const editor = await member(admin, 1, "bien-tap@example.org");
     const conference = await newGroup(editor, 1, "Hội thảo 2027");
@@ -57,7 +57,7 @@ describe("a Nhóm", () => {
     expect(await renamed.json()).toEqual({ id: conference.id, name: "Hội thảo quốc tế 2027" });
   });
 
-  it("has a name its Đơn vị uses once, which another Đơn vị may use too", async () => {
+  it("has a name its Unit uses once, which another Unit may use too", async () => {
     const admin = await h.signedInAdmin();
     await newGroup(admin, 1, "Hội thảo");
     const again = await admin.post("/api/units/1/groups", { name: "Hội thảo" });
@@ -69,7 +69,7 @@ describe("a Nhóm", () => {
     expect((await admin.put(`/api/units/1/groups/${other.id}`, { name: "Hội thảo" })).status).toBe(409);
   });
 
-  it("goes when deleted, leaving its Links where they were, in no Nhóm", async () => {
+  it("goes when deleted, leaving its Links where they were, in no Group", async () => {
     const admin = await h.signedInAdmin();
     const group = await newGroup(admin, 1, "Tạm");
     await admin.post("/api/links", { code: "cfp-2027", groupId: group.id, name: "Poster", target: TARGET, unitId: 1 });
@@ -81,7 +81,7 @@ describe("a Nhóm", () => {
     expect((await admin.delete(`/api/units/1/groups/${group.id}`)).status).toBe(404);
   });
 
-  it("is a Thành viên's to manage: not another Đơn vị's, not a Khóa API's", async () => {
+  it("is a Member's to manage: not another Unit's, not an API Key's", async () => {
     const admin = await h.signedInAdmin();
     const group = await newGroup(admin, 1, "Hội thảo");
     const outsider = await member(admin, 2, "khac@example.org");
@@ -90,14 +90,14 @@ describe("a Nhóm", () => {
     expect((await outsider.get("/api/units/1/groups")).status).toBe(403);
     expect((await outsider.post("/api/units/1/groups", { name: "Của tôi" })).status).toBe(403);
     expect((await outsider.delete(`/api/units/1/groups/${group.id}`)).status).toBe(403);
-    // Another Đơn vị's Nhóm id, asked for through one's own Đơn vị, is not found.
+    // Another Unit's Group id, asked for through one's own Unit, is not found.
     expect((await outsider.delete(`/api/units/2/groups/${group.id}`)).status).toBe(404);
     expect((await h.client().get("/api/units/1/groups", { headers: bearer(key) })).status).toBe(401);
   });
 });
 
-describe("sorting a Link into a Nhóm", () => {
-  it("moves it between its own Đơn vị's Nhóm and out of any", async () => {
+describe("sorting a Link into a Group", () => {
+  it("moves it between its own Unit's Group and out of any", async () => {
     const admin = await h.signedInAdmin();
     const a = await newGroup(admin, 1, "A");
     const b = await newGroup(admin, 1, "B");
@@ -111,7 +111,7 @@ describe("sorting a Link into a Nhóm", () => {
     });
   });
 
-  it("refuses a Nhóm of another Đơn vị, when creating as when sorting", async () => {
+  it("refuses a Group of another Unit, when creating as when sorting", async () => {
     const admin = await h.signedInAdmin();
     const theirs = await newGroup(admin, 2, "Của đơn vị khác");
     const create = await admin.post("/api/links", { groupId: theirs.id, name: "Poster", target: TARGET, unitId: 1 });
@@ -124,7 +124,7 @@ describe("sorting a Link into a Nhóm", () => {
     expect((await admin.put("/api/links/cfp-2027/group", {})).status).toBe(422);
   });
 
-  it("takes a Nhóm from a Khóa API creating a Link, but leaves sorting to people", async () => {
+  it("takes a Group from an API Key creating a Link, but leaves sorting to people", async () => {
     const admin = await h.signedInAdmin();
     const group = await newGroup(admin, 1, "Từ CRM");
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
@@ -140,7 +140,7 @@ describe("sorting a Link into a Nhóm", () => {
     expect((await app.put(`/api/links/${code}/group`, { groupId: null }, { headers: bearer(key) })).status).toBe(403);
   });
 
-  it("is left behind when the Link moves to another Đơn vị", async () => {
+  it("is left behind when the Link moves to another Unit", async () => {
     const admin = await h.signedInAdmin();
     const group = await newGroup(admin, 1, "Hội thảo");
     await admin.post("/api/links", { code: "cfp-2027", groupId: group.id, name: "Poster", target: TARGET, unitId: 1 });
@@ -150,7 +150,7 @@ describe("sorting a Link into a Nhóm", () => {
     expect(await groupsOf(admin, 1)).toMatchObject([{ linkCount: 0, name: "Hội thảo" }]);
   });
 
-  it("shows in the Đơn vị's CSV", async () => {
+  it("shows in the Unit's CSV", async () => {
     const admin = await h.signedInAdmin();
     const group = await newGroup(admin, 1, "Hội thảo");
     await admin.post("/api/links", { code: "cfp-2027", groupId: group.id, name: "Poster", target: TARGET, unitId: 1 });
@@ -159,8 +159,8 @@ describe("sorting a Link into a Nhóm", () => {
   });
 });
 
-describe("a Nhóm when Đơn vị merge", () => {
-  it("joins the other's Nhóm of the same name, and moves across otherwise", async () => {
+describe("a Group when Unit merge", () => {
+  it("joins the other's Group of the same name, and moves across otherwise", async () => {
     const admin = await h.signedInAdmin();
     const kept = await newGroup(admin, 1, "Hội thảo");
     const same = await newGroup(admin, 2, "Hội thảo");

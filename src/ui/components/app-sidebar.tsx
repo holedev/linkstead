@@ -11,12 +11,13 @@ import {
   type LucideIcon,
   QrCodeIcon,
   SearchIcon,
+  Settings2Icon,
   ShieldCheckIcon,
   TagIcon,
   UsersIcon
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router";
-import { LOGO_WHITE } from "@/components/app";
+import { OrganizationMark } from "@/components/app";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,65 +39,35 @@ import {
   SidebarRail,
   useSidebar
 } from "@/components/ui/sidebar";
+import { text } from "@/i18n";
 import { cn } from "@/lib/utils";
+import { organization } from "@/organization";
 import { useSession } from "@/session";
 
 /** A section of the UI. `lead` is the line under its title, for the screens whose title the frame draws. */
 type NavItem = { to: string; label: string; icon: LucideIcon; lead?: string };
 
-/** What a Thành viên works on. The last three are a Quản lý đơn vị's. */
+const t = text().nav;
+
+/** What a Member works on. The last three are a Unit Manager's. */
 const UNIT_NAV: NavItem[] = [
-  { icon: Link2Icon, label: "Link", to: "/" },
-  { icon: ChartNoAxesColumnIcon, label: "Lượt mở", to: "/stats" }
+  { icon: Link2Icon, label: t.links, to: "/" },
+  { icon: ChartNoAxesColumnIcon, label: t.visits, to: "/stats" }
 ];
 const MANAGER_NAV: NavItem[] = [
-  {
-    icon: UsersIcon,
-    label: "Thành viên",
-    lead: "Ai thuộc đơn vị và làm gì. Đơn vị luôn có ít nhất một Quản lý đơn vị.",
-    to: "/members"
-  },
-  {
-    icon: KeyRoundIcon,
-    label: "Khóa API",
-    lead: "Cho một ứng dụng khác tạo và đọc link của đơn vị. Khóa thuộc về đơn vị, không thuộc về một người.",
-    to: "/keys"
-  },
-  { icon: QrCodeIcon, label: "Logo QR", lead: "Logo đặt giữa QR của đơn vị.", to: "/logo" }
+  { icon: UsersIcon, label: t.members, lead: t.membersLead, to: "/members" },
+  { icon: KeyRoundIcon, label: t.keys, lead: t.keysLead, to: "/keys" },
+  { icon: QrCodeIcon, label: t.logo, lead: t.logoLead, to: "/logo" }
 ];
-/** What only a Quản trị hệ thống does, across every Đơn vị. */
+/** What only a System Administrator does, across every Unit. */
 const SYSTEM_NAV: NavItem[] = [
-  {
-    icon: SearchIcon,
-    label: "Link của mọi đơn vị",
-    lead: "Tìm một link bằng mã link; tắt, bật hoặc chuyển nó sang đơn vị khác.",
-    to: "/admin/links"
-  },
-  { icon: Building2Icon, label: "Đơn vị", lead: "Những đơn vị sở hữu link trong Trường.", to: "/admin/units" },
-  {
-    icon: ShieldCheckIcon,
-    label: "Quản trị hệ thống",
-    lead: "Những người quản trị toàn hệ thống.",
-    to: "/admin/admins"
-  },
-  {
-    icon: TagIcon,
-    label: "Mã dành riêng",
-    lead: "Mã link không ai được lấy trước. Chỉ Quản trị hệ thống cấp ra.",
-    to: "/admin/codes"
-  },
-  {
-    icon: ImageIcon,
-    label: "Logo QR của Trường",
-    lead: "Logo đặt giữa mọi QR, trừ khi đơn vị hay link chọn khác.",
-    to: "/admin/logo"
-  },
-  {
-    icon: DatabaseBackupIcon,
-    label: "Xuất dữ liệu",
-    lead: "Toàn bộ dữ liệu, để chuyển sang một nơi cài đặt khác.",
-    to: "/admin/export"
-  }
+  { icon: SearchIcon, label: t.allLinks, lead: t.allLinksLead, to: "/admin/links" },
+  { icon: Building2Icon, label: t.units, lead: t.unitsLead, to: "/admin/units" },
+  { icon: ShieldCheckIcon, label: t.admins, lead: t.adminsLead, to: "/admin/admins" },
+  { icon: TagIcon, label: t.codes, lead: t.codesLead, to: "/admin/codes" },
+  { icon: Settings2Icon, label: t.settings, lead: t.settingsLead, to: "/admin/settings" },
+  { icon: ImageIcon, label: t.organizationLogo, lead: t.organizationLogoLead, to: "/admin/logo" },
+  { icon: DatabaseBackupIcon, label: t.export, lead: t.exportLead, to: "/admin/export" }
 ];
 const ALL_NAV = [...UNIT_NAV, ...MANAGER_NAV, ...SYSTEM_NAV];
 
@@ -105,9 +76,9 @@ const isAt = (to: string, pathname: string): boolean =>
   to === "/" ? pathname === "/" || pathname.startsWith("/links/") : pathname.startsWith(to);
 
 const SPACES = /\s+/u;
-const ROLE_LABEL = { manager: "Quản lý đơn vị", member: "Thành viên" };
+const ROLE_LABEL = { manager: t.manager, member: t.member };
 
-/** Two letters to tell Đơn vị apart at a glance: the first letters of the first two words. */
+/** Two letters to tell Units apart at a glance: the first letters of the first two words. */
 const initialsOf = (name: string): string =>
   name
     .split(SPACES)
@@ -122,8 +93,8 @@ const Initials = ({ name }: { name: string }) => (
 );
 
 /**
- * Which Đơn vị the screens are about. Everything under "Đơn vị" in the sidebar follows this
- * choice; an account in several Đơn vị switches here.
+ * Which Unit the screens are about. Everything under "Unit" in the sidebar follows this choice;
+ * an account in several Units switches here.
  */
 const UnitSwitcher = () => {
   const { me, unit, selectUnit } = useSession();
@@ -138,8 +109,8 @@ const UnitSwitcher = () => {
         <SidebarMenuItem>
           <SidebarMenuButton className='cursor-default hover:bg-transparent active:bg-transparent' size='lg'>
             <div className='grid flex-1 text-left text-sm leading-tight'>
-              <span className='truncate font-medium'>OU Link</span>
-              <span className='truncate text-sidebar-foreground/70 text-xs'>Chưa thuộc đơn vị nào</span>
+              <span className='truncate font-medium'>{organization().name}</span>
+              <span className='truncate text-sidebar-foreground/70 text-xs'>{t.noUnit}</span>
             </div>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -153,7 +124,7 @@ const UnitSwitcher = () => {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              aria-label={`Đơn vị đang chọn: ${unit.unitName}. Đổi đơn vị`}
+              aria-label={t.currentUnit(unit.unitName)}
               className='border border-sidebar-border bg-sidebar-accent/60 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent'
               size='lg'
             >
@@ -171,14 +142,14 @@ const UnitSwitcher = () => {
             side={isMobile ? "bottom" : "right"}
             sideOffset={4}
           >
-            <DropdownMenuLabel className='text-muted-foreground text-xs'>Đơn vị của bạn</DropdownMenuLabel>
+            <DropdownMenuLabel className='text-muted-foreground text-xs'>{t.yourUnits}</DropdownMenuLabel>
             {units.map((option) => (
               <DropdownMenuItem
                 className='gap-2 p-2'
                 key={option.unitId}
                 onSelect={() => {
                   selectUnit(option.unitId);
-                  // Choosing a Đơn vị from a system-wide screen means "take me to it".
+                  // Choosing a Unit from a system-wide screen means "take me to it".
                   if (onSystemScreen) {
                     navigate("/");
                   }
@@ -201,29 +172,20 @@ const UnitSwitcher = () => {
   );
 };
 
-/** The screen being looked at is a white tab on the blue, like the logo above it. */
+/** The screen being looked at is a white tab on the Organization's colour. */
 const ACTIVE = cn(
   "h-10 md:h-8",
   "data-[active=true]:bg-sidebar-primary data-[active=true]:font-semibold data-[active=true]:text-sidebar-primary-foreground"
 );
 
-/**
- * The university's logo, white on the sidebar's blue. Folded to icons, only its emblem shows: the
- * emblem is the left part of the picture, so the box crops the rest away.
- */
-const UniversityLogo = () => (
+/** The Organization's mark at the top of the sidebar. Folded to icons, only its logo or letter shows. */
+const SidebarMark = () => (
   <NavLink
-    aria-label='OU Link - Trường Đại học Mở Thành phố Hồ Chí Minh. Về danh sách link'
-    className='flex h-12 items-center overflow-hidden rounded-md px-2 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:px-0'
+    aria-label={t.backToLinks(organization().name)}
+    className='flex h-12 items-center overflow-hidden rounded-md px-2 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:px-0 [&_span.truncate]:group-data-[collapsible=icon]:hidden'
     to='/'
   >
-    <img
-      alt=''
-      className='h-9 w-auto max-w-none group-data-[collapsible=icon]:-ml-1.5 group-data-[collapsible=icon]:h-6'
-      height={69}
-      src={LOGO_WHITE}
-      width={384}
-    />
+    <OrganizationMark />
   </NavLink>
 );
 
@@ -263,7 +225,7 @@ const AccountMenu = () => {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              aria-label={`Tài khoản ${email}`}
+              aria-label={t.account(email)}
               className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
               size='lg'
             >
@@ -273,7 +235,7 @@ const AccountMenu = () => {
               <div className='grid flex-1 text-left text-sm leading-tight'>
                 <span className='truncate font-medium'>{name}</span>
                 <span className='truncate text-sidebar-foreground/70 text-xs'>
-                  {me?.isSystemAdmin ? "Quản trị hệ thống" : email}
+                  {me?.isSystemAdmin ? t.systemAdmin : email}
                 </span>
               </div>
               <ChevronsUpDownIcon className='ml-auto' />
@@ -287,12 +249,12 @@ const AccountMenu = () => {
           >
             <DropdownMenuLabel className='font-normal'>
               <span className='block truncate font-medium'>{email}</span>
-              {me?.isSystemAdmin && <span className='block text-muted-foreground text-xs'>Quản trị hệ thống</span>}
+              {me?.isSystemAdmin && <span className='block text-muted-foreground text-xs'>{t.systemAdmin}</span>}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={signOut}>
               <LogOutIcon />
-              Đăng xuất
+              {t.signOut}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -308,12 +270,12 @@ const AppSidebar = () => {
   return (
     <Sidebar collapsible='icon'>
       <SidebarHeader className='gap-3'>
-        <UniversityLogo />
+        <SidebarMark />
         <UnitSwitcher />
       </SidebarHeader>
       <SidebarContent>
-        {unit && <NavGroup items={unitNav} label='Đơn vị' />}
-        {me?.isSystemAdmin && <NavGroup items={SYSTEM_NAV} label='Toàn hệ thống' />}
+        {unit && <NavGroup items={unitNav} label={t.unitSection} />}
+        {me?.isSystemAdmin && <NavGroup items={SYSTEM_NAV} label={t.systemSection} />}
       </SidebarContent>
       <SidebarFooter>
         <AccountMenu />

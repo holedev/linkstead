@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { ErrorText, TrialPrintWarning } from "@/components/app";
+import { ErrorText } from "@/components/app";
 import {
   DEFAULT_QR_STYLE,
   MAX_LOGO_SCALE,
@@ -9,16 +9,19 @@ import {
   type QrStyle
 } from "../../domain/qr-style";
 import { api, type Link, type LogoChoice } from "../api";
+import { text } from "../i18n";
 import { messageOf } from "../messages";
 import { LogoUpload, QrPicture, useQr } from "../qr";
 
+const t = text().qrPanel;
+
 const CHOICES: { value: LogoChoice; label: string }[] = [
-  { label: "Theo đơn vị (hoặc logo của Trường nếu đơn vị chưa đặt)", value: "inherit" },
-  { label: "Không logo", value: "none" },
-  { label: "Logo riêng cho link này", value: "custom" }
+  { label: t.choiceInherit, value: "inherit" },
+  { label: t.choiceNone, value: "none" },
+  { label: t.choiceOwn, value: "custom" }
 ];
 
-const STYLE_KEY = "ou-link.qr-style";
+const STYLE_KEY = "linkstead.qr-style";
 const SAVE_AFTER_MS = 400;
 
 /** A checkerboard, the usual sign for "nothing here": light for a dark QR, dark for a light one. */
@@ -26,24 +29,14 @@ const checker = (a: string, b: string) => `repeating-conic-gradient(${a} 0% 25%,
 
 /** The looks offered, in the order offered, with what the person needs to know before printing. */
 const LOOKS: { style: QrStyle; label: string; note?: string; backdrop: string }[] = [
-  { backdrop: "#fff", label: "Đen trên trắng", style: "dark-on-light" },
-  {
-    backdrop: "#fff",
-    label: "Trắng trên đen",
-    note: "Một số ứng dụng quét cũ không đọc được QR màu đảo. Hãy quét thử bằng vài điện thoại trước khi in.",
-    style: "light-on-dark"
-  },
-  { backdrop: "#fff", label: "Xanh đậm trên trắng", style: "blue-on-light" },
-  {
-    backdrop: checker("#fff", "#e5e7eb"),
-    label: "Đen, không nền",
-    note: "Không có nền: QR lấy màu của chỗ nó được đặt lên, nên chỉ đặt lên nền sáng.",
-    style: "dark-on-clear"
-  },
+  { backdrop: "#fff", label: t.lookDark, style: "dark-on-light" },
+  { backdrop: "#fff", label: t.lookLight, note: t.lookLightNote, style: "light-on-dark" },
+  { backdrop: "#fff", label: t.lookBlue, style: "blue-on-light" },
+  { backdrop: checker("#fff", "#e5e7eb"), label: t.lookDarkClear, note: t.lookDarkClearNote, style: "dark-on-clear" },
   {
     backdrop: checker("#111827", "#374151"),
-    label: "Trắng, không nền",
-    note: "Không có nền: chỉ đặt lên nền thật tối như đen hoặc xanh than. Trên nền màu vừa, QR dễ quét không được.",
+    label: t.lookLightClear,
+    note: t.lookLightClearNote,
     style: "light-on-clear"
   }
 ];
@@ -112,8 +105,8 @@ const ShapeIcon = ({ shape }: { shape: QrShape }) => {
 };
 
 const SHAPES: { shape: QrShape; label: string; hint: string }[] = [
-  { hint: "Ô vuông, như mọi QR.", label: "Vuông", shape: "square" },
-  { hint: "Chấm tròn, góc bo tròn.", label: "Chấm tròn", shape: "dots" }
+  { hint: t.shapeSquareHint, label: t.shapeSquare, shape: "square" },
+  { hint: t.shapeDotsHint, label: t.shapeDots, shape: "dots" }
 ];
 
 /** One group of settings, framed and named. */
@@ -179,7 +172,6 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
 
   return (
     <div className='space-y-4'>
-      <TrialPrintWarning />
       <div className='grid gap-5 lg:grid-cols-[auto_1fr]'>
         {/* The picture stays in view while the settings beside it scroll. */}
         <div className='space-y-3 lg:sticky lg:top-0 lg:self-start'>
@@ -190,15 +182,15 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
             source={source}
           />
           <p className='max-w-80 text-muted-foreground text-sm sm:max-w-72'>
-            QR chứa địa chỉ <span className='break-all'>{link.url}</span>, không chứa đích - nên đổi đích sau khi in vẫn
-            dùng được QR này.
+            {t.carries} <span className='break-all'>{link.url}</span>
+            {t.carriesAfter}
           </p>
         </div>
 
         <div className='min-w-0 space-y-4'>
-          <Panel title='Logo'>
+          <Panel title={t.logo}>
             <fieldset className='space-y-1' disabled={busy}>
-              <legend className='sr-only'>Logo ở giữa QR</legend>
+              <legend className='sr-only'>{t.logoLegend}</legend>
               {CHOICES.map((choice) => (
                 <label className='flex min-h-11 items-center gap-2 text-sm md:min-h-9' key={choice.value}>
                   <input
@@ -220,7 +212,7 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
             </fieldset>
             <LogoUpload
               disabled={busy}
-              label={link.logoChoice === "custom" ? "Đổi logo riêng" : "Tải lên logo riêng"}
+              label={link.logoChoice === "custom" ? t.changeOwnLogo : t.uploadOwnLogo}
               onFile={upload}
             />
             <div className='space-y-1 border-t pt-3'>
@@ -228,7 +220,7 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
                 className='flex items-center justify-between gap-2 font-medium text-sm'
                 htmlFor={`scale-${link.code}`}
               >
-                Kích cỡ logo trong khung
+                {t.scale}
                 <span className='font-normal text-muted-foreground tabular-nums'>{scale}%</span>
               </label>
               <input
@@ -242,19 +234,14 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
                 type='range'
                 value={scale}
               />
-              <p className='text-muted-foreground text-xs'>
-                100% là logo lấp đầy khung. Khung giữ nguyên ở mọi cỡ, nên QR vẫn quét được như nhau.
-              </p>
+              <p className='text-muted-foreground text-xs'>{t.scaleHint}</p>
             </div>
-            <p className='text-muted-foreground text-xs'>
-              Ảnh PNG hoặc JPEG. Viền trắng hoặc trong suốt quanh logo được tự cắt bỏ để logo lấp đầy khung. Khung logo
-              ở giữa, trên nền trắng, có kích thước cố định để QR luôn quét được.
-            </p>
+            <p className='text-muted-foreground text-xs'>{t.logoHint}</p>
           </Panel>
 
-          <Panel title='Hình dạng'>
+          <Panel title={t.shape}>
             <fieldset className='grid grid-cols-2 gap-2' disabled={busy}>
-              <legend className='sr-only'>Hình dạng của QR</legend>
+              <legend className='sr-only'>{t.shapeLegend}</legend>
               {SHAPES.map((option) => (
                 <label
                   className='flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm has-checked:border-primary has-checked:bg-primary/5'
@@ -275,14 +262,12 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
                 </label>
               ))}
             </fieldset>
-            <p className='text-muted-foreground text-xs'>
-              Lưu cùng link: mọi lần tải sau đều ra cùng một hình. Cả hai đều quét được như nhau.
-            </p>
+            <p className='text-muted-foreground text-xs'>{t.shapeNote}</p>
           </Panel>
 
-          <Panel title='Màu'>
+          <Panel title={t.color}>
             <fieldset>
-              <legend className='sr-only'>Màu của QR</legend>
+              <legend className='sr-only'>{t.colorLegend}</legend>
               <div className='grid grid-cols-1 gap-x-3 sm:grid-cols-2'>
                 {LOOKS.map((option) => (
                   <label className='flex min-h-11 items-center gap-2 text-sm md:min-h-9' key={option.style}>
@@ -299,9 +284,7 @@ const QrPanel = ({ link, onChanged }: { link: Link; onChanged: (link: Link) => v
               </div>
             </fieldset>
             {look?.note && <p className='rounded-md bg-amber-50 px-3 py-2 text-amber-900 text-xs'>{look.note}</p>}
-            <p className='text-muted-foreground text-xs'>
-              Màu chỉ áp dụng cho lần tải này, không lưu vào link. Logo luôn nằm trên nền trắng.
-            </p>
+            <p className='text-muted-foreground text-xs'>{t.colorNote}</p>
           </Panel>
 
           <ErrorText>{actionError || error}</ErrorText>

@@ -30,8 +30,8 @@ describe("checkSettings", () => {
   });
 
   it("takes a colour only when white text on it stays readable", () => {
-    expect(checkSettings({ brandColor: "#114FA0" }, DEFAULT_SETTINGS)).toEqual({
-      settings: { ...DEFAULT_SETTINGS, brandColor: "#114fa0" }
+    expect(checkSettings({ brandColor: "#1D4ED8" }, DEFAULT_SETTINGS)).toEqual({
+      settings: { ...DEFAULT_SETTINGS, brandColor: "#1d4ed8" }
     });
     expect(checkSettings({ brandColor: "#ffd700" }, DEFAULT_SETTINGS)).toEqual({ problem: "bad-brand-color" });
     expect(checkSettings({ brandColor: "blue" }, DEFAULT_SETTINGS)).toEqual({ problem: "bad-brand-color" });

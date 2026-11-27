@@ -26,7 +26,7 @@ const withLink = async () => {
 const visits = async () => (await h.db.prepare("SELECT count(*) AS n FROM daily_visits").first<{ n: number }>())?.n;
 
 describe("a Link pasted into a chat or a post", () => {
-  it("shows the Đích's own title, description and image, and is not counted", async () => {
+  it("shows the Target's own title, description and image, and is not counted", async () => {
     await withLink();
     h.pages.set(TARGET, TARGET_PAGE);
     const response = await h.client().get("/cfp-2027", { headers: FACEBOOK });
@@ -38,12 +38,12 @@ describe("a Link pasted into a chat or a post", () => {
     expect(page).toContain('<meta property="og:description" content="Hạn nộp 30/6/2027">');
     expect(page).toContain('<meta property="og:image" content="https://journalofscience.example.org/bia.jpg">');
     expect(page).toContain('<meta property="og:url" content="https://go.test/cfp-2027">');
-    // The Tên link is the Đơn vị's own note, never shown to the world.
+    // The Link Name is the Unit's own note, never shown to the world.
     expect(page).not.toContain("Poster sảnh A");
     expect(await visits()).toBe(0);
   });
 
-  it("follows the new Đích as soon as it is changed", async () => {
+  it("follows the new Target as soon as it is changed", async () => {
     const admin = await withLink();
     const NEW = "https://journalofscience.example.org/so-moi";
     h.pages.set(TARGET, TARGET_PAGE);
@@ -62,7 +62,7 @@ describe("a Link pasted into a chat or a post", () => {
     expect(page).not.toContain("Kêu gọi bài viết 2027");
   });
 
-  it("drops a preview set by hand when the Đích changes, if asked to", async () => {
+  it("drops a preview set by hand when the Target changes, if asked to", async () => {
     const admin = await withLink();
     const NEW = "https://journalofscience.example.org/so-moi";
     h.pages.set(NEW, '<meta property="og:title" content="Số mới">');
@@ -102,7 +102,7 @@ describe("a Link pasted into a chat or a post", () => {
     expect(busted.headers.get("location")).toBe(TARGET);
   });
 
-  it("uses what the Link sets itself, part by part, over the Đích's", async () => {
+  it("uses what the Link sets itself, part by part, over the Target's", async () => {
     const admin = await withLink();
     h.pages.set(TARGET, TARGET_PAGE);
     const set = await admin.put("/api/links/cfp-2027/preview", {
@@ -120,13 +120,13 @@ describe("a Link pasted into a chat or a post", () => {
     expect(page).toContain('<meta property="og:image" content="https://example.org/poster.png">');
   });
 
-  it("falls back to the Đích's host when its page cannot be read and nothing was set", async () => {
+  it("falls back to the Target's host when its page cannot be read and nothing was set", async () => {
     await withLink();
     const page = await (await h.client().get("/cfp-2027", { headers: FACEBOOK })).text();
     expect(page).toContain('<meta property="og:title" content="journalofscience.example.org">');
   });
 
-  it("shows the notice, not a preview, for a Link bị tắt or one that does not exist", async () => {
+  it("shows the notice, not a preview, for a Disabled Link or one that does not exist", async () => {
     const admin = await withLink();
     await admin.post("/api/links/cfp-2027/disable");
     expect((await h.client().get("/cfp-2027", { headers: FACEBOOK })).status).toBe(404);
@@ -135,7 +135,7 @@ describe("a Link pasted into a chat or a post", () => {
 });
 
 describe("setting a Link's preview", () => {
-  it("shows a member what the Đích says and what the Link sets", async () => {
+  it("shows a member what the Target says and what the Link sets", async () => {
     const admin = await withLink();
     h.pages.set(TARGET, TARGET_PAGE);
     expect(await (await admin.get("/api/links/cfp-2027/preview")).json()).toEqual({
@@ -163,7 +163,7 @@ describe("setting a Link's preview", () => {
     });
   });
 
-  it("is for the Đơn vị's own members: not another's, not a Khóa API", async () => {
+  it("is for the Unit's own members: not another's, not an API Key", async () => {
     const admin = await withLink();
     const added = await admin.post("/api/units/2/members", { email: "khac@example.org" });
     const other = h.client();

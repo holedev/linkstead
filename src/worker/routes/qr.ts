@@ -69,7 +69,7 @@ const readLogo = async (c: AppContext, logos: LogoFiles | undefined): Promise<Ui
 
 const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
   /**
-   * A Link's choice of logo without a file: `choice` (the Đơn vị's, or none) and/or `scale`, how
+   * A Link's choice of logo without a file: `choice` (the Unit's, or none) and/or `scale`, how
    * much of the logo box it fills. Giving up a file of its own removes the file.
    */
   const setLogoChoice = async (c: AppContext, link: LinkRecord) => {
@@ -111,7 +111,7 @@ const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
   };
 
   /**
-   * A Link's QR. It carries the Link's own address and never the Đích, so the Đích can change.
+   * A Link's QR. It carries the Link's own address and never the Target, so the Target can change.
    * `?style=` picks one of the fixed looks in `domain/qr-style.ts`; none means black on white.
    */
   app.get("/api/links/:code/qr", async (c) => {
@@ -171,8 +171,8 @@ const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
     return c.json({ logoChoice: "custom", logoScale: link.logoScale });
   });
 
-  // ── A Đơn vị's default ────────────────────────────────────────────────────
-  /** Which logo the Đơn vị's QR show by default, and a sample QR to see it on. */
+  // ── A Unit's default ────────────────────────────────────────────────────
+  /** Which logo the Unit's QR show by default, and a sample QR to see it on. */
   app.get("/api/units/:unitId/qr-logo", async (c) => {
     const managed = await managedUnit(c, store);
     if (managed instanceof Response) {

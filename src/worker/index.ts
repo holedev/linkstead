@@ -12,7 +12,7 @@ type Env = {
   /** A secret (`wrangler secret put BOOTSTRAP_TOKEN`). Only needed until the first administrator exists. */
   BOOTSTRAP_TOKEN?: string;
   /**
-   * A Google Safe Browsing key (`wrangler secret put SAFE_BROWSING_KEY`). Without it no Đích is
+   * A Google Safe Browsing key (`wrangler secret put SAFE_BROWSING_KEY`). Without it no Target is
    * looked up, on its way in or in the daily check.
    */
   SAFE_BROWSING_KEY?: string;
@@ -79,7 +79,7 @@ export default {
     return app.fetch(request);
   },
 
-  /** The daily check of every Đích (`triggers.crons` in `wrangler.jsonc`). */
+  /** The daily check of every Target (`triggers.crons` in `wrangler.jsonc`). */
   scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): void {
     if (env.SAFE_BROWSING_KEY) {
       ctx.waitUntil(recheckTargets(createD1Store(env.DB), googleSafeBrowsing(env.SAFE_BROWSING_KEY), new Date()));

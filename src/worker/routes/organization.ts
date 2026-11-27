@@ -26,7 +26,7 @@ const presentOrganization = (organization: OrganizationRecord) => ({
 
 /**
  * The Organization an installation serves (ADR-0007): read by anyone, set by a System
- * Administrator in the UI and never through a Khóa API.
+ * Administrator in the UI and never through an API Key.
  */
 const registerOrganizationRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new Date() }: AppDeps) => {
   app.get("/api/organization", async (c) => c.json(presentOrganization(await store.getOrganization())));

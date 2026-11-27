@@ -10,7 +10,7 @@ beforeEach(() => h.reset());
 
 const PASSWORD = "mat-khau-du-dai";
 
-/** Adds a member to a Đơn vị and signs them in. */
+/** Adds a member to a Unit and signs them in. */
 const join = async (
   admin: Awaited<ReturnType<typeof h.signedInAdmin>>,
   email: string,
@@ -25,8 +25,8 @@ const join = async (
   return browser;
 };
 
-describe("adding a Thành viên", () => {
-  it("creates the Tài khoản and returns a one-time link to pass on", async () => {
+describe("adding a Member", () => {
+  it("creates the Account and returns a one-time link to pass on", async () => {
     const admin = await h.signedInAdmin();
     const added = await admin.post("/api/units/1/members", { email: "Dong.Nghiep@example.org" });
     const body = (await added.json()) as { email: string; role: string; setupUrl: string };
@@ -42,7 +42,7 @@ describe("adding a Thành viên", () => {
     ]);
   });
 
-  it("adds someone who already has a password to a second Đơn vị without a new link", async () => {
+  it("adds someone who already has a password to a second Unit without a new link", async () => {
     const admin = await h.signedInAdmin();
     await join(admin, "hai-noi@example.org", 1);
 
@@ -64,14 +64,14 @@ describe("adding a Thành viên", () => {
     expect(text).not.toContain("pbkdf2");
   });
 
-  it("refuses an address outside the university, and a member added twice", async () => {
+  it("refuses an address outside the Organization, and a member added twice", async () => {
     const admin = await h.signedInAdmin();
     expect((await admin.post("/api/units/1/members", { email: "ai-do@gmail.com" })).status).toBe(422);
     await admin.post("/api/units/1/members", { email: "mot-lan@example.org" });
     expect((await admin.post("/api/units/1/members", { email: "mot-lan@example.org" })).status).toBe(409);
   });
 
-  it("is for a Quản lý đơn vị of that Đơn vị only", async () => {
+  it("is for a Unit Manager of that Unit only", async () => {
     const admin = await h.signedInAdmin();
     const member = await join(admin, "thanh-vien@example.org", 1);
     const manager = await join(admin, "quan-ly@example.org", 1, "manager");
@@ -79,7 +79,7 @@ describe("adding a Thành viên", () => {
     expect((await h.client().post("/api/units/1/members", { email: "x@example.org" })).status).toBe(401);
     expect((await member.post("/api/units/1/members", { email: "x@example.org" })).status).toBe(403);
     expect((await manager.post("/api/units/1/members", { email: "x@example.org" })).status).toBe(201);
-    // Managing one Đơn vị says nothing about another.
+    // Managing one Unit says nothing about another.
     expect((await manager.post("/api/units/2/members", { email: "y@example.org" })).status).toBe(403);
     expect((await manager.post("/api/units/99/members", { email: "y@example.org" })).status).toBe(404);
   });
@@ -98,10 +98,10 @@ describe("adding a Thành viên", () => {
   });
 });
 
-describe("Khóa API", () => {
+describe("API Key", () => {
   const LINK = { name: "Thử", target: "https://example.org/" };
 
-  it("is shown once, works for its Đơn vị, and stops working when revoked", async () => {
+  it("is shown once, works for its Unit, and stops working when revoked", async () => {
     const admin = await h.signedInAdmin();
     const issued = await admin.post("/api/units/1/keys", { name: "CRM Tạp chí" });
     const { id, key } = (await issued.json()) as { id: number; key: string };

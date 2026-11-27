@@ -1,37 +1,54 @@
 import { FolderIcon, ShieldAlertIcon } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
-import { Badge, Button, ConfirmDialog, ErrorText, Field, formatDate, formatDateTime, Modal } from "@/components/app";
+import {
+  Badge,
+  Button,
+  ConfirmDialog,
+  ErrorText,
+  Field,
+  formatDate,
+  formatDateTime,
+  formatNumber,
+  Modal
+} from "@/components/app";
 import { cn } from "@/lib/utils";
 import { checkTarget } from "../../domain/target";
+import { dayIn } from "../../domain/time-zone";
 import { api, type HistoryEntry, type Link, type LinkGroup, type Visits } from "../api";
+import { text } from "../i18n";
 import { messageOf } from "../messages";
+import { organization } from "../organization";
 import { useSession } from "../session";
-import { formatVietnam, isPast } from "./access-form";
+import { isPast } from "./access-form";
 import { VisitSources } from "./visit-sources";
 
 /**
  * The parts of a Link that both its row in the list and its own page use: its badges, what a
- * visitor meets instead of the Đích, and the forms and panels that change or read it.
+ * visitor meets instead of the Target, and the forms and panels that change or read it.
  */
 
 const RECENT_DAYS = 30;
-const number = new Intl.NumberFormat("vi-VN");
+const t = text().linkForms;
+const { common } = text();
+
+/** Numbers as the Organization's language writes them. */
+const number = { format: formatNumber };
 
 /** `2027-03-01` as `01/03/2027`, without a trip through a time zone. */
 const formatDay = (day: string): string => day.split("-").reverse().join("/");
 
 const authorOf = (by: HistoryEntry["by"]): string => {
   if (!by) {
-    return "không rõ";
+    return t.byUnknown;
   }
-  return by.kind === "account" ? by.email : `khóa API "${by.name}"`;
+  return by.kind === "account" ? by.email : t.byKey(by.name);
 };
 
 const statusText = (entry: Extract<HistoryEntry, { kind: "status" }>): string => {
   if (entry.enabled) {
-    return "Bật link";
+    return t.statusOn;
   }
-  return entry.bySystem ? "Tắt link (với tư cách Quản trị hệ thống)" : "Tắt link";
+  return entry.bySystem ? t.statusOffBySystem : t.statusOff;
 };
 
 /** Loads once when its panel opens; `stamp` changes when the Link does, which loads it again. */
@@ -71,7 +88,7 @@ const EntryText = ({ entry }: { entry: HistoryEntry }) => {
   if (entry.kind === "target") {
     return (
       <p className='break-all'>
-        Đổi đích từ <span className='text-muted-foreground line-through'>{entry.oldTarget}</span> sang{" "}
+        {t.entryTargetFrom} <span className='text-muted-foreground line-through'>{entry.oldTarget}</span> {t.entryTo}{" "}
         <span className='font-medium'>{entry.newTarget}</span>
       </p>
     );
@@ -79,12 +96,12 @@ const EntryText = ({ entry }: { entry: HistoryEntry }) => {
   if (entry.kind === "unit") {
     return (
       <p className='break-words'>
-        Chuyển link từ {entry.oldUnitName} sang <span className='font-medium'>{entry.newUnitName}</span>
+        {t.entryMovedFrom} {entry.oldUnitName} {t.entryTo} <span className='font-medium'>{entry.newUnitName}</span>
       </p>
     );
   }
   if (entry.kind === "deleted") {
-    return <p className='font-medium text-destructive'>Xóa link</p>;
+    return <p className='font-medium text-destructive'>{t.entryDeleted}</p>;
   }
   return <p>{statusText(entry)}</p>;
 };
@@ -92,7 +109,7 @@ const EntryText = ({ entry }: { entry: HistoryEntry }) => {
 /** A Link's changes, newest first: when, who, what. */
 const HistoryList = ({ entries, createdAt }: { entries: HistoryEntry[]; createdAt: string }) =>
   entries.length === 0 ? (
-    <p className='mt-2 text-muted-foreground text-sm'>Chưa có thay đổi nào từ khi tạo ngày {formatDate(createdAt)}.</p>
+    <p className='mt-2 text-muted-foreground text-sm'>{t.noChanges(formatDate(createdAt))}</p>
   ) : (
     <ol className='mt-2 space-y-3'>
       {entries.map((entry) => (
@@ -114,17 +131,14 @@ const HistoryPanel = ({ link }: { link: Link }) => {
   return (
     <div>
       <ErrorText>{error}</ErrorText>
-      {!(data || error) && <p className='mt-2 text-muted-foreground text-sm'>Đang tải...</p>}
+      {!(data || error) && <p className='mt-2 text-muted-foreground text-sm'>{common.loading}</p>}
       {data && <HistoryList createdAt={link.createdAt} entries={data} />}
     </div>
   );
 };
 
-/** Formats a moment as `2027-03-01`, the day it is where the university is. */
-const VIETNAM_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
-
-/** Today's date where the university is: Lượt mở are counted by Vietnamese day. */
-const vietnamToday = (): string => VIETNAM_DAY.format(new Date());
+/** Today's date on the Organization's calendar, which Visits are counted by. */
+const organizationToday = (): string => dayIn(new Date(), organization().timeZone);
 
 /** The `count` days up to and including `last`, oldest first, as `2027-03-01`. */
 const daysUpTo = (last: string, count: number): string[] => {
@@ -135,12 +149,12 @@ const daysUpTo = (last: string, count: number): string[] => {
 };
 
 /**
- * Lượt mở of the last 30 days as bars, today the darkest. A day nobody opened the Link is an empty
+ * Visits of the last 30 days as bars, today the darkest. A day nobody opened the Link is an empty
  * slot, not a missing one, so the gaps show. The exact figures are in the list below it.
  */
 const VisitsChart = ({ days }: { days: Visits["days"] }) => {
   const counts = new Map(days.map((day) => [day.day, day.count]));
-  const shown = daysUpTo(vietnamToday(), RECENT_DAYS).map((day) => ({ count: counts.get(day) ?? 0, day }));
+  const shown = daysUpTo(organizationToday(), RECENT_DAYS).map((day) => ({ count: counts.get(day) ?? 0, day }));
   const peak = Math.max(1, ...shown.map((day) => day.count));
   const total = shown.reduce((sum, day) => sum + day.count, 0);
   const first = shown[0]?.day ?? "";
@@ -149,7 +163,7 @@ const VisitsChart = ({ days }: { days: Visits["days"] }) => {
   return (
     <figure className='space-y-1.5'>
       <div
-        aria-label={`Khoảng ${number.format(total)} lượt mở trong ${RECENT_DAYS} ngày, nhiều nhất ${number.format(peak)} một ngày`}
+        aria-label={t.visitsChart(number.format(total), RECENT_DAYS, number.format(peak))}
         className='flex h-32 items-end gap-0.5 border-b'
         role='img'
       >
@@ -162,13 +176,13 @@ const VisitsChart = ({ days }: { days: Visits["days"] }) => {
             )}
             key={day.day}
             style={{ height: `${Math.max(day.count ? 3 : 0, (day.count / peak) * 100)}%` }}
-            title={`${formatDay(day.day)}: ${number.format(day.count)} lượt mở`}
+            title={`${formatDay(day.day)}: ${t.visitCount(number.format(day.count))}`}
           />
         ))}
       </div>
       <figcaption className='flex justify-between text-muted-foreground text-xs tabular-nums'>
         <span>{formatDay(first)}</span>
-        <span>{total ? `Cao nhất ${number.format(peak)}/ngày` : "Chưa có lượt mở nào"}</span>
+        <span>{total ? t.peakPerDay(number.format(peak)) : t.noVisits}</span>
         <span>{formatDay(last)}</span>
       </figcaption>
     </figure>
@@ -182,15 +196,12 @@ const VisitsPanel = ({ link }: { link: Link }) => {
 
   return (
     <div>
-      <p className='text-muted-foreground text-xs'>
-        Con số ước tính: mỗi lần mở link được đếm một lượt, không phải số người. Lượt mở do Zalo, Facebook tự tạo để
-        hiện bản xem trước được bỏ qua khi nhận ra được.
-      </p>
+      <p className='text-muted-foreground text-xs'>{t.visitsEstimate}</p>
       <ErrorText>{error}</ErrorText>
-      {!(data || error) && <p className='mt-2 text-muted-foreground text-sm'>Đang tải...</p>}
+      {!(data || error) && <p className='mt-2 text-muted-foreground text-sm'>{common.loading}</p>}
       {data && (
         <p className='mt-2 text-sm'>
-          Tổng cộng khoảng <strong>{number.format(data.total)}</strong> lượt mở.
+          {t.totalAbout} <strong>{number.format(data.total)}</strong> {t.totalVisits}
         </p>
       )}
       {data && (
@@ -199,14 +210,14 @@ const VisitsPanel = ({ link }: { link: Link }) => {
         </div>
       )}
       {data && data.days.length > RECENT_DAYS && (
-        <p className='mt-1 text-muted-foreground text-xs'>Dưới đây là {RECENT_DAYS} ngày gần nhất có lượt mở.</p>
+        <p className='mt-1 text-muted-foreground text-xs'>{t.recentDays(RECENT_DAYS)}</p>
       )}
       {recent.length > 0 && (
         <table className='mt-2 w-full text-sm'>
           <thead className='sr-only'>
             <tr>
-              <th>Ngày</th>
-              <th>Lượt mở</th>
+              <th>{t.day}</th>
+              <th>{t.visits}</th>
             </tr>
           </thead>
           <tbody>
@@ -238,7 +249,7 @@ const VisitsPanel = ({ link }: { link: Link }) => {
 };
 
 /**
- * Rewords the Tên link and its note. Mounted when its panel opens, so it always starts from the
+ * Rewords the Link Name and its note. Mounted when its panel opens, so it always starts from the
  * Link as it is now. No confirmation: nothing a visitor sees changes, and it can be reworded again.
  */
 const DetailsForm = ({
@@ -270,12 +281,12 @@ const DetailsForm = ({
 
   return (
     <form className='space-y-4' onSubmit={save}>
-      <Field hint='Chỉ người trong đơn vị thấy. Mã link và địa chỉ link không đổi.' label='Tên link'>
+      <Field hint={t.nameHint} label={t.name}>
         {(props) => (
           <input {...props} maxLength={200} onChange={(event) => setName(event.target.value)} required value={name} />
         )}
       </Field>
-      <Field label='Ghi chú (không bắt buộc)'>
+      <Field label={t.note}>
         {(props) => (
           <textarea
             {...props}
@@ -288,9 +299,9 @@ const DetailsForm = ({
       </Field>
       <ErrorText>{error}</ErrorText>
       <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-        <Button onClick={onDone}>Hủy</Button>
+        <Button onClick={onDone}>{common.cancel}</Button>
         <Button disabled={busy} type='submit' variant='primary'>
-          {busy ? "Đang lưu..." : "Lưu"}
+          {busy ? common.saving : common.save}
         </Button>
       </div>
     </form>
@@ -298,7 +309,7 @@ const DetailsForm = ({
 };
 
 /**
- * Changes the Đích in two steps: type the new one, then confirm it beside the old one. The second
+ * Changes the Target in two steps: type the new one, then confirm it beside the old one. The second
  * step is the confirmation the rule asks for - the write happens only from its button.
  */
 const TargetForm = ({
@@ -312,7 +323,7 @@ const TargetForm = ({
 }) => {
   const [draft, setDraft] = useState("");
   const [reviewing, setReviewing] = useState(false);
-  // A preview set by hand describes the old Đích; dropping it is the usual wish, so it is the default.
+  // A preview set by hand describes the old Target; dropping it is the usual wish, so it is the default.
   const hasOwnPreview = Boolean(link.preview.title || link.preview.description || link.preview.image);
   const [resetPreview, setResetPreview] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -342,14 +353,14 @@ const TargetForm = ({
   if (reviewing) {
     return (
       <div className='space-y-4 text-sm'>
-        <p className='text-muted-foreground'>Người mở {link.url} sẽ được chuyển tới đích mới ngay sau khi đổi.</p>
+        <p className='text-muted-foreground'>{t.sentOn(link.url)}</p>
         <dl className='space-y-3 rounded-lg border bg-muted/50 p-3'>
           <div>
-            <dt className='text-muted-foreground text-xs'>Đích hiện tại</dt>
+            <dt className='text-muted-foreground text-xs'>{t.currentTarget}</dt>
             <dd className='break-all text-muted-foreground line-through'>{link.target}</dd>
           </div>
           <div>
-            <dt className='text-muted-foreground text-xs'>Đích mới</dt>
+            <dt className='text-muted-foreground text-xs'>{t.newTarget}</dt>
             <dd className='break-all font-medium'>{next}</dd>
           </div>
         </dl>
@@ -362,19 +373,19 @@ const TargetForm = ({
               type='checkbox'
             />
             <span>
-              Bỏ phần xem trước đã tự đặt
-              {link.preview.title && <> ("{link.preview.title}")</>}, dùng tiêu đề, mô tả và ảnh của trang đích mới khi
-              dán link vào Zalo, Facebook.
+              {t.resetPreview}
+              {link.preview.title && <> ("{link.preview.title}")</>}
+              {t.resetPreviewAfter}
             </span>
           </label>
         )}
-        <p className='text-muted-foreground'>Thay đổi được ghi vào lịch sử của link cùng email của bạn.</p>
+        <p className='text-muted-foreground'>{t.loggedWithEmail}</p>
         <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
           <Button disabled={busy} onClick={() => setReviewing(false)}>
-            Quay lại
+            {t.back}
           </Button>
           <Button disabled={busy} onClick={change} variant='primary'>
-            {busy ? "Đang đổi..." : "Đổi đích"}
+            {busy ? t.changing : t.changeTarget}
           </Button>
         </div>
       </div>
@@ -384,10 +395,10 @@ const TargetForm = ({
   return (
     <form className='space-y-4' onSubmit={review}>
       <div className='text-sm'>
-        <p className='text-muted-foreground text-xs'>Đích hiện tại</p>
+        <p className='text-muted-foreground text-xs'>{t.currentTarget}</p>
         <p className='break-all'>{link.target}</p>
       </div>
-      <Field hint='Mã link và QR đã in giữ nguyên; chỉ nơi người mở được chuyển tới thay đổi.' label='Đích mới'>
+      <Field hint={t.newTargetHint} label={t.newTarget}>
         {(props) => (
           <input
             {...props}
@@ -402,16 +413,16 @@ const TargetForm = ({
       </Field>
       <ErrorText>{error}</ErrorText>
       <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-        <Button onClick={onDone}>Hủy</Button>
+        <Button onClick={onDone}>{common.cancel}</Button>
         <Button type='submit' variant='primary'>
-          Xem lại
+          {t.review}
         </Button>
       </div>
     </form>
   );
 };
 
-/** Puts the Link in another of its Đơn vị's Nhóm, or in none. Nothing a visitor sees changes. */
+/** Puts the Link in another of its Unit's Groups, or in none. Nothing a visitor sees changes. */
 const GroupForm = ({
   link,
   groups,
@@ -443,9 +454,9 @@ const GroupForm = ({
   if (groups.length === 0) {
     return (
       <div className='space-y-4 text-sm'>
-        <p className='text-muted-foreground'>Đơn vị chưa có nhóm nào. Tạo nhóm bằng nút "Tạo nhóm" ở danh sách link.</p>
+        <p className='text-muted-foreground'>{t.noGroups}</p>
         <div className='flex justify-end'>
-          <Button onClick={onDone}>Đóng</Button>
+          <Button onClick={onDone}>{common.close}</Button>
         </div>
       </div>
     );
@@ -453,14 +464,14 @@ const GroupForm = ({
 
   return (
     <form className='space-y-4' onSubmit={save}>
-      <Field label='Nhóm'>
+      <Field label={t.group}>
         {(props) => (
           <select
             {...props}
             onChange={(event) => setGroupId(event.target.value ? Number(event.target.value) : null)}
             value={groupId ?? ""}
           >
-            <option value=''>Không nhóm</option>
+            <option value=''>{t.noGroupOption}</option>
             {groups.map((group) => (
               <option key={group.id} value={group.id}>
                 {group.name}
@@ -471,16 +482,16 @@ const GroupForm = ({
       </Field>
       <ErrorText>{error}</ErrorText>
       <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-        <Button onClick={onDone}>Hủy</Button>
+        <Button onClick={onDone}>{common.cancel}</Button>
         <Button disabled={busy} type='submit' variant='primary'>
-          {busy ? "Đang lưu..." : "Lưu"}
+          {busy ? common.saving : common.save}
         </Button>
       </div>
     </form>
   );
 };
 
-/** The Nhóm a Link is in, named beside it - or nothing, for a Link in none. */
+/** The Group a Link is in, named beside it - or nothing, for a Link in none. */
 const GroupBadge = ({ groupId, groups }: { groupId: number | null; groups: LinkGroup[] }) => {
   const group = groups.find((candidate) => candidate.id === groupId);
   return group ? (
@@ -493,55 +504,50 @@ const GroupBadge = ({ groupId, groups }: { groupId: number | null; groups: LinkG
 
 const EnabledBadge = ({ link }: { link: Link }) => {
   if (link.enabled) {
-    return <Badge tone='ok'>Đang bật</Badge>;
+    return <Badge tone='ok'>{t.badgeOn}</Badge>;
   }
   return link.disabledBySystem ? (
-    <Badge tone='danger'>Quản trị hệ thống đã tắt</Badge>
+    <Badge tone='danger'>{t.badgeOffBySystem}</Badge>
   ) : (
-    <Badge tone='muted'>Đã tắt</Badge>
+    <Badge tone='muted'>{t.badgeOff}</Badge>
   );
 };
 
 const StatusBadge = ({ link }: { link: Link }) => (
   <>
-    {isPast(link.expiresAt) ? <Badge tone='muted'>Đã hết hạn</Badge> : <EnabledBadge link={link} />}
-    {link.hasPassword && <Badge tone='muted'>Có mật khẩu</Badge>}
-    {link.expiresAt && !isPast(link.expiresAt) && <Badge tone='muted'>Hết hạn {formatVietnam(link.expiresAt)}</Badge>}
-    {link.unsafeSince && <Badge tone='danger'>Đích không an toàn</Badge>}
-    {link.archived && <Badge tone='muted'>Đã lưu trữ</Badge>}
+    {isPast(link.expiresAt) ? <Badge tone='muted'>{t.badgeExpired}</Badge> : <EnabledBadge link={link} />}
+    {link.hasPassword && <Badge tone='muted'>{t.badgePassword}</Badge>}
+    {link.expiresAt && !isPast(link.expiresAt) && (
+      <Badge tone='muted'>{t.badgeExpires(formatDateTime(link.expiresAt))}</Badge>
+    )}
+    {link.unsafeSince && <Badge tone='danger'>{t.badgeUnsafe}</Badge>}
+    {link.archived && <Badge tone='muted'>{t.badgeArchived}</Badge>}
   </>
 );
 
-/** What a visitor meets instead of the Đích, said under the Link where it is not simply sent on. */
+/** What a visitor meets instead of the Target, said under the Link where it is not simply sent on. */
 const LinkNotices = ({ link, lockedBySystem }: { link: Link; lockedBySystem: boolean }) => (
   <>
     {link.unsafeSince && (
       <p className='flex items-start gap-1.5 rounded-md bg-destructive/10 p-2 text-destructive text-xs'>
         <ShieldAlertIcon aria-hidden='true' className='mt-px size-3.5 shrink-0' />
-        <span>
-          Từ {formatDate(link.unsafeSince)}, Google Safe Browsing xếp đích này vào danh sách không an toàn (lừa đảo hoặc
-          mã độc). Người mở link đang gặp trang cảnh báo thay vì được chuyển đi. Hãy kiểm tra trang đích, hoặc đổi sang
-          đích khác.
-        </span>
+        <span>{t.unsafeNotice(formatDate(link.unsafeSince))}</span>
       </p>
     )}
     {link.enabled && link.expiresAt && isPast(link.expiresAt) && (
-      <p className='text-muted-foreground text-xs'>
-        Link đã hết hạn lúc {formatVietnam(link.expiresAt)}; người mở đang thấy trang báo hết hạn. Đặt hạn mới trong
-        "Mật khẩu và hạn dùng" để mở lại.
-      </p>
+      <p className='text-muted-foreground text-xs'>{t.expiredNotice(formatDateTime(link.expiresAt))}</p>
     )}
     {!link.enabled && (
       <p className='text-muted-foreground text-xs'>
-        Người mở link này đang thấy trang thông báo link đã bị tắt.
-        {lockedBySystem && " Link do Quản trị hệ thống tắt nên chỉ Quản trị hệ thống bật lại được."}
+        {t.offNotice}
+        {lockedBySystem && t.offNoticeBySystem}
       </p>
     )}
   </>
 );
 
 /**
- * Deleting, confirmed by typing the Mã link back - the one step here that cannot be undone. The
+ * Deleting, confirmed by typing the Link Code back - the one step here that cannot be undone. The
  * code stays taken for good (ADR-0004), so what is printed never leads anywhere new.
  */
 const DeleteLinkDialog = ({
@@ -574,22 +580,16 @@ const DeleteLinkDialog = ({
   };
 
   return (
-    <Modal description={link.name} onClose={onClose} open={open} title='Xóa link'>
+    <Modal description={link.name} onClose={onClose} open={open} title={t.deleteTitle}>
       <form className='space-y-4 text-sm' onSubmit={remove}>
         <div className='space-y-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3'>
           <p>
-            Người mở <span className='break-all font-mono'>{link.url}</span> - kể cả từ QR đã in - sẽ thấy trang báo
-            liên kết đã bị xóa.
+            {t.opener} <span className='break-all font-mono'>{link.url}</span> {t.deleteVisitors}
           </p>
-          <p>
-            Link biến khỏi danh sách, khỏi số liệu và tệp CSV của đơn vị. Mã <strong>{link.code}</strong> không bao giờ
-            được cấp lại cho link khác. Không hoàn tác được.
-          </p>
-          <p className='text-muted-foreground'>
-            Chỉ muốn link biến khỏi danh sách mà vẫn mở được? Hãy dùng "Lưu trữ". Chỉ muốn tạm ngưng? Hãy "Tắt link".
-          </p>
+          <p>{t.deleteGone(link.code)}</p>
+          <p className='text-muted-foreground'>{t.deleteArchiveHint}</p>
         </div>
-        <Field label={`Gõ lại mã link "${link.code}" để xác nhận`}>
+        <Field label={t.confirmCode(link.code)}>
           {(props) => (
             <input
               {...props}
@@ -603,9 +603,9 @@ const DeleteLinkDialog = ({
         </Field>
         <ErrorText>{error}</ErrorText>
         <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
-          <Button onClick={onClose}>Hủy</Button>
+          <Button onClick={onClose}>{common.cancel}</Button>
           <Button disabled={busy || !matches} type='submit' variant='danger'>
-            {busy ? "Đang xóa..." : "Xóa vĩnh viễn"}
+            {busy ? t.deleting : t.deleteForGood}
           </Button>
         </div>
       </form>
@@ -619,10 +619,10 @@ const useLinkRights = (link: Link) => {
   const isSystemAdmin = me?.isSystemAdmin ?? false;
   const role = me?.units.find((unit) => unit.unitId === link.unitId)?.role;
   return {
-    /** A Quản lý đơn vị of the Link's Đơn vị, or a Quản trị hệ thống. */
+    /** A Unit Manager of the Link's Unit, or a System Administrator. */
     canDelete: isSystemAdmin || role === "manager",
     isSystemAdmin,
-    /** Switched off by a Quản trị hệ thống: only one of them switches it back on. */
+    /** Switched off by a System Administrator: only one of them switches it back on. */
     lockedBySystem: !link.enabled && link.disabledBySystem && !isSystemAdmin
   };
 };
@@ -645,21 +645,14 @@ const DisableLinkDialog = ({
   return (
     <ConfirmDialog
       busy={busy}
-      confirmLabel='Tắt link'
+      confirmLabel={t.disable}
       onCancel={onCancel}
       onConfirm={onConfirm}
       open={open}
-      title={`Tắt link "${link.name}"`}
+      title={t.disableTitle(link.name)}
     >
-      <p>
-        Người mở {link.url} - kể cả từ QR đã in - sẽ thấy trang thông báo link đã bị tắt thay vì được chuyển tới đích.
-        Mã link vẫn được giữ, không cấp cho link khác.
-      </p>
-      <p className='mt-2'>
-        {isSystemAdmin
-          ? "Bạn là Quản trị hệ thống, nên sau khi bạn tắt chỉ Quản trị hệ thống bật lại được link này."
-          : "Thành viên của đơn vị có thể bật lại link bất cứ lúc nào."}
-      </p>
+      <p>{t.disableVisitors(link.url)}</p>
+      <p className='mt-2'>{isSystemAdmin ? t.disableAdmin : t.disableMember}</p>
     </ConfirmDialog>
   );
 };

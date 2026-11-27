@@ -28,7 +28,7 @@ describe("the API's description", () => {
     expect(document.servers).toEqual([{ description: "This installation", url: ORIGIN }]);
   });
 
-  it("describes exactly the six things a Khóa API does, and nothing else", async () => {
+  it("describes exactly the six things an API Key does, and nothing else", async () => {
     const ids = operations(await documentOf())
       .map(({ operation }) => operation.operationId)
       .sort();
@@ -43,7 +43,7 @@ describe("the API's description", () => {
     ]);
   });
 
-  it("names only routes that answer a Khóa API, and the answers it documents", async () => {
+  it("names only routes that answer an API Key, and the answers it documents", async () => {
     const admin = await h.signedInAdmin();
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
     await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: "https://example.org/a", unitId: 1 });

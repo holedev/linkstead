@@ -60,7 +60,7 @@ describe("reading a page's preview", () => {
     expect(readPreview('<meta property="og:image" content="javascript:alert(1)">', PAGE).image).toBe("");
   });
 
-  it("lets each part the Link sets win over the Đích's", () => {
+  it("lets each part the Link sets win over the Target's", () => {
     const fromTarget = { description: "Của trang", image: "https://a.vn/x.jpg", title: "Của trang" };
     expect(mergePreview({ description: "", image: "", title: "Của link" }, fromTarget)).toEqual({
       ...fromTarget,
@@ -74,7 +74,7 @@ describe("reading a page's preview", () => {
   });
 });
 
-describe("which Đích the server may read", () => {
+describe("which Target the server may read", () => {
   it("is a public https name, never an address inside a network", () => {
     expect(isFetchableTarget("https://journalofscience.example.org/cfp")).toBe(true);
     for (const address of [
@@ -99,7 +99,7 @@ describe("the page a preview fetcher gets", () => {
     renderPreviewPage({
       linkUrl: "https://go.test/cfp-2027",
       preview: { description: "Mô tả", image: "https://a.vn/x.jpg", title },
-      siteName: "OU Link",
+      siteName: "Example University",
       target: "https://journalofscience.example.org/cfp?a=1&b=2"
     });
 
@@ -113,7 +113,7 @@ describe("the page a preview fetcher gets", () => {
     expect(page).toContain('content="0;url=https://journalofscience.example.org/cfp?a=1&amp;b=2"');
   });
 
-  it("escapes whatever the Đích's page said, so it cannot add markup of its own", () => {
+  it("escapes whatever the Target's page said, so it cannot add markup of its own", () => {
     const page = render('"><script>alert(1)</script>');
     expect(page).not.toContain("<script>alert");
     expect(page).toContain("&quot;&gt;&lt;script&gt;");
@@ -131,21 +131,21 @@ describe("the page a preview fetcher gets", () => {
     );
   });
 
-  it("cannot be made to close its own script by a crafted Đích", () => {
+  it("cannot be made to close its own script by a crafted Target", () => {
     const page = renderPreviewPage({
       linkUrl: "https://go.test/x",
       preview: { description: "", image: "", title: "" },
-      siteName: "OU Link",
+      siteName: "Example University",
       target: "https://a.vn/</script><script>alert(1)</script>"
     });
     expect(page.match(/<\/script>/g)).toHaveLength(1);
   });
 
-  it("names the Đích's host when nobody gave a title", () => {
+  it("names the Target's host when nobody gave a title", () => {
     const page = renderPreviewPage({
       linkUrl: "https://go.test/x",
       preview: { description: "", image: "", title: "" },
-      siteName: "OU Link",
+      siteName: "Example University",
       target: "https://forms.gle/abc"
     });
     expect(page).toContain('<meta property="og:title" content="forms.gle">');

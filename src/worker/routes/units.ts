@@ -10,8 +10,8 @@ import { issueSetupLink } from "./auth";
 const MAX_NAME = 100;
 
 /**
- * The Đơn vị in the path, if the person asking may manage it: its Quản lý đơn vị, or a Quản trị
- * hệ thống. Never a Khóa API - members and keys are managed by people, in the UI, so that a
+ * The Unit in the path, if the person asking may manage it: its Unit Manager, or a System
+ * Administrator. Never an API Key - members and keys are managed by people, in the UI, so that a
  * leaked key cannot mint itself a successor (AGENTS.md).
  */
 const managedUnit = async (c: AppContext, store: Store): Promise<{ unitId: number; accountId: number } | Response> => {
@@ -39,7 +39,7 @@ const registerUnitRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }
   });
 
   /**
-   * Adds a Thành viên by email. A person the system has not met gets a Tài khoản and a one-time
+   * Adds a Member by email. A person the system has not met gets a Account and a one-time
    * link to set a password; one it already knows is simply added.
    */
   app.post("/api/units/:unitId/members", async (c) => {
@@ -65,8 +65,8 @@ const registerUnitRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }
   });
 
   /**
-   * Changes a member's role or removes them from the Đơn vị. Either is refused when it would leave
-   * the Đơn vị without a Quản lý đơn vị. The Tài khoản itself stays - it may belong elsewhere.
+   * Changes a member's role or removes them from the Unit. Either is refused when it would leave
+   * the Unit without a Unit Manager. The Account itself stays - it may belong elsewhere.
    */
   const changeMembership = async (c: AppContext, role: "manager" | "member" | null) => {
     const unit = await managedUnit(c, store);
@@ -112,7 +112,7 @@ const registerUnitRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }
     return c.json({ email, setupUrl: await issueSetupLink(store, account.id, new URL(c.req.url).origin, now()) }, 201);
   });
 
-  /** The Đơn vị's keys by name. The keys themselves are not kept, so they cannot be listed. */
+  /** The Unit's keys by name. The keys themselves are not kept, so they cannot be listed. */
   app.get("/api/units/:unitId/keys", async (c) => {
     const unit = await managedUnit(c, store);
     if (unit instanceof Response) {
@@ -129,7 +129,7 @@ const registerUnitRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }
     });
   });
 
-  /** Issues a Khóa API. The key itself is in this response and nowhere else, ever again. */
+  /** Issues an API Key. The key itself is in this response and nowhere else, ever again. */
   app.post("/api/units/:unitId/keys", async (c) => {
     const unit = await managedUnit(c, store);
     if (unit instanceof Response) {

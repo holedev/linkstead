@@ -11,8 +11,8 @@ const MAX_NAME = 100;
 const MAX_NOTE = 200;
 
 /**
- * What only a Quản trị hệ thống does: Đơn vị, Mã dành riêng, and reaching a Link of any Đơn vị.
- * Always a signed-in person - none of this is in the API a Khóa API speaks (AGENTS.md).
+ * What only a System Administrator does: Unit, Reserved Code, and reaching a Link of any Unit.
+ * Always a signed-in person - none of this is in the API an API Key speaks (AGENTS.md).
  */
 const systemAdmin = (c: AppContext): { accountId: number } | Response => {
   const actor = c.get("actor");
@@ -28,7 +28,7 @@ const linkInPath = async (c: AppContext, store: Store): Promise<LinkRecord | nul
 };
 
 const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(), checkSafety }: AppDeps) => {
-  // ── Quản trị hệ thống ─────────────────────────────────────────────────────
+  // ── System Administrator ─────────────────────────────────────────────────────
   app.get("/api/admin/admins", async (c) => {
     const admin = systemAdmin(c);
     if (admin instanceof Response) {
@@ -38,8 +38,8 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(),
   });
 
   /**
-   * Makes someone a Quản trị hệ thống, by email. A person the system has not met gets a Tài khoản
-   * and a one-time link to set a password. The role is not membership: it puts them in no Đơn vị.
+   * Makes someone a System Administrator, by email. A person the system has not met gets a Account
+   * and a one-time link to set a password. The role is not membership: it puts them in no Unit.
    */
   app.post("/api/admin/admins", async (c) => {
     const admin = systemAdmin(c);
@@ -61,8 +61,8 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(),
   });
 
   /**
-   * Takes the role away - from anyone, oneself included, but never from the last one. The Tài
-   * khoản and its memberships stay. It takes effect on that person's very next request.
+   * Takes the role away - from anyone, oneself included, but never from the last one. The Account
+   * and its memberships stay. It takes effect on that person's very next request.
    */
   app.delete("/api/admin/admins/:email", async (c) => {
     const admin = systemAdmin(c);
@@ -77,7 +77,7 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(),
     return outcome === "done" ? c.body(null, 204) : c.json({ error: "last-admin" }, 409);
   });
 
-  // ── Đơn vị ────────────────────────────────────────────────────────────────
+  // ── Unit ────────────────────────────────────────────────────────────────
   app.get("/api/admin/units", async (c) => {
     const admin = systemAdmin(c);
     if (admin instanceof Response) {
@@ -86,7 +86,7 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(),
     return c.json({ units: await store.listUnitOverviews() });
   });
 
-  /** Creates a Đơn vị together with its first Quản lý đơn vị - it is never without one. */
+  /** Creates a Unit together with its first Unit Manager - it is never without one. */
   app.post("/api/admin/units", async (c) => {
     const admin = systemAdmin(c);
     if (admin instanceof Response) {
@@ -114,8 +114,8 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(),
   });
 
   /**
-   * Folds a Đơn vị into another - for offices that merge. Its Links keep their addresses, so
-   * nothing printed changes; the other Đơn vị takes them, its members and its Khóa API, and this
+   * Folds a Unit into another - for offices that merge. Its Links keep their addresses, so
+   * nothing printed changes; the other Unit takes them, its members and its API Key, and this
    * one is dissolved. Cannot be undone, which is why the UI asks first.
    */
   app.post("/api/admin/units/:unitId/merge", async (c) => {
@@ -142,7 +142,7 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(),
     return c.json({ from: from.name, into: { id: into.id, name: into.name }, moved });
   });
 
-  /** Dissolves a Đơn vị that owns no Link. One that still does must give its Links away first. */
+  /** Dissolves a Unit that owns no Link. One that still does must give its Links away first. */
   app.delete("/api/admin/units/:unitId", async (c) => {
     const admin = systemAdmin(c);
     if (admin instanceof Response) {
@@ -158,7 +158,7 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(),
     return c.body(null, 204);
   });
 
-  // ── Mã dành riêng ─────────────────────────────────────────────────────────
+  // ── Reserved Code ─────────────────────────────────────────────────────────
   app.get("/api/admin/reserved-codes", async (c) => {
     const admin = systemAdmin(c);
     if (admin instanceof Response) {
@@ -205,10 +205,10 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(),
     return c.body(null, 204);
   });
 
-  // ── Links of any Đơn vị ───────────────────────────────────────────────────
+  // ── Links of any Unit ───────────────────────────────────────────────────
   /**
-   * Creates a Link for a Đơn vị the administrator need not belong to, and may give it a Mã dành
-   * riêng - the one way such a code is handed out.
+   * Creates a Link for a Unit the administrator need not belong to, and may give it a Reserved
+   * Code - the one way such a code is handed out.
    */
   app.post("/api/admin/links", async (c) => {
     const admin = systemAdmin(c);
@@ -223,7 +223,7 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(),
     return createLink(c, { checkSafety, store }, { accountId: admin.accountId, apiKeyId: null, unitId }, body, true);
   });
 
-  /** Looks a Link up by its Mã link, whichever Đơn vị owns it, with its history. */
+  /** Looks a Link up by its Link Code, whichever Unit owns it, with its history. */
   app.get("/api/admin/links/:code", async (c) => {
     const admin = systemAdmin(c);
     if (admin instanceof Response) {
@@ -242,7 +242,7 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(),
     });
   });
 
-  /** Gives a Link to another Đơn vị. Its Mã link, its Đích and its Lượt mở go with it unchanged. */
+  /** Gives a Link to another Unit. Its Link Code, its Target and its Visits go with it unchanged. */
   app.post("/api/admin/links/:code/move", async (c) => {
     const admin = systemAdmin(c);
     if (admin instanceof Response) {

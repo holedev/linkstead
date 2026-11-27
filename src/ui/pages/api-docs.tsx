@@ -1,15 +1,18 @@
 import { ArrowLeftIcon, CircleAlertIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link as RouterLink } from "react-router";
+import { text } from "../i18n";
+import { organization } from "../organization";
 
 /**
- * The API's documentation, for the developer an Đơn vị hands a Khóa API to - who may have no
+ * The API's documentation, for the developer a Unit hands an API Key to - who may have no
  * account, so this page asks for none. Swagger UI is loaded only here: it is larger than the rest
  * of the UI together.
  */
 const ApiDocsPage = () => {
   const mount = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
+  const t = text().apiDocs;
 
   useEffect(() => {
     let current = true;
@@ -42,23 +45,17 @@ const ApiDocsPage = () => {
             to='/'
           >
             <ArrowLeftIcon className='size-4' />
-            OU Link
+            {organization().name}
           </RouterLink>
-          <h1 className='font-semibold'>Tài liệu API</h1>
+          <h1 className='font-semibold'>{t.title}</h1>
         </div>
       </header>
       <div className='mx-auto max-w-5xl space-y-3 px-4 pt-4 text-sm'>
-        <p>
-          Cần một Khóa API do Quản lý đơn vị cấp trong mục <strong>Khóa API</strong>. Bấm <strong>Authorize</strong> và
-          dán khóa vào để thử từng lệnh ngay trên trang này - các lệnh thử là thật, tác động lên link thật của đơn vị.
-        </p>
-        <p className='rounded-md bg-amber-50 px-3 py-2 text-amber-900'>
-          Bản thử nghiệm trên tên miền tạm. <strong>Chưa in QR nào</strong> từ các link này.
-        </p>
+        <p>{t.intro}</p>
         {failed && (
           <p className='flex items-center gap-2 text-destructive'>
             <CircleAlertIcon className='size-4' />
-            Không tải được trang tài liệu. Bản mô tả API vẫn có ở{" "}
+            {t.failed}{" "}
             <a className='underline' href='/api/openapi.json'>
               /api/openapi.json
             </a>

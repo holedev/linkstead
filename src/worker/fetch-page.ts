@@ -1,7 +1,7 @@
 import { isFetchableTarget } from "../domain/preview";
 
 /**
- * Reads a Đích's page so its preview tags can be passed on. Plain `fetch`, which Workers and Node
+ * Reads a Target's page so its preview tags can be passed on. Plain `fetch`, which Workers and Node
  * both have (ADR-0001). Redirects are followed by hand so each hop is checked like the first, the
  * wait is short - a preview fetcher is waiting - and only the start of the page is read, where
  * the tags are.
@@ -59,7 +59,7 @@ const fetchPage = async (start: string): Promise<FetchedPage | null> => {
       return { html: await readStart(response), url };
     }
   } catch {
-    // An unreachable or slow Đích only costs the preview its tags, never the Link anything else.
+    // An unreachable or slow Target only costs the preview its tags, never the Link anything else.
   }
   return null;
 };

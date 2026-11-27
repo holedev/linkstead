@@ -1,5 +1,5 @@
 /**
- * The rules of a Mã link (CONTEXT.md, ADR-0002). Pure, so the UI, the API and the redirect all
+ * The rules of a Link Code (CONTEXT.md, ADR-0002). Pure, so the UI, the API and the redirect all
  * decide the same way.
  */
 
@@ -17,7 +17,7 @@ const CODE_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 const GENERATED_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
 
 /**
- * The system's own paths. Names of faculties and programmes are data a Quản trị hệ thống keeps,
+ * The system's own paths. Names of faculties and programmes are data a System Administrator keeps,
  * not this list - this one is only what the code itself needs never to be shadowed.
  */
 const SYSTEM_RESERVED_CODES: ReadonlySet<string> = new Set([
@@ -38,13 +38,13 @@ type CodeProblem = "too-short" | "too-long" | "bad-characters" | "reserved";
 /** What a visitor typed, in the one spelling the system stores: codes match case-insensitively. */
 const normalizeCode = (raw: string): string => raw.trim().toLowerCase();
 
-/** Whether a string could be a Mã link at all - the redirect asks this before touching the database. */
+/** Whether a string could be a Link Code at all - the redirect asks this before touching the database. */
 const isWellFormedCode = (code: string): boolean =>
   code.length >= MIN_LENGTH && code.length <= MAX_LENGTH && CODE_PATTERN.test(code);
 
 /**
  * Why a code chosen by a person cannot be used, or null when it can. `reserved` is the caller's
- * to extend: pass the Mã dành riêng the administrators keep on top of the system's own.
+ * to extend: pass the Reserved Code the administrators keep on top of the system's own.
  */
 const checkChosenCode = (raw: string, reserved: ReadonlySet<string> = new Set()): CodeProblem | null => {
   const code = normalizeCode(raw);

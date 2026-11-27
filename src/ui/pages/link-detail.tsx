@@ -16,14 +16,15 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { Link as RouterLink, useNavigate, useParams, useSearchParams } from "react-router";
-import { Button, Card, CopyButton, ErrorText, formatDate, Modal } from "@/components/app";
+import { Button, Card, CopyButton, ErrorText, formatDate, formatDateTime, Modal } from "@/components/app";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { api, type Link, type Visits } from "../api";
+import { text } from "../i18n";
 import { messageOf } from "../messages";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
-import { AccessForm, formatVietnam } from "./access-form";
+import { AccessForm } from "./access-form";
 import {
   DeleteLinkDialog,
   DetailsForm,
@@ -42,20 +43,30 @@ import {
 import { PreviewPanel } from "./preview-panel";
 import { QrPanel } from "./qr-panel";
 
-const TABS = { history: "Lịch sử", overview: "Tổng quan", qr: "QR", settings: "Cài đặt", visits: "Lượt mở" } as const;
+const t = text().linkDetail;
+const forms = text().linkForms;
+const row = text().linkRow;
+
+const TABS = {
+  history: t.tabHistory,
+  overview: t.tabOverview,
+  qr: t.tabQr,
+  settings: t.tabSettings,
+  visits: t.tabVisits
+} as const;
 type Tab = keyof typeof TABS;
 const isTab = (value: string | null): value is Tab => value !== null && value in TABS;
 /** The tabs in the order a person reaches for them. */
 const ORDER: Tab[] = ["overview", "qr", "visits", "history", "settings"];
 
-/** The forms that open over the page. `?task=target` in the address opens "Đổi đích" straight away. */
+/** The forms that open over the page. `?task=target` in the address opens "Change Target" straight away. */
 type Task = "target" | "details" | "group" | "access" | "preview" | "disable" | "delete" | null;
 const TASK_TITLE = {
-  access: "Mật khẩu và hạn dùng",
-  details: "Sửa tên, ghi chú",
-  group: "Chuyển nhóm",
-  preview: "Xem trước khi chia sẻ",
-  target: "Đổi đích"
+  access: t.taskAccess,
+  details: t.taskDetails,
+  group: t.taskGroup,
+  preview: t.taskPreview,
+  target: t.taskTarget
 };
 type FormTask = keyof typeof TASK_TITLE;
 const isFormTask = (task: Task): task is FormTask => task !== null && task in TASK_TITLE;
@@ -105,7 +116,7 @@ const Overview = ({
   onTab
 }: {
   link: Link;
-  /** The Nhóm the Link is in, or null for none. */
+  /** The Group the Link is in, or null for none. */
   groupName: string | null;
   qrVersion: number;
   onTask: (task: Task) => void;
@@ -117,7 +128,7 @@ const Overview = ({
   return (
     <div className='grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]'>
       <div className='min-w-0 space-y-4'>
-        <Section lead='In và gửi đi bằng địa chỉ này. Mã link không bao giờ đổi.' title='Địa chỉ'>
+        <Section lead={t.addressLead} title={t.address}>
           <div className='flex flex-wrap items-center gap-2'>
             <span className='min-w-0 flex-1 basis-60 break-all font-medium font-mono text-lg text-primary'>
               {link.url}
@@ -130,7 +141,7 @@ const Overview = ({
               target='_blank'
             >
               <ExternalLinkIcon className='size-4' />
-              Mở
+              {t.open}
             </a>
           </div>
         </Section>
@@ -139,11 +150,11 @@ const Overview = ({
           action={
             <Button onClick={() => onTask("target")}>
               <ArrowRightLeftIcon />
-              Đổi đích
+              {forms.changeTarget}
             </Button>
           }
-          lead='Nơi người mở link được chuyển tới. Đổi được bất cứ lúc nào, kể cả sau khi đã in.'
-          title='Đích'
+          lead={t.targetLead}
+          title={t.target}
         >
           <div className='space-y-2'>
             <a
@@ -160,20 +171,20 @@ const Overview = ({
               onClick={() => onTab("history")}
               type='button'
             >
-              Xem lịch sử thay đổi
+              {t.viewHistory}
             </button>
           </div>
         </Section>
 
         <Section
           action={
-            visits && <span className='font-semibold tabular-nums'>khoảng {number.format(visits.total)} tất cả</span>
+            visits && <span className='font-semibold tabular-nums'>{t.allTime(number.format(visits.total))}</span>
           }
-          lead='Ước tính. Lượt xem trước của Zalo, Facebook được bỏ qua khi nhận ra được.'
-          title='Lượt mở 30 ngày qua'
+          lead={t.visitsLead}
+          title={t.visits30}
         >
           <ErrorText>{error}</ErrorText>
-          {!(visits || error) && <p className='text-muted-foreground text-sm'>Đang tải...</p>}
+          {!(visits || error) && <p className='text-muted-foreground text-sm'>{text().common.loading}</p>}
           {visits && <VisitsChart days={visits.days} />}
         </Section>
       </div>
@@ -181,44 +192,44 @@ const Overview = ({
       <div className='min-w-0 space-y-4'>
         <Card>
           <button
-            aria-label='Mở phần QR để đổi logo hoặc tải về'
+            aria-label={t.openQr}
             className='mx-auto block w-full max-w-56 overflow-hidden rounded-lg border bg-white p-2 outline-none transition hover:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50'
             onClick={() => onTab("qr")}
             type='button'
           >
             <img
-              alt={`QR của link ${link.name}`}
+              alt={t.qrAlt(link.name)}
               className={cn("aspect-square w-full", link.enabled ? "" : "opacity-40")}
               height={224}
               src={`/api/links/${link.code}/qr?v=${qrVersion}`}
               width={224}
             />
           </button>
-          <p className='mt-2 text-center text-muted-foreground text-xs'>QR mang link, không mang đích.</p>
+          <p className='mt-2 text-center text-muted-foreground text-xs'>{t.qrCarries}</p>
           <Button className='mt-3 w-full' onClick={() => onTab("qr")}>
             <QrCodeIcon />
-            QR và logo
+            {row.qrAndLogo}
           </Button>
         </Card>
 
         <Section
           action={
-            <Button aria-label='Sửa tên, ghi chú' className='size-9 px-0 md:size-8' onClick={() => onTask("details")}>
+            <Button aria-label={t.editDetails} className='size-9 px-0 md:size-8' onClick={() => onTask("details")}>
               <PencilIcon />
             </Button>
           }
-          title='Thông tin'
+          title={t.info}
         >
           <dl className='grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm'>
-            <dt className='text-muted-foreground'>Nhóm</dt>
-            <dd>{groupName ?? "Không nhóm"}</dd>
-            <dt className='text-muted-foreground'>Mật khẩu</dt>
-            <dd>{link.hasPassword ? "Có" : "Không"}</dd>
-            <dt className='text-muted-foreground'>Hạn dùng</dt>
-            <dd>{link.expiresAt ? formatVietnam(link.expiresAt) : "Không giới hạn"}</dd>
-            <dt className='text-muted-foreground'>Tạo ngày</dt>
+            <dt className='text-muted-foreground'>{t.group}</dt>
+            <dd>{groupName ?? t.noGroup}</dd>
+            <dt className='text-muted-foreground'>{t.password}</dt>
+            <dd>{link.hasPassword ? t.yes : t.no}</dd>
+            <dt className='text-muted-foreground'>{t.expiry}</dt>
+            <dd>{link.expiresAt ? formatDateTime(link.expiresAt) : t.noLimit}</dd>
+            <dt className='text-muted-foreground'>{t.created}</dt>
             <dd>{formatDate(link.createdAt)}</dd>
-            <dt className='text-muted-foreground'>Ghi chú</dt>
+            <dt className='text-muted-foreground'>{t.note}</dt>
             <dd className='break-words'>{link.note || "-"}</dd>
           </dl>
         </Section>
@@ -247,80 +258,60 @@ const Settings = ({
         action={
           <Button onClick={() => onTask("group")}>
             <FolderInputIcon />
-            Chuyển nhóm
+            {t.taskGroup}
           </Button>
         }
-        lead='Chỉ để sắp xếp trong đơn vị. Địa chỉ link và QR không đổi.'
-        title='Nhóm'
+        lead={t.groupLead}
+        title={t.group}
       />
       <Section
         action={
           <Button onClick={() => onTask("access")}>
             <LockIcon />
-            Đặt mật khẩu, hạn dùng
+            {t.setAccess}
           </Button>
         }
-        lead={
-          <>
-            {link.hasPassword ? "Người mở phải nhập mật khẩu trước. " : "Không có mật khẩu. "}
-            {link.expiresAt ? `Hết hạn lúc ${formatVietnam(link.expiresAt)}.` : "Không giới hạn thời gian."}
-          </>
-        }
-        title='Mật khẩu và hạn dùng'
+        lead={t.accessLead(link.hasPassword, link.expiresAt ? formatDateTime(link.expiresAt) : null)}
+        title={t.taskAccess}
       />
       <Section
         action={
           <Button onClick={() => onTask("preview")}>
             <Share2Icon />
-            Sửa phần xem trước
+            {t.editPreview}
           </Button>
         }
-        lead='Tiêu đề, mô tả và ảnh hiện ra khi dán link vào Zalo, Facebook.'
-        title='Xem trước khi chia sẻ'
+        lead={t.previewLead}
+        title={t.taskPreview}
       />
-      <Section
-        className='border-destructive/30'
-        lead='Người đang cầm bản in sẽ thấy ngay những thay đổi này.'
-        title='Vùng cần cẩn thận'
-      >
-        <DangerRow
-          lead={
-            link.enabled
-              ? "Người mở thấy trang thông báo thay vì được chuyển tới đích. Bật lại được."
-              : "Link đang tắt. Bật lại để người mở được chuyển tới đích như trước."
-          }
-          title={link.enabled ? "Tắt link" : "Bật lại link"}
-        >
+      <Section className='border-destructive/30' lead={t.carefulLead} title={t.carefulTitle}>
+        <DangerRow lead={link.enabled ? t.disableLead : t.disabledLead} title={link.enabled ? row.disable : row.enable}>
           {link.enabled ? (
             <Button disabled={busy} onClick={() => onTask("disable")} variant='danger'>
               <PowerOffIcon />
-              Tắt link
+              {row.disable}
             </Button>
           ) : (
             <Button disabled={busy || lockedBySystem} onClick={onEnable}>
               <PowerIcon />
-              Bật lại link
+              {row.enable}
             </Button>
           )}
         </DangerRow>
         <DangerRow
-          lead={
-            link.archived
-              ? "Link đang được lưu trữ: ẩn khỏi danh sách, vẫn mở bình thường."
-              : "Ẩn khỏi danh sách, link vẫn mở bình thường."
-          }
-          title={link.archived ? "Bỏ lưu trữ" : "Lưu trữ"}
+          lead={link.archived ? t.archivedLead : t.archiveLead}
+          title={link.archived ? row.unarchive : row.archive}
         >
           <Button disabled={busy} onClick={onArchive}>
             {link.archived ? <ArchiveRestoreIcon /> : <ArchiveIcon />}
-            {link.archived ? "Bỏ lưu trữ" : "Lưu trữ"}
+            {link.archived ? row.unarchive : row.archive}
           </Button>
         </DangerRow>
         {canDelete && (
-          <DangerRow lead='Không lấy lại được. Mã link giữ mãi, không cấp cho link khác.' title='Xóa link'>
+          <DangerRow lead={t.deleteLead} title={forms.deleteTitle}>
             <Button disabled={busy} onClick={() => onTask("delete")} variant='danger'>
               <Trash2Icon />
-              Xóa link
+              {forms.deleteTitle}
             </Button>
           </DangerRow>
         )}
@@ -330,9 +321,9 @@ const Settings = ({
 };
 
 /**
- * One Link's own page: what it is and where it leads at the top, then its QR, Lượt mở, history
- * and settings as tabs, the tab kept in the address. It is about the Đơn vị that owns the Link, so
- * opening it switches to that Đơn vị when the account is in it.
+ * One Link's own page: what it is and where it leads at the top, then its QR, Visits, history
+ * and settings as tabs, the tab kept in the address. It is about the Unit that owns the Link, so
+ * opening it switches to that Unit when the account is in it.
  */
 const LinkDetailPage = () => {
   const { code = "" } = useParams();
@@ -374,9 +365,9 @@ const LinkDetailPage = () => {
           to='/'
         >
           <ArrowLeftIcon className='size-4' />
-          Link
+          {text().nav.links}
         </RouterLink>
-        {error ? <ErrorText>{error}</ErrorText> : <p className='text-muted-foreground'>Đang tải...</p>}
+        {error ? <ErrorText>{error}</ErrorText> : <p className='text-muted-foreground'>{text().common.loading}</p>}
       </div>
     );
   }
@@ -398,7 +389,7 @@ const LinkDetailPage = () => {
     <div className='space-y-4'>
       <RouterLink className='inline-flex items-center gap-1.5 text-muted-foreground text-sm hover:text-primary' to='/'>
         <ArrowLeftIcon className='size-4' />
-        Link
+        {text().nav.links}
       </RouterLink>
 
       <div className='flex flex-wrap items-center gap-x-3 gap-y-2'>
@@ -407,10 +398,10 @@ const LinkDetailPage = () => {
           <StatusBadge link={link} />
         </div>
         <div className='flex w-full flex-wrap gap-2 sm:ml-auto sm:w-auto'>
-          <CopyButton label='Sao chép link' value={link.url} />
+          <CopyButton label={t.copyLink} value={link.url} />
           <Button onClick={() => setTab("qr")} variant='primary'>
             <DownloadIcon />
-            Tải QR
+            {t.downloadQr}
           </Button>
         </div>
       </div>
@@ -458,8 +449,8 @@ const LinkDetailPage = () => {
         </TabsContent>
         <TabsContent className='pt-2' value='history'>
           <Card>
-            <h2 className='font-semibold'>Lịch sử thay đổi</h2>
-            <p className='text-muted-foreground text-sm'>Mọi Thành viên của đơn vị đều xem được.</p>
+            <h2 className='font-semibold'>{t.history}</h2>
+            <p className='text-muted-foreground text-sm'>{t.historyLead}</p>
             <HistoryPanel link={link} />
           </Card>
         </TabsContent>

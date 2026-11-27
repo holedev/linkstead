@@ -1,5 +1,5 @@
 /**
- * Finding Links on the Links screen: what was typed, which state, which Nhóm, in what order. Pure,
+ * Finding Links on the Links screen: what was typed, which state, which Group, in what order. Pure,
  * so it is tested without a browser; the screen keeps it in the address, so a filtered view can
  * be bookmarked or sent to a colleague.
  */
@@ -8,8 +8,8 @@
 type Status = "all" | "on" | "off" | "archived";
 type Sort = "new" | "old" | "visits" | "name";
 /**
- * Where on the Links screen: inside one Nhóm, by its id, or at the top - "root" - where the Nhóm
- * show as folders and the Links in none are listed, as the Đơn vị's shared ones.
+ * Where on the Links screen: inside one Group, by its id, or at the top - "root" - where the Group
+ * show as folders and the Links in none are listed, as the Unit's shared ones.
  */
 type GroupFilter = number | "root";
 
@@ -42,7 +42,7 @@ const SPACES = /\s+/;
 const fold = (text: string): string =>
   text.normalize("NFD").replace(MARKS, "").replaceAll("đ", "d").replaceAll("Đ", "d").toLowerCase();
 
-/** Every word typed must appear somewhere in the Link's name, code, Đích or note. */
+/** Every word typed must appear somewhere in the Link's name, code, Target or note. */
 const matchesQuery = (link: Filterable, query: string): boolean => {
   const words = fold(query).split(SPACES).filter(Boolean);
   if (words.length === 0) {
@@ -53,7 +53,7 @@ const matchesQuery = (link: Filterable, query: string): boolean => {
 };
 
 /**
- * Inside a Nhóm, its Links. At the top, the Links in no Nhóm - unless something is searched for,
+ * Inside a Group, its Links. At the top, the Links in no Group - unless something is searched for,
  * or the archive is open, either of which looks through every Link, wherever it is sorted.
  */
 const matchesGroup = (link: Filterable, filter: LinkFilter): boolean => {
@@ -123,7 +123,7 @@ const writeFilter = (filter: LinkFilter): URLSearchParams => {
   return params;
 };
 
-/** Whether the list is narrowed by a search or a state - being inside a Nhóm is where, not a filter. */
+/** Whether the list is narrowed by a search or a state - being inside a Group is where, not a filter. */
 const isFiltering = (filter: LinkFilter): boolean => Boolean(filter.query.trim()) || filter.status !== "all";
 
 export {

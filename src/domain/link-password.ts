@@ -1,9 +1,9 @@
 import { fromBase64, toBase64 } from "./base64";
 
 /**
- * A Link's password (ADR-0006): a word a Đơn vị shares with the people it means to let through -
+ * A Link's password (ADR-0006): a word a Unit shares with the people it means to let through -
  * printed beside a QR for a class, sent with a link to reviewers. Not a person's password, and not
- * a lock on anything secret: the Đích itself is still an address anybody may know.
+ * a lock on anything secret: the Target itself is still an address anybody may know.
  *
  * Stored as PBKDF2-SHA256 with a salt of its own and few enough rounds to fit a Worker's CPU
  * limit; guessing is slowed where it matters, at the door, by a limit on wrong tries per minute.

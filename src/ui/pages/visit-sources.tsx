@@ -1,26 +1,28 @@
+import { formatNumber } from "@/components/app";
 import type { VisitSource } from "../api";
+import { locale, text } from "../i18n";
 
 /**
- * Where Lượt mở came from - by Quốc gia and by Nguồn giới thiệu - as short ranked lists. Counts
+ * Where Visits came from - by Country and by Referring Site - as short ranked lists. Counts
  * only (ADR-0005): "" is "not known", which for referring sites is usually the largest group,
  * since a scanned QR sends none.
  */
 
-const number = new Intl.NumberFormat("vi-VN");
 const SHOWN = 8;
+const t = text().visitSources;
 
 const regionNames = (() => {
   try {
-    return new Intl.DisplayNames(["vi"], { type: "region" });
+    return new Intl.DisplayNames([locale()], { type: "region" });
   } catch {
     return null;
   }
 })();
 
-/** `VN` as "Việt Nam", or the two letters where the browser does not know the name. */
+/** `VN` as "Vietnam" in the UI's language, or the two letters where the browser does not know the name. */
 const countryName = (code: string): string => {
   if (!code) {
-    return "Không rõ";
+    return t.unknown;
   }
   try {
     return regionNames?.of(code) ?? code;
@@ -29,7 +31,7 @@ const countryName = (code: string): string => {
   }
 };
 
-const siteName = (host: string): string => host || "Không rõ (quét QR, gõ tay, ứng dụng chat)";
+const siteName = (host: string): string => host || t.unknownSite;
 
 const SourceList = ({
   title,
@@ -47,7 +49,7 @@ const SourceList = ({
     <section>
       <h4 className='font-medium text-sm'>{title}</h4>
       {total === 0 ? (
-        <p className='mt-1 text-muted-foreground text-sm'>Chưa có số liệu.</p>
+        <p className='mt-1 text-muted-foreground text-sm'>{t.noData}</p>
       ) : (
         <ul className='mt-2 space-y-1.5'>
           {shown.map((source) => (
@@ -57,7 +59,7 @@ const SourceList = ({
                   {nameOf(source.value)}
                 </span>
                 <span className='shrink-0 text-muted-foreground tabular-nums'>
-                  {number.format(source.count)} · {Math.round((source.count / total) * 100)}%
+                  {formatNumber(source.count)} · {Math.round((source.count / total) * 100)}%
                 </span>
               </div>
               <div aria-hidden='true' className='mt-1 h-1.5 rounded-full bg-muted'>
@@ -65,9 +67,7 @@ const SourceList = ({
               </div>
             </li>
           ))}
-          {rest > 0 && (
-            <li className='text-muted-foreground text-xs'>và {number.format(rest)} lượt mở từ những nơi khác</li>
-          )}
+          {rest > 0 && <li className='text-muted-foreground text-xs'>{t.fromElsewhere(formatNumber(rest))}</li>}
         </ul>
       )}
     </section>
@@ -78,13 +78,10 @@ const SourceList = ({
 const VisitSources = ({ countries, referrers }: { countries: VisitSource[]; referrers: VisitSource[] }) => (
   <div className='space-y-2'>
     <div className='grid gap-5 sm:grid-cols-2'>
-      <SourceList nameOf={countryName} sources={countries} title='Theo quốc gia' />
-      <SourceList nameOf={siteName} sources={referrers} title='Theo nguồn giới thiệu' />
+      <SourceList nameOf={countryName} sources={countries} title={t.byCountry} />
+      <SourceList nameOf={siteName} sources={referrers} title={t.byReferrer} />
     </div>
-    <p className='text-muted-foreground text-xs'>
-      Chỉ đếm số lượt, không lưu gì về người mở. Lượt mở từ trước khi hệ thống bắt đầu ghi quốc gia và nguồn không nằm
-      trong hai danh sách này.
-    </p>
+    <p className='text-muted-foreground text-xs'>{t.note}</p>
   </div>
 );
 
