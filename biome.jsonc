@@ -1,8 +1,7 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "root": true,
-  // The house style of hcmcoujs-turborepo, written out here because this repository has no shared
-  // config package to extend. Listed after ultracite so these overrides win.
+  // The house style, written out here. Listed after ultracite so these overrides win.
   "extends": ["ultracite/biome/core"],
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {

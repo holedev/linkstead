@@ -1,28 +1,30 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "ou-link",
+  // The Worker of one installation. An installation of your own copies this file and changes the
+  // names below; everything about the Organization itself (its name, email domains, language,
+  // time zone, colour) is set in the UI, not here (ADR-0007).
+  "name": "linkstead",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-11-01",
   "observability": { "enabled": true },
-  // The daily safety check of every Đích (`src/worker/safety.ts`), at 03:17 in Vietnam.
-  "triggers": { "crons": ["17 20 * * *"] },
+  // The daily safety check of every Target (`src/worker/safety.ts`), in UTC.
+  "triggers": { "crons": ["17 3 * * *"] },
   "assets": {
     // The built UI: `dist/client/app/**`, so its files are served under `/app`.
     "directory": "./dist/client",
     "binding": "ASSETS",
-    // The Worker answers everything except the UI's hashed files and the university's logo and
-    // fonts. Left to the default, a Link's address would be looked up among the files before the
-    // Worker ever saw it.
+    // The Worker answers everything except the UI's hashed files and the brand fonts. Left to the
+    // default, a Link's address would be looked up among the files before the Worker ever saw it.
     "run_worker_first": ["/*", "!/app/assets/*", "!/app/brand/*"]
   },
-  // Logo files for QR. Create it once with `wrangler r2 bucket create ou-link-logos`.
-  "r2_buckets": [{ "binding": "LOGOS", "bucket_name": "ou-link-logos" }],
+  // Logo files, for QR and for the UI. Created on the first deploy if it does not exist.
+  "r2_buckets": [{ "binding": "LOGOS", "bucket_name": "linkstead-logos" }],
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "ou-link",
-      // The trial database (APAC). An id is an address, not a secret - access is the account's.
-      "database_id": "5c8c803a-6c94-4454-a743-35d81e6490c0",
+      // No `database_id`: wrangler creates the database on the first deploy and fills it in. An
+      // installation that already has one puts its id here.
+      "database_name": "linkstead",
       "migrations_dir": "migrations"
     }
   ]

@@ -1,6 +1,6 @@
 {
-  "name": "ou-link",
-  "version": "0.0.0",
+  "name": "linkstead",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,8 +8,8 @@
     "check-types": "tsc --noEmit && tsc --noEmit -p src/ui",
     "commitlint": "commitlint --edit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply ou-link --local",
-    "db:migrate:remote": "wrangler d1 migrations apply ou-link --remote",
+    "db:migrate:local": "wrangler d1 migrations apply linkstead --local",
+    "db:migrate:remote": "wrangler d1 migrations apply linkstead --remote",
     "deploy": "pnpm build:ui && wrangler deploy",
     "dev": "wrangler dev",
     "dev:ui": "vite --config src/ui/vite.config.ts",
