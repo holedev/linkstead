@@ -8,7 +8,7 @@ describe("planning Links from a spreadsheet", () => {
     const plan = planRows(
       [
         ["Link", "ĐÍCH", "ten link", "Mã link", "Nhóm", "Ghi chú"],
-        ["https://go.test/x", "https://ou.edu.vn/a", "Bài 1", "Bai-1", "Tạp chí", "'-ghi chú"]
+        ["https://go.test/x", "https://example.org/a", "Bài 1", "Bai-1", "Tạp chí", "'-ghi chú"]
       ],
       HOST
     );
@@ -21,7 +21,7 @@ describe("planning Links from a spreadsheet", () => {
           name: "Bài 1",
           note: "-ghi chú",
           problem: null,
-          target: "https://ou.edu.vn/a"
+          target: "https://example.org/a"
         }
       ]
     });
@@ -31,13 +31,13 @@ describe("planning Links from a spreadsheet", () => {
     const plan = planRows(
       [
         ["Tên link", "Đích", "Mã link"],
-        ["", "https://ou.edu.vn/a", ""],
-        ["Bài 2", "http://ou.edu.vn/b", ""],
+        ["", "https://example.org/a", ""],
+        ["Bài 2", "http://example.org/b", ""],
         ["Bài 3", "https://go.test/c", ""],
-        ["Bài 4", "https://ou.edu.vn/d", "a"],
-        ["Bài 5", "https://ou.edu.vn/e", "trung"],
-        ["Bài 6", "https://ou.edu.vn/f", "TRUNG"],
-        ["Bài 7", "https://ou.edu.vn/g", ""]
+        ["Bài 4", "https://example.org/d", "a"],
+        ["Bài 5", "https://example.org/e", "trung"],
+        ["Bài 6", "https://example.org/f", "TRUNG"],
+        ["Bài 7", "https://example.org/g", ""]
       ],
       HOST
     );

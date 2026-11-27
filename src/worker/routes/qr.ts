@@ -4,19 +4,18 @@ import { renderQrSvg } from "../../domain/qr";
 import { DEFAULT_QR_STYLE, isLogoScale, isQrShape, isQrStyle } from "../../domain/qr-style";
 import { newSecret } from "../../domain/secret";
 import type { AppContext, AppDeps, AppEnv } from "../context";
-import { DEFAULT_LOGO } from "../default-logo";
 import { readJson } from "../http";
 import type { LinkRecord, LogoFiles, Store } from "../store";
 import { systemAdmin } from "./admin";
 import { reachLink } from "./links";
 import { managedUnit } from "./units";
 
-/** The university's logo, for the whole system: the one file whose key is not in the database. */
+/** The Organization's logo for QR, for the whole system: the one file whose key is not in the database. */
 const SYSTEM_LOGO_KEY = "system/logo";
 
 /**
  * The logo a Link's QR shows, the lowest level winning: the Link's own choice - which may be
- * "none" - then its Đơn vị's default, then the university's.
+ * "none" - then its Unit's default, then the Organization's. None of them set: no logo.
  */
 const logoOfLink = async (store: Store, logos: LogoFiles | undefined, link: LinkRecord): Promise<Uint8Array | null> => {
   if (link.logoChoice === "none") {
@@ -28,18 +27,18 @@ const logoOfLink = async (store: Store, logos: LogoFiles | undefined, link: Link
   return logoOfUnit(store, logos, link.unitId);
 };
 
-/** The university's: the one a Quản trị hệ thống uploaded, or else the one built in. */
-const universityLogo = async (logos: LogoFiles | undefined): Promise<Uint8Array> =>
-  (await logos?.get(SYSTEM_LOGO_KEY)) ?? DEFAULT_LOGO;
+/** The Organization's: the one a System Administrator uploaded, or none. Nothing is built in. */
+const organizationLogo = async (logos: LogoFiles | undefined): Promise<Uint8Array | null> =>
+  (await logos?.get(SYSTEM_LOGO_KEY)) ?? null;
 
-const logoOfUnit = async (store: Store, logos: LogoFiles | undefined, unitId: number): Promise<Uint8Array> => {
+const logoOfUnit = async (store: Store, logos: LogoFiles | undefined, unitId: number): Promise<Uint8Array | null> => {
   const unit = await store.findUnit(unitId);
-  return (unit?.logoKey ? await logos?.get(unit.logoKey) : null) ?? (await universityLogo(logos));
+  return (unit?.logoKey ? await logos?.get(unit.logoKey) : null) ?? (await organizationLogo(logos));
 };
 
 /**
  * SVG and nothing else leaves here (AGENTS.md). The policy stops the picture from loading or
- * running anything if it is opened on its own, under the university's domain.
+ * running anything if it is opened on its own, under the Organization's domain.
  */
 const svg = (c: AppContext, body: string, filename: string) => {
   c.header("Content-Type", "image/svg+xml; charset=utf-8");
@@ -49,6 +48,10 @@ const svg = (c: AppContext, body: string, filename: string) => {
   c.header("Cache-Control", "no-store");
   return c.body(body);
 };
+
+/** The Link a sample QR carries: an address, never one that opens. */
+const SAMPLE_CODE = "example";
+const SAMPLE_FILE = "qr-example.svg";
 
 /** The uploaded file as bytes, once it has been checked to be a PNG or JPEG of an allowed size. */
 const readLogo = async (c: AppContext, logos: LogoFiles | undefined): Promise<Uint8Array | Response> => {
@@ -176,7 +179,7 @@ const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
       return managed;
     }
     const unit = await store.findUnit(managed.unitId);
-    return c.json({ own: Boolean(unit?.logoKey), university: Boolean(await logos?.get(SYSTEM_LOGO_KEY)) });
+    return c.json({ organization: Boolean(await logos?.get(SYSTEM_LOGO_KEY)), own: Boolean(unit?.logoKey) });
   });
 
   app.get("/api/units/:unitId/qr-preview", async (c) => {
@@ -184,7 +187,11 @@ const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
     if (managed instanceof Response) {
       return managed;
     }
-    return svg(c, renderQrSvg(`${origin(c)}/vi-du`, await logoOfUnit(store, logos, managed.unitId)), "qr-vi-du.svg");
+    return svg(
+      c,
+      renderQrSvg(`${origin(c)}/${SAMPLE_CODE}`, await logoOfUnit(store, logos, managed.unitId)),
+      SAMPLE_FILE
+    );
   });
 
   app.put("/api/units/:unitId/qr-logo", async (c) => {
@@ -203,7 +210,7 @@ const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
     return c.body(null, 204);
   });
 
-  /** Back to the university's logo. */
+  /** Back to the Organization's logo. */
   app.delete("/api/units/:unitId/qr-logo", async (c) => {
     const managed = await managedUnit(c, store);
     if (managed instanceof Response) {
@@ -217,7 +224,7 @@ const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
     return c.body(null, 204);
   });
 
-  // ── The university's, for the whole system ────────────────────────────────
+  // ── The Organization's, for the whole system ──────────────────────────────
   app.get("/api/admin/qr-logo", async (c) => {
     const admin = systemAdmin(c);
     if (admin instanceof Response) {
@@ -231,7 +238,7 @@ const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
     if (admin instanceof Response) {
       return admin;
     }
-    return svg(c, renderQrSvg(`${origin(c)}/vi-du`, await universityLogo(logos)), "qr-vi-du.svg");
+    return svg(c, renderQrSvg(`${origin(c)}/${SAMPLE_CODE}`, await organizationLogo(logos)), SAMPLE_FILE);
   });
 
   app.put("/api/admin/qr-logo", async (c) => {
@@ -257,4 +264,4 @@ const registerQrRoutes = (app: Hono<AppEnv>, { store, logos }: AppDeps) => {
   });
 };
 
-export { registerQrRoutes, SYSTEM_LOGO_KEY };
+export { readLogo, registerQrRoutes, SYSTEM_LOGO_KEY };

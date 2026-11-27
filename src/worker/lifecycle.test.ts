@@ -9,7 +9,7 @@ beforeAll(async () => {
 afterAll(() => h.dispose());
 beforeEach(() => h.reset());
 
-const TARGET = "https://journalofscience.ou.edu.vn/cfp";
+const TARGET = "https://journalofscience.example.org/cfp";
 const PHISHING = "https://dang-nhap-ou.example/login";
 const PASSWORD = "mat-khau-du-dai";
 
@@ -39,7 +39,7 @@ const codesOf = async (browser: Browser) =>
 describe("archiving a Link", () => {
   it("puts it away and back for any Thành viên, while it keeps opening and counting", async () => {
     const admin = await withLink();
-    const thanh = await member(admin, 1, "thanh@ou.edu.vn");
+    const thanh = await member(admin, 1, "thanh@example.org");
 
     const archived = await thanh.post("/api/links/cfp-2027/archive");
     expect(await archived.json()).toMatchObject({ archived: true, enabled: true });
@@ -87,13 +87,13 @@ describe("deleting a Link", () => {
 
   it("is for a Quản lý đơn vị or a Quản trị hệ thống - not a plain Thành viên, not a key", async () => {
     const admin = await withLink();
-    const thanh = await member(admin, 1, "thanh@ou.edu.vn");
+    const thanh = await member(admin, 1, "thanh@example.org");
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
     const body = { confirmCode: "cfp-2027" };
 
     expect((await thanh.delete("/api/links/cfp-2027", { body })).status).toBe(403);
     expect((await h.client().delete("/api/links/cfp-2027", { body, headers: bearer(key) })).status).toBe(403);
-    await admin.put("/api/units/1/members/thanh@ou.edu.vn", { role: "manager" });
+    await admin.put("/api/units/1/members/thanh@example.org", { role: "manager" });
     expect((await thanh.delete("/api/links/cfp-2027", { body })).status).toBe(204);
   });
 
@@ -108,7 +108,7 @@ describe("deleting a Link", () => {
     expect(found.deletedAt).toBe("2027-03-01T03:00:00.000Z");
     expect(found.history[0]).toEqual({
       at: "2027-03-01T03:00:00.000Z",
-      by: { email: "admin@ou.edu.vn", kind: "account" },
+      by: { email: "admin@example.org", kind: "account" },
       kind: "deleted"
     });
     expect((await admin.post("/api/admin/links/cfp-2027/move", { unitId: 2 })).status).toBe(404);
@@ -178,7 +178,7 @@ describe("a Đơn vị's Lượt mở at a glance", () => {
     h.advance(40 * 24 * 60 * 60 * 1000);
     await visitor.get("/so-3");
     // Forty days on, the session has long expired.
-    await admin.login("admin@ou.edu.vn", "mat-khau-quan-tri");
+    await admin.login("admin@example.org", "mat-khau-quan-tri");
 
     const all = await (await admin.get("/api/units/1/visits")).json();
     expect(all).toMatchObject({
@@ -218,7 +218,7 @@ describe("a Đơn vị's Lượt mở at a glance", () => {
     await admin.delete("/api/links/cfp-2027", { body: { confirmCode: "cfp-2027" } });
 
     expect(await (await admin.get("/api/units/1/visits")).json()).toMatchObject({ topLinks: [], total: 0 });
-    const outsider = await member(admin, 2, "khac@ou.edu.vn");
+    const outsider = await member(admin, 2, "khac@example.org");
     expect((await outsider.get("/api/units/1/visits")).status).toBe(403);
   });
 

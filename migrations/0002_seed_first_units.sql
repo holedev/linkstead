@@ -1,4 +1,4 @@
--- The two Đơn vị the trial starts with. Others are added later, by a Quản trị hệ thống.
-INSERT INTO `units` (`name`) VALUES ('Tạp chí Khoa học');
---> statement-breakpoint
-INSERT INTO `units` (`name`) VALUES ('Nhà xuất bản');
+-- Once seeded the first Units of the installation this project began as. A fresh installation
+-- starts with none: its System Administrator creates them. Kept, and kept doing nothing, so the
+-- installations that already ran it still line up with the list of migrations.
+SELECT 1;

@@ -15,13 +15,11 @@ import { registerAuthRoutes } from "./routes/auth";
 import { registerExportRoutes } from "./routes/export";
 import { registerGroupRoutes } from "./routes/groups";
 import { registerLinkRoutes } from "./routes/links";
+import { registerOrganizationRoutes } from "./routes/organization";
 import { registerQrRoutes } from "./routes/qr";
 import { registerStatsRoutes } from "./routes/stats";
 import { registerUnitRoutes } from "./routes/units";
 import type { OpenableLink } from "./store";
-
-/** How the system names itself in a preview. */
-const SITE_NAME = "OU Link - Trường Đại học Mở Thành phố Hồ Chí Minh";
 
 /** Search engines may follow a Link to its Đích, but have no business in the UI or the API. */
 const ROBOTS = "User-agent: *\nDisallow: /app\nDisallow: /api\n";
@@ -78,6 +76,7 @@ const createApp = (deps: AppDeps) => {
   registerExportRoutes(app, deps);
   registerQrRoutes(app, deps);
   registerStatsRoutes(app, deps);
+  registerOrganizationRoutes(app, deps);
   // An unknown API path answers as an API, not with the visitor's notice page.
   app.all("/api/*", (c) => c.json({ error: "not-found" }, 404));
 
@@ -112,7 +111,9 @@ const createApp = (deps: AppDeps) => {
     const own = { description: link.previewDescription, image: link.previewImage, title: link.previewTitle };
     const page = own.title && own.description && own.image ? null : await fetchPage(link.target);
     const preview = mergePreview(own, page ? readPreview(page.html, page.url) : null);
-    return renderPreviewPage({ linkUrl, preview, siteName: SITE_NAME, target: link.target });
+    // The preview names the Organization the Link is under, as the site it is on.
+    const { name } = await store.getOrganization();
+    return renderPreviewPage({ linkUrl, preview, siteName: name, target: link.target });
   };
 
   /**
@@ -146,7 +147,14 @@ const createApp = (deps: AppDeps) => {
   const sendOn = (c: Context, link: OpenableLink, status: 302 | 303) => {
     if (!isMachineAgent(c.req.header("user-agent"))) {
       // A failed count must never cost the visitor their redirect.
-      defer(store.recordVisit(link.id, visitDay(now()), sourceOf(c)).catch(() => undefined));
+      const at = now();
+      const source = sourceOf(c);
+      defer(
+        store
+          .getOrganization()
+          .then(({ timeZone }) => store.recordVisit(link.id, visitDay(at, timeZone), source))
+          .catch(() => undefined)
+      );
     }
     return c.redirect(link.target, status);
   };

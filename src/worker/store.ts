@@ -6,6 +6,7 @@
  * writing another - not touching the handlers.
  */
 
+import type { OrganizationSettings } from "../domain/organization";
 import type { QrShape } from "../domain/qr-style";
 
 type Role = "manager" | "member";
@@ -133,6 +134,9 @@ type NewLink = {
 /** A Nhóm: a Đơn vị's own way of sorting its Links. */
 type LinkGroup = { id: number; name: string; linkCount: number };
 
+/** The Organization as kept: its settings, and the key of the logo its UI shows, if one was uploaded. */
+type OrganizationRecord = OrganizationSettings & { uiLogoKey: string | null };
+
 type AccountRecord = {
   id: number;
   email: string;
@@ -250,6 +254,9 @@ type Store = {
   ) => Promise<{ code: string; name: string; count: number }[]>;
 
   // ── The whole installation ────────────────────────────────────────────────
+  /** The Organization's settings - the defaults in `domain/organization.ts` until any are saved. */
+  getOrganization: () => Promise<OrganizationRecord>;
+  saveOrganization: (organization: OrganizationRecord, at: Date) => Promise<void>;
   exportAll: (at: Date) => Promise<Snapshot>;
   /**
    * Takes a snapshot into an installation nobody has used yet. `not-empty` when a Tài khoản or a
@@ -373,6 +380,7 @@ export type {
   MembershipOutcome,
   NewLink,
   OpenableLink,
+  OrganizationRecord,
   ReservedCode,
   Role,
   Snapshot,

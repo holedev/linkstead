@@ -9,6 +9,7 @@ import {
   linkGroups,
   links,
   memberships,
+  organization,
   passwordSetups,
   reservedCodes,
   sessions,
@@ -17,7 +18,16 @@ import {
   unitChanges,
   units
 } from "../db/schema";
-import type { AuthorName, HistoryEntry, MembershipOutcome, Snapshot, Store, VisitScope } from "./store";
+import { DEFAULT_SETTINGS, isLanguage } from "../domain/organization";
+import type {
+  AuthorName,
+  HistoryEntry,
+  MembershipOutcome,
+  OrganizationRecord,
+  Snapshot,
+  Store,
+  VisitScope
+} from "./store";
 
 const ACCOUNT_COLUMNS = {
   email: accounts.email,
@@ -60,6 +70,7 @@ const LINK_COLUMNS = {
 
 /** What a snapshot carries, parents before children so the foreign keys hold as rows go in. */
 const SNAPSHOT_TABLES = [
+  organization,
   accounts,
   units,
   memberships,
@@ -78,7 +89,7 @@ const SNAPSHOT_TABLES = [
 });
 
 /** Tables added after the first snapshots were made: one without them is still read, as empty. */
-const LATER_TABLES: ReadonlySet<string> = new Set(["daily_visit_sources"]);
+const LATER_TABLES: ReadonlySet<string> = new Set(["daily_visit_sources", "organization"]);
 
 /** D1 takes a limited number of statements in one batch. */
 const IMPORT_BATCH = 50;
@@ -107,6 +118,19 @@ const snapshotInserts = (database: D1Database, snapshot: Snapshot): D1PreparedSt
     }
   }
   return statements;
+};
+
+/** The Organization's one row. */
+const ORGANIZATION_ID = 1;
+
+/** A stored list of domains, read defensively: a row is data, and a bad one means none. */
+const readDomains = (stored: string): string[] => {
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed.filter((domain): domain is string => typeof domain === "string") : [];
+  } catch {
+    return [];
+  }
 };
 
 const oldUnits = alias(units, "old_units");
@@ -418,6 +442,21 @@ const createD1Store = (database: D1Database): Store => {
         .where(and(eq(units.id, unitId), isNull(units.dissolvedAt)))
         .get()) ?? null,
 
+    getOrganization: async (): Promise<OrganizationRecord> => {
+      const row = await db.select().from(organization).where(eq(organization.id, ORGANIZATION_ID)).get();
+      if (!row) {
+        return { ...DEFAULT_SETTINGS, uiLogoKey: null };
+      }
+      return {
+        brandColor: row.brandColor,
+        emailDomains: readDomains(row.emailDomains),
+        language: isLanguage(row.language) ? row.language : DEFAULT_SETTINGS.language,
+        name: row.name,
+        timeZone: row.timeZone,
+        uiLogoKey: row.uiLogoKey
+      };
+    },
+
     grantSystemAdmin: async (accountId) => {
       const granted = await db
         .update(accounts)
@@ -442,7 +481,7 @@ const createD1Store = (database: D1Database): Store => {
 
       const wipe = [...SNAPSHOT_TABLES].reverse().map((table) => database.prepare(`DELETE FROM ${table.name}`));
       try {
-        // The Đơn vị a fresh installation is seeded with give way to the snapshot's own.
+        // Whatever an unused installation holds gives way to the snapshot.
         await database.batch(wipe);
         for (let start = 0; start < statements.length; start += IMPORT_BATCH) {
           await database.batch(statements.slice(start, start + IMPORT_BATCH));
@@ -583,7 +622,7 @@ const createD1Store = (database: D1Database): Store => {
     listLogoKeys: async () => {
       const rows = await database
         .prepare(
-          "SELECT logo_key AS key FROM units WHERE logo_key IS NOT NULL UNION SELECT logo_key FROM links WHERE logo_key IS NOT NULL"
+          "SELECT logo_key AS key FROM units WHERE logo_key IS NOT NULL UNION SELECT logo_key FROM links WHERE logo_key IS NOT NULL UNION SELECT ui_logo_key FROM organization WHERE ui_logo_key IS NOT NULL"
         )
         .all<{ key: string }>();
       return rows.results.map((row) => row.key);
@@ -899,6 +938,22 @@ const createD1Store = (database: D1Database): Store => {
         .where(eq(accounts.id, accountId))
         .get();
       return row?.is ? "last-admin" : "not-an-admin";
+    },
+
+    saveOrganization: async (record, at) => {
+      const values = {
+        brandColor: record.brandColor,
+        emailDomains: JSON.stringify(record.emailDomains),
+        language: record.language,
+        name: record.name,
+        timeZone: record.timeZone,
+        uiLogoKey: record.uiLogoKey,
+        updatedAt: at
+      };
+      await db
+        .insert(organization)
+        .values({ ...values, id: ORGANIZATION_ID })
+        .onConflictDoUpdate({ set: values, target: organization.id });
     },
 
     setLinkArchived: async (linkId, at) => {

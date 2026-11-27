@@ -8,10 +8,10 @@ beforeAll(async () => {
 afterAll(() => h.dispose());
 beforeEach(() => h.reset());
 
-const TARGET = "https://journalofscience.ou.edu.vn/cfp";
+const TARGET = "https://journalofscience.example.org/cfp";
 const PASSWORD = "mat-khau-quan-tri";
 const LINK_ROW =
-  /^cfp-2027,https:\/\/go\.test\/cfp-2027,"Poster ""A3"", sảnh A",,https:\/\/journalofscience\.ou\.edu\.vn\/cfp,,Quản trị hệ thống đã tắt,,\d{4}-.*Z,1$/;
+  /^cfp-2027,https:\/\/go\.test\/cfp-2027,"Poster ""A3"", sảnh A",,https:\/\/journalofscience.example.org\/cfp,,Quản trị hệ thống đã tắt,,\d{4}-.*Z,1$/;
 
 type Browser = ReturnType<typeof h.client>;
 
@@ -34,7 +34,7 @@ describe("a Đơn vị's CSV", () => {
 
     const response = await admin.get("/api/units/1/links.csv");
     expect(response.headers.get("content-type")).toBe("text/csv; charset=utf-8");
-    expect(response.headers.get("content-disposition")).toBe('attachment; filename="ou-link-don-vi-1-links.csv"');
+    expect(response.headers.get("content-disposition")).toBe('attachment; filename="linkstead-unit-1-links.csv"');
     // `text()` drops the BOM, so the bytes are read to see it.
     const bytes = new Uint8Array(await response.clone().arrayBuffer());
     expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
@@ -67,7 +67,7 @@ describe("a Đơn vị's CSV", () => {
 
   it("is for the Đơn vị's own members, not another's, not a Khóa API", async () => {
     const admin = await h.signedInAdmin();
-    const publisher = await member(admin, 2, "nxb@ou.edu.vn");
+    const publisher = await member(admin, 2, "nxb@example.org");
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
 
     expect((await publisher.get("/api/units/2/links.csv")).status).toBe(200);
@@ -83,7 +83,7 @@ describe("the whole installation", () => {
   const used = async () => {
     const admin = await h.signedInAdmin();
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
-    await admin.post("/api/admin/units", { managerEmail: "khoa@ou.edu.vn", name: "Khoa Luật" });
+    await admin.post("/api/admin/units", { managerEmail: "khoa@example.org", name: "Khoa Luật" });
     await admin.post("/api/admin/reserved-codes", { code: "tuyensinh", note: "Phòng Đào tạo" });
     await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: TARGET, unitId: 1 });
     // A second apart, so the history has one order whichever table a line sits in.
@@ -101,10 +101,10 @@ describe("the whole installation", () => {
 
   it("exports to a Quản trị hệ thống only, without sessions or one-time links", async () => {
     const { admin, exported } = await used();
-    const manager = await member(admin, 1, "bien-tap@ou.edu.vn");
+    const manager = await member(admin, 1, "bien-tap@example.org");
     const snapshot = (await exported.json()) as { version: number; tables: Record<string, unknown[]> };
 
-    expect(exported.headers.get("content-disposition")).toBe('attachment; filename="ou-link-2027-03-01.json"');
+    expect(exported.headers.get("content-disposition")).toBe('attachment; filename="linkstead-2027-03-01.json"');
     expect(snapshot.version).toBe(1);
     expect(Object.keys(snapshot.tables).sort()).toEqual([
       "accounts",
@@ -114,6 +114,7 @@ describe("the whole installation", () => {
       "link_groups",
       "links",
       "memberships",
+      "organization",
       "reserved_codes",
       "status_changes",
       "target_changes",
@@ -134,10 +135,10 @@ describe("the whole installation", () => {
 
     // The same password signs in, the same key works, the Link opens and remembers its past.
     const admin = h.client();
-    const login = await admin.login("admin@ou.edu.vn", PASSWORD);
+    const login = await admin.login("admin@example.org", PASSWORD);
     expect(((await login.json()) as { units: { unitName: string }[] }).units.map((unit) => unit.unitName)).toEqual([
-      "Tạp chí Khoa học & Nhà xuất bản",
-      "Khoa Kế toán"
+      "Journal & Press",
+      "Accounting"
     ]);
     expect((await h.client().get("/api/links", { headers: bearer(key) })).status).toBe(200);
     expect((await h.client().get("/cfp-2027")).headers.get("location")).toBe(`${TARGET}-2027`);
@@ -145,7 +146,7 @@ describe("the whole installation", () => {
       history: [
         { enabled: true, kind: "status" },
         { bySystem: true, enabled: false, kind: "status" },
-        { kind: "unit", newUnitName: "Khoa Luật", oldUnitName: "Tạp chí Khoa học & Nhà xuất bản" },
+        { kind: "unit", newUnitName: "Khoa Luật", oldUnitName: "Journal & Press" },
         { by: { kind: "key", name: "CRM" }, kind: "target" }
       ],
       unitName: "Khoa Luật",
@@ -156,7 +157,7 @@ describe("the whole installation", () => {
     });
 
     // New rows carry on after the imported ones: no id, and so no Mã link's owner, is ever reused.
-    const created = await admin.post("/api/admin/units", { managerEmail: "moi@ou.edu.vn", name: "Khoa Mới" });
+    const created = await admin.post("/api/admin/units", { managerEmail: "moi@example.org", name: "Khoa Mới" });
     expect(((await created.json()) as { id: number }).id).toBe(4);
   });
 

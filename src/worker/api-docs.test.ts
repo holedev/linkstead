@@ -46,10 +46,10 @@ describe("the API's description", () => {
   it("names only routes that answer a Khóa API, and the answers it documents", async () => {
     const admin = await h.signedInAdmin();
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
-    await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: "https://ou.edu.vn/a", unitId: 1 });
+    await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: "https://example.org/a", unitId: 1 });
     const bodies: Record<string, unknown> = {
-      changeTarget: { target: "https://ou.edu.vn/b" },
-      createLink: { name: "Mới", target: "https://ou.edu.vn/c" }
+      changeTarget: { target: "https://example.org/b" },
+      createLink: { name: "Mới", target: "https://example.org/c" }
     };
 
     for (const { method, operation, path } of operations(await documentOf())) {

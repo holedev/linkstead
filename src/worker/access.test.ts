@@ -8,7 +8,7 @@ beforeAll(async () => {
 afterAll(() => h.dispose());
 beforeEach(() => h.reset());
 
-const TARGET = "https://journalofscience.ou.edu.vn/phan-bien";
+const TARGET = "https://journalofscience.example.org/phan-bien";
 const DAY = 24 * 60 * 60 * 1000;
 
 const withLink = async () => {
@@ -128,7 +128,7 @@ describe("a Link with an expiry", () => {
     expect(await expired.text()).toContain("đã hết hạn");
     expect(await visitsOf()).toBe(1);
 
-    await admin.login("admin@ou.edu.vn", "mat-khau-quan-tri");
+    await admin.login("admin@example.org", "mat-khau-quan-tri");
     await admin.put("/api/links/phan-bien/access", { expiresAt: null });
     expect((await h.client().get("/phan-bien")).status).toBe(302);
   });
@@ -148,7 +148,7 @@ describe("a Link with an expiry", () => {
 
     await admin.put("/api/links/phan-bien/access", { expiresAt: "2027-03-01T04:00:00Z" });
     h.advance(DAY);
-    await admin.login("admin@ou.edu.vn", "mat-khau-quan-tri");
+    await admin.login("admin@example.org", "mat-khau-quan-tri");
     const again = await admin.post("/api/links", { code: "phan-bien", name: "Mới", target: TARGET, unitId: 1 });
     expect(again.status).toBe(409);
   });

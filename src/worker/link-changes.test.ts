@@ -8,8 +8,8 @@ beforeAll(async () => {
 afterAll(() => h.dispose());
 beforeEach(() => h.reset());
 
-const OLD = "https://journalofscience.ou.edu.vn/cfp";
-const NEW = "https://journalofscience.ou.edu.vn/cfp-2027";
+const OLD = "https://journalofscience.example.org/cfp";
+const NEW = "https://journalofscience.example.org/cfp-2027";
 const PASSWORD = "mat-khau-du-dai";
 
 type Browser = ReturnType<typeof h.client>;
@@ -48,7 +48,7 @@ describe("changing a Đích", () => {
     expect(await historyOf(admin)).toEqual([
       {
         at: "2027-03-01T03:00:00.000Z",
-        by: { email: "admin@ou.edu.vn", kind: "account" },
+        by: { email: "admin@example.org", kind: "account" },
         kind: "target",
         newTarget: NEW,
         oldTarget: OLD
@@ -62,7 +62,7 @@ describe("changing a Đích", () => {
 
     const late = await admin.put("/api/links/cfp-2027/target", {
       expectedTarget: OLD,
-      target: "https://ou.edu.vn/khac"
+      target: "https://example.org/khac"
     });
     expect(late.status).toBe(409);
     expect(await late.json()).toEqual({ error: "target-changed", target: NEW });
@@ -74,7 +74,7 @@ describe("changing a Đích", () => {
     const attempt = async (target: string) =>
       (await (await admin.put("/api/links/cfp-2027/target", { target })).json()) as object;
 
-    expect(await attempt("http://ou.edu.vn/")).toEqual({ error: "bad-target", problem: "not-https" });
+    expect(await attempt("http://example.org/")).toEqual({ error: "bad-target", problem: "not-https" });
     expect(await attempt("https://go.test/khac")).toEqual({ error: "bad-target", problem: "points-at-self" });
     expect(await attempt(OLD)).toEqual({ error: "bad-target", problem: "unchanged" });
     expect(await historyOf(admin)).toEqual([]);
@@ -93,7 +93,7 @@ describe("changing a Đích", () => {
 
   it("is refused to a stranger, to another Đơn vị's member, and for an unknown Link", async () => {
     const admin = await withLink();
-    const publisher = await member(admin, 2, "nxb@ou.edu.vn");
+    const publisher = await member(admin, 2, "nxb@example.org");
 
     expect((await h.client().put("/api/links/cfp-2027/target", { target: NEW })).status).toBe(401);
     expect((await publisher.put("/api/links/cfp-2027/target", { target: NEW })).status).toBe(403);
@@ -112,7 +112,7 @@ describe("changing a Đích", () => {
 describe("rewording a Tên link", () => {
   it("changes the name and the note, and nothing else about the Link", async () => {
     const admin = await withLink();
-    const editor = await member(admin, 1, "bien-tap@ou.edu.vn");
+    const editor = await member(admin, 1, "bien-tap@example.org");
 
     const renamed = await editor.put("/api/links/CFP-2027/details", { name: " Poster, bản in A3 ", note: "Sảnh A" });
     expect(renamed.status).toBe(200);
@@ -147,7 +147,7 @@ describe("rewording a Tên link", () => {
 
   it("is for the Đơn vị's own members: not another's, not a Khóa API, not an outside administrator", async () => {
     const admin = await withLink();
-    const publisher = await member(admin, 2, "nxb@ou.edu.vn");
+    const publisher = await member(admin, 2, "nxb@example.org");
     const key = await keyOf(admin, 1, "CRM");
     const body = { name: "Đổi tên" };
 
@@ -163,7 +163,7 @@ describe("rewording a Tên link", () => {
 describe("switching a Link off and on", () => {
   it("lets a Thành viên switch their Đơn vị's Link off and back on, and records both", async () => {
     const admin = await withLink();
-    const editor = await member(admin, 1, "bien-tap@ou.edu.vn");
+    const editor = await member(admin, 1, "bien-tap@example.org");
 
     const off = await editor.post("/api/links/cfp-2027/disable");
     expect(await off.json()).toMatchObject({ disabledBySystem: false, enabled: false });
@@ -175,14 +175,14 @@ describe("switching a Link off and on", () => {
     expect((await h.client().get("/cfp-2027")).status).toBe(302);
 
     expect(await historyOf(editor)).toMatchObject([
-      { by: { email: "bien-tap@ou.edu.vn" }, bySystem: false, enabled: true, kind: "status" },
-      { by: { email: "bien-tap@ou.edu.vn" }, bySystem: false, enabled: false, kind: "status" }
+      { by: { email: "bien-tap@example.org" }, bySystem: false, enabled: true, kind: "status" },
+      { by: { email: "bien-tap@example.org" }, bySystem: false, enabled: false, kind: "status" }
     ]);
   });
 
   it("records nothing when the Link is already in that state", async () => {
     const admin = await withLink();
-    const editor = await member(admin, 1, "bien-tap@ou.edu.vn");
+    const editor = await member(admin, 1, "bien-tap@example.org");
     await editor.post("/api/links/cfp-2027/enable");
     await editor.post("/api/links/cfp-2027/disable");
     await editor.post("/api/links/cfp-2027/disable");
@@ -191,7 +191,7 @@ describe("switching a Link off and on", () => {
 
   it("leaves a Link a Quản trị hệ thống switched off for them alone to switch back on", async () => {
     const admin = await withLink();
-    const editor = await member(admin, 1, "bien-tap@ou.edu.vn");
+    const editor = await member(admin, 1, "bien-tap@example.org");
     const key = await keyOf(admin, 1, "CRM");
 
     expect(await (await admin.post("/api/links/cfp-2027/disable")).json()).toMatchObject({ disabledBySystem: true });
@@ -210,7 +210,7 @@ describe("switching a Link off and on", () => {
 
   it("lets a Quản trị hệ thống take over a Link its Đơn vị had already switched off", async () => {
     const admin = await withLink();
-    const editor = await member(admin, 1, "bien-tap@ou.edu.vn");
+    const editor = await member(admin, 1, "bien-tap@example.org");
     await editor.post("/api/links/cfp-2027/disable");
     await admin.post("/api/links/cfp-2027/disable");
     expect((await editor.post("/api/links/cfp-2027/enable")).status).toBe(403);
@@ -227,7 +227,7 @@ describe("switching a Link off and on", () => {
 
   it("is refused to another Đơn vị's member and its Khóa API", async () => {
     const admin = await withLink();
-    const publisher = await member(admin, 2, "nxb@ou.edu.vn");
+    const publisher = await member(admin, 2, "nxb@example.org");
     const key = await keyOf(admin, 2, "NXB");
 
     expect((await publisher.post("/api/links/cfp-2027/disable")).status).toBe(403);
@@ -288,7 +288,7 @@ describe("reading Lượt mở", () => {
 
   it("is refused to another Đơn vị", async () => {
     const admin = await withLink();
-    const publisher = await member(admin, 2, "nxb@ou.edu.vn");
+    const publisher = await member(admin, 2, "nxb@example.org");
     expect((await publisher.get("/api/links/cfp-2027/visits")).status).toBe(403);
   });
 });

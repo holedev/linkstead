@@ -1,13 +1,13 @@
 import { createApp } from "./app";
 import { googleSafeBrowsing, recheckTargets } from "./safety";
-import type { LogoFiles } from "./store";
+import type { LogoFiles, OrganizationRecord, Store } from "./store";
 import { createD1Store } from "./store-d1";
 
 type Env = {
   DB: D1Database;
   /** The built UI (`dist/client`), bound in `wrangler.jsonc`. */
   ASSETS: Fetcher;
-  /** Logo files for QR. Optional so the Worker still runs, without logos, where no bucket is bound. */
+  /** Logo files, for QR and the UI. Optional so the Worker still runs, without logos, where no bucket is bound. */
   LOGOS?: R2Bucket;
   /** A secret (`wrangler secret put BOOTSTRAP_TOKEN`). Only needed until the first administrator exists. */
   BOOTSTRAP_TOKEN?: string;
@@ -29,6 +29,34 @@ const r2Logos = (bucket: R2Bucket): LogoFiles => ({
   }
 });
 
+/** How long an isolate trusts the Organization's settings it read, before reading them again. */
+const ORGANIZATION_CACHE_MS = 60_000;
+let cachedOrganization: { record: OrganizationRecord; readAt: number } | null = null;
+
+/**
+ * The D1 store, with the Organization's settings held in the isolate for a minute: every opened
+ * Link needs its time zone, and they change rarely. A save here forgets them at once; another
+ * isolate sees the change within the minute.
+ */
+const storeOf = (database: D1Database): Store => {
+  const store = createD1Store(database);
+  return {
+    ...store,
+    getOrganization: async () => {
+      if (cachedOrganization && Date.now() - cachedOrganization.readAt < ORGANIZATION_CACHE_MS) {
+        return cachedOrganization.record;
+      }
+      const record = await store.getOrganization();
+      cachedOrganization = { readAt: Date.now(), record };
+      return record;
+    },
+    saveOrganization: async (record, at) => {
+      cachedOrganization = null;
+      await store.saveOrganization(record, at);
+    }
+  };
+};
+
 /** The Cloudflare entry point: the one place the portable app is given Cloudflare's pieces. */
 export default {
   fetch(request: Request, env: Env, ctx: ExecutionContext): Response | Promise<Response> {
@@ -46,7 +74,7 @@ export default {
         }
         return env.ASSETS.fetch(new Request(new URL("/app/", uiRequest.url), uiRequest));
       },
-      store: createD1Store(env.DB)
+      store: storeOf(env.DB)
     });
     return app.fetch(request);
   },

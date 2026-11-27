@@ -11,7 +11,7 @@ const toBase64Url = (bytes: Uint8Array): string =>
     .replaceAll("/", "_")
     .replaceAll("=", "");
 
-/** A fresh secret. `prefix` names what it is (`oul_` for a Khóa API) so one found in a log is recognisable. */
+/** A fresh secret. `prefix` names what it is (`lsk_` for an API Key) so one found in a log is recognisable. */
 const newSecret = (prefix = ""): string =>
   `${prefix}${toBase64Url(crypto.getRandomValues(new Uint8Array(SECRET_BYTES)))}`;
 

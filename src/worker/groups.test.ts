@@ -8,7 +8,7 @@ beforeAll(async () => {
 afterAll(() => h.dispose());
 beforeEach(() => h.reset());
 
-const TARGET = "https://journalofscience.ou.edu.vn/cfp";
+const TARGET = "https://journalofscience.example.org/cfp";
 const GROUPED_ROW = /^cfp-2027,https:\/\/go\.test\/cfp-2027,Poster,Hội thảo,/;
 
 type Browser = ReturnType<typeof h.client>;
@@ -38,7 +38,7 @@ const linksOf = async (browser: Browser, unitId: number) =>
 describe("a Nhóm", () => {
   it("is made, renamed and listed by a Thành viên, with how many Links it holds", async () => {
     const admin = await h.signedInAdmin();
-    const editor = await member(admin, 1, "bien-tap@ou.edu.vn");
+    const editor = await member(admin, 1, "bien-tap@example.org");
     const conference = await newGroup(editor, 1, "Hội thảo 2027");
     await newGroup(editor, 1, "Bài báo");
     await editor.post("/api/links", {
@@ -84,7 +84,7 @@ describe("a Nhóm", () => {
   it("is a Thành viên's to manage: not another Đơn vị's, not a Khóa API's", async () => {
     const admin = await h.signedInAdmin();
     const group = await newGroup(admin, 1, "Hội thảo");
-    const outsider = await member(admin, 2, "khac@ou.edu.vn");
+    const outsider = await member(admin, 2, "khac@example.org");
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
 
     expect((await outsider.get("/api/units/1/groups")).status).toBe(403);

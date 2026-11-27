@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isFetchableTarget, mergePreview, readPreview, renderPreviewPage } from "./preview";
 import { isMachineAgent, isPreviewFetcher } from "./visit";
 
-const PAGE = "https://journalofscience.ou.edu.vn/so-3";
+const PAGE = "https://journalofscience.example.org/so-3";
 
 describe("a preview fetcher", () => {
   it("is told apart from a person by its user agent", () => {
@@ -41,7 +41,7 @@ describe("reading a page's preview", () => {
     </head></html>`;
     expect(readPreview(html, PAGE)).toEqual({
       description: "Mô tả thường",
-      image: "https://journalofscience.ou.edu.vn/anh/bia.jpg",
+      image: "https://journalofscience.example.org/anh/bia.jpg",
       title: "Tạp chí Khoa học & Công nghệ"
     });
   });
@@ -76,17 +76,17 @@ describe("reading a page's preview", () => {
 
 describe("which Đích the server may read", () => {
   it("is a public https name, never an address inside a network", () => {
-    expect(isFetchableTarget("https://journalofscience.ou.edu.vn/cfp")).toBe(true);
+    expect(isFetchableTarget("https://journalofscience.example.org/cfp")).toBe(true);
     for (const address of [
-      "http://ou.edu.vn/",
+      "http://example.org/",
       "https://10.0.0.5/",
       "https://[::1]/",
       "https://localhost/",
       "https://may-chu/",
       "https://nas.local/",
       "https://db.internal/",
-      "https://ou.edu.vn:8443/",
-      "https://ai:mat-khau@ou.edu.vn/",
+      "https://example.org:8443/",
+      "https://ai:mat-khau@example.org/",
       "khong-phai-dia-chi"
     ]) {
       expect([address, isFetchableTarget(address)]).toEqual([address, false]);
@@ -100,7 +100,7 @@ describe("the page a preview fetcher gets", () => {
       linkUrl: "https://go.test/cfp-2027",
       preview: { description: "Mô tả", image: "https://a.vn/x.jpg", title },
       siteName: "OU Link",
-      target: "https://journalofscience.ou.edu.vn/cfp?a=1&b=2"
+      target: "https://journalofscience.example.org/cfp?a=1&b=2"
     });
 
   it("carries the tags, names the Link as canonical, and still sends a person on", () => {
@@ -110,7 +110,7 @@ describe("the page a preview fetcher gets", () => {
     expect(page).toContain('<meta property="og:image" content="https://a.vn/x.jpg">');
     expect(page).toContain('<meta name="twitter:card" content="summary_large_image">');
     expect(page).toContain('<link rel="canonical" href="https://go.test/cfp-2027">');
-    expect(page).toContain('content="0;url=https://journalofscience.ou.edu.vn/cfp?a=1&amp;b=2"');
+    expect(page).toContain('content="0;url=https://journalofscience.example.org/cfp?a=1&amp;b=2"');
   });
 
   it("escapes whatever the Đích's page said, so it cannot add markup of its own", () => {
@@ -121,11 +121,13 @@ describe("the page a preview fetcher gets", () => {
 
   it("sends a person on at once, showing nothing on the way", () => {
     const page = render("Hội thảo 2027");
-    expect(page).toContain('<script>location.replace("https://journalofscience.ou.edu.vn/cfp?a=1\\u0026b=2")</script>');
+    expect(page).toContain(
+      '<script>location.replace("https://journalofscience.example.org/cfp?a=1\\u0026b=2")</script>'
+    );
     // The title is only in the head and inside <noscript>: nothing is drawn while it redirects.
     const body = page.slice(page.indexOf("<body>"));
     expect(body).toBe(
-      '<body><noscript><a href="https://journalofscience.ou.edu.vn/cfp?a=1&amp;b=2">Hội thảo 2027</a></noscript></body></html>'
+      '<body><noscript><a href="https://journalofscience.example.org/cfp?a=1&amp;b=2">Hội thảo 2027</a></noscript></body></html>'
     );
   });
 

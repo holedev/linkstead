@@ -119,7 +119,7 @@ const openApiDocument = (origin: string) => ({
     },
     securitySchemes: {
       khoaApi: {
-        bearerFormat: "oul_...",
+        bearerFormat: "lsk_...",
         description:
           "Khóa API do Quản lý đơn vị cấp trong giao diện (mục Khóa API). Gửi trong header `Authorization: Bearer <khóa>`. Khóa chỉ làm việc với link của đơn vị mình.",
         scheme: "bearer",

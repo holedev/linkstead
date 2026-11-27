@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
-import { isUniversityEmail, normalizeEmail } from "../../domain/email";
+import { isAllowedEmail, normalizeEmail } from "../../domain/email";
+import { checkSettings } from "../../domain/organization";
 import { isStretched, sealPassword, verifyPassword } from "../../domain/password";
 import { hashSecret, newSecret } from "../../domain/secret";
 import { SESSION_COOKIE } from "../actor";
@@ -62,8 +63,10 @@ const startSession = async (c: AppContext, store: Store, accountId: number, now:
 
 const registerAuthRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(), bootstrapToken }: AppDeps) => {
   /**
-   * Creates the first Quản trị hệ thống, once. Guarded by a secret set at deploy rather than by a
-   * seeded account, so no person's address has to be written into a migration.
+   * Creates the first System Administrator, once, and with it the Organization's first settings:
+   * any of name, emailDomains, language, timeZone and brandColor, beside the email (ADR-0007).
+   * Guarded by a secret set at deploy rather than by a seeded account, so no person's address has
+   * to be written into a migration.
    */
   app.post("/api/bootstrap", async (c) => {
     const given = BEARER.exec(c.req.header("authorization") ?? "")?.[1];
@@ -73,16 +76,24 @@ const registerAuthRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(), 
     if ((await store.countSystemAdmins()) > 0) {
       return c.json({ error: "already-bootstrapped" }, 409);
     }
-    const email = normalizeEmail(text((await readJson(c))?.email));
-    if (!isUniversityEmail(email)) {
-      return c.json({ error: "not-university-email" }, 422);
+    const body = (await readJson(c)) ?? {};
+    const { email: _email, ...settings } = body;
+    const current = await store.getOrganization();
+    const checked = checkSettings(settings, current);
+    if ("problem" in checked) {
+      return c.json({ error: checked.problem }, 422);
+    }
+    const email = normalizeEmail(text(body.email));
+    if (!isAllowedEmail(email, checked.settings.emailDomains)) {
+      return c.json({ error: "email-not-allowed" }, 422);
     }
     if (await store.findAccountByEmail(email)) {
       return c.json({ error: "account-exists" }, 409);
     }
 
+    await store.saveOrganization({ ...checked.settings, uiLogoKey: current.uiLogoKey }, now());
     const account = await store.createAccount(email, true);
-    // The first administrator manages every Đơn vị that exists, or nobody could add its members.
+    // The first administrator manages every Unit that exists, or nobody could add its members.
     for (const unit of await store.listUnits()) {
       await store.addMembership(account.id, unit.id, "manager");
     }

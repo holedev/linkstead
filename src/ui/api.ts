@@ -232,7 +232,7 @@ const api = {
     call<void>("POST", "/api/auth/setup", { passwordKey: await stretchPassword(password, email), token }),
   setupAccount: (token: string) => call<{ email: string }>("POST", "/api/auth/setup/account", { token }),
   unarchiveLink: (code: string) => call<Link>("POST", `/api/links/${code}/unarchive`),
-  unitLogo: (unitId: number) => call<{ own: boolean; university: boolean }>("GET", `/api/units/${unitId}/qr-logo`),
+  unitLogo: (unitId: number) => call<{ organization: boolean; own: boolean }>("GET", `/api/units/${unitId}/qr-logo`),
   unitLogoPreview: (unitId: number) => svg(`/api/units/${unitId}/qr-preview`),
   unitVisits: (unitId: number, days: number | null) =>
     call<UnitVisits>("GET", `/api/units/${unitId}/visits${days ? `?days=${days}` : ""}`),

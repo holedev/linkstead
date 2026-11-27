@@ -24,10 +24,11 @@ describe("isMachineAgent", () => {
 });
 
 describe("visitDay", () => {
-  it("files an early-morning opening under the Vietnamese day, not the UTC one", () => {
-    // 06:00 on 2 March in Vietnam is 23:00 on 1 March UTC.
-    expect(visitDay(new Date("2027-03-01T23:00:00Z"))).toBe("2027-03-02");
-    expect(visitDay(new Date("2027-03-01T16:59:59Z"))).toBe("2027-03-01");
+  it("files an early-morning opening under the Organization's day, not the UTC one", () => {
+    // 06:00 on 2 March in Ho Chi Minh City is 23:00 on 1 March UTC.
+    expect(visitDay(new Date("2027-03-01T23:00:00Z"), "Asia/Ho_Chi_Minh")).toBe("2027-03-02");
+    expect(visitDay(new Date("2027-03-01T16:59:59Z"), "Asia/Ho_Chi_Minh")).toBe("2027-03-01");
+    expect(visitDay(new Date("2027-03-01T23:00:00Z"), "UTC")).toBe("2027-03-01");
   });
 });
 
@@ -42,7 +43,7 @@ describe("where a Lượt mở came from", () => {
   });
 
   it("keeps only the referring site's host, folded into the site people know", () => {
-    expect(referrerSite("https://www.ou.edu.vn/tin-tuc/bai-1?user=an", "go.test")).toBe("ou.edu.vn");
+    expect(referrerSite("https://www.example.org/tin-tuc/bai-1?user=an", "go.test")).toBe("example.org");
     expect(referrerSite("https://l.facebook.com/l.php?u=abc", "go.test")).toBe("facebook.com");
     expect(referrerSite("https://lm.facebook.com/", "go.test")).toBe("facebook.com");
     expect(referrerSite("https://t.co/xyz", "go.test")).toBe("x.com");

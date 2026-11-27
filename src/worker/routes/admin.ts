@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import { isUniversityEmail, normalizeEmail } from "../../domain/email";
+import { isAllowedEmail, normalizeEmail } from "../../domain/email";
 import { checkChosenCode, isWellFormedCode, normalizeCode } from "../../domain/link-code";
 import type { AppContext, AppDeps, AppEnv } from "../context";
 import { positiveInt, readJson, text } from "../http";
@@ -47,8 +47,8 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(),
       return admin;
     }
     const email = normalizeEmail(text((await readJson(c))?.email));
-    if (!isUniversityEmail(email)) {
-      return c.json({ error: "not-university-email" }, 422);
+    if (!isAllowedEmail(email, (await store.getOrganization()).emailDomains)) {
+      return c.json({ error: "email-not-allowed" }, 422);
     }
     const account = (await store.findAccountByEmail(email)) ?? (await store.createAccount(email, false));
     if (!(await store.grantSystemAdmin(account.id))) {
@@ -98,8 +98,8 @@ const registerAdminRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(),
     if (!name || name.length > MAX_NAME) {
       return c.json({ error: "bad-name" }, 422);
     }
-    if (!isUniversityEmail(managerEmail)) {
-      return c.json({ error: "not-university-email" }, 422);
+    if (!isAllowedEmail(managerEmail, (await store.getOrganization()).emailDomains)) {
+      return c.json({ error: "email-not-allowed" }, 422);
     }
     const unit = await store.createUnit(name);
     if (!unit) {

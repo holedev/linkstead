@@ -308,6 +308,26 @@ const dailyVisitSources = sqliteTable(
   (table) => [primaryKey({ columns: [table.linkId, table.day, table.kind, table.value] })]
 );
 
+/**
+ * The one Organization an installation serves (ADR-0007): a single row, id 1, written by a System
+ * Administrator. No row yet means the defaults in `domain/organization.ts`.
+ */
+const organization = sqliteTable("organization", {
+  /** `#rrggbb`. */
+  brandColor: text("brand_color").notNull(),
+  /** The domains an Account's email may have, as a JSON array. Empty: any address. */
+  emailDomains: text("email_domains").notNull().default("[]"),
+  id: integer("id").primaryKey(),
+  /** `en` or `vi`: the language of the UI and of the pages visitors meet. */
+  language: text("language", { enum: ["en", "vi"] }).notNull(),
+  name: text("name").notNull(),
+  /** An IANA zone: the days Visits are counted under, and how an expiry is read. */
+  timeZone: text("time_zone").notNull(),
+  /** The logo the UI shows in its header and as its icon, as a storage key. Not the QR's. */
+  uiLogoKey: text("ui_logo_key"),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+});
+
 export {
   accounts,
   apiKeys,
@@ -318,6 +338,7 @@ export {
   linkPasswordFailures,
   links,
   memberships,
+  organization,
   passwordSetups,
   reservedCodes,
   sessions,

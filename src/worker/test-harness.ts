@@ -11,9 +11,20 @@ import { createD1Store } from "./store-d1";
  */
 
 const MIGRATIONS = join(import.meta.dirname, "../../migrations");
-/** The tests' second Đơn vị. Not part of any deploy. */
-const OTHER_UNIT = "Khoa Kế toán";
-const FIRST_UNIT = "Tạp chí Khoa học & Nhà xuất bản";
+/** The tests' two Units. Not part of any deploy: a fresh installation starts with none. */
+const FIRST_UNIT = "Journal & Press";
+const OTHER_UNIT = "Accounting";
+/**
+ * The Organization the tests run as. A zone ahead of UTC, so a test of which day a Visit lands on
+ * means something, and one email domain, so the rule about it is exercised.
+ */
+const ORGANIZATION = {
+  brandColor: "#114fa0",
+  emailDomains: ["example.org"],
+  language: "vi",
+  name: "Example University",
+  timeZone: "Asia/Ho_Chi_Minh"
+} as const;
 const BREAKPOINT = "--> statement-breakpoint";
 const ORIGIN = "https://go.test";
 const BOOTSTRAP_TOKEN = "bootstrap-secret-for-tests";
@@ -36,7 +47,8 @@ const TABLES = [
   "password_setups",
   "reserved_codes",
   "units",
-  "accounts"
+  "accounts",
+  "organization"
 ];
 
 /**
@@ -118,18 +130,20 @@ const startHarness = async () => {
   };
 
   /**
-   * Back to what a fresh deploy holds - the one Đơn vị the trial starts with (id 1) - plus a
-   * second Đơn vị (id 2) that exists only so the tests have "another Đơn vị" to be refused by.
+   * Back to an installation with the tests' Organization and two Units: the first (id 1), and a
+   * second (id 2) that exists only so the tests have "another Unit" to be refused by.
    */
   const reset = async () => {
     for (const table of TABLES) {
       await run(`DELETE FROM ${table}`);
     }
     await run("DELETE FROM sqlite_sequence");
-    await runMigration("seed_first_units");
-    await runMigration("merge_first_units");
-    await run("UPDATE sqlite_sequence SET seq = 1 WHERE name = 'units'");
+    await run(`INSERT INTO units (name) VALUES ('${FIRST_UNIT}')`);
     await run(`INSERT INTO units (name) VALUES ('${OTHER_UNIT}')`);
+    await createD1Store(db).saveOrganization(
+      { ...ORGANIZATION, emailDomains: [...ORGANIZATION.emailDomains], uiLogoKey: null },
+      clock.now
+    );
     clock.now = new Date("2027-03-01T03:00:00Z");
     logoFiles.clear();
     pages.clear();
@@ -181,8 +195,8 @@ const startHarness = async () => {
     };
   };
 
-  /** The first administrator, with a password set and signed in. Manager of both Đơn vị. */
-  const signedInAdmin = async (email = "admin@ou.edu.vn", password = "mat-khau-quan-tri") => {
+  /** The first administrator, with a password set and signed in. Manager of both Units. */
+  const signedInAdmin = async (email = "admin@example.org", password = "mat-khau-quan-tri") => {
     const browser = client();
     const created = await browser.post("/api/bootstrap", { email }, { headers: bearer(BOOTSTRAP_TOKEN) });
     const { setupUrl } = (await created.json()) as { setupUrl: string };
@@ -213,4 +227,4 @@ const startHarness = async () => {
 const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
 const tokenOf = (setupUrl: string) => new URL(setupUrl).searchParams.get("token") ?? "";
 
-export { BOOTSTRAP_TOKEN, bearer, FIRST_UNIT, ORIGIN, OTHER_UNIT, passwordKey, startHarness, tokenOf };
+export { BOOTSTRAP_TOKEN, bearer, FIRST_UNIT, ORGANIZATION, ORIGIN, OTHER_UNIT, passwordKey, startHarness, tokenOf };

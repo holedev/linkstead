@@ -19,9 +19,10 @@ const registerStatsRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() 
     if (unit instanceof Response) {
       return unit;
     }
+    const { timeZone } = await store.getOrganization();
     const range = Number(c.req.query("days"));
     // The first day counted: today is one of the `range` days.
-    const since = RANGES.has(range) ? visitDay(new Date(now().getTime() - (range - 1) * DAY_MS)) : undefined;
+    const since = RANGES.has(range) ? visitDay(new Date(now().getTime() - (range - 1) * DAY_MS), timeZone) : undefined;
     const days = await store.listUnitVisitDays(unit.id, since);
     const sources = await store.listVisitSources({ since, unitId: unit.id });
     return c.json({
@@ -29,7 +30,7 @@ const registerStatsRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() 
       days,
       referrers: sourcesOf(sources, "referrer"),
       since: since ?? null,
-      today: visitDay(now()),
+      today: visitDay(now(), timeZone),
       topLinks: await store.listUnitTopLinks(unit.id, since, TOP_LINKS),
       total: days.reduce((sum, day) => sum + day.count, 0)
     });

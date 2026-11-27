@@ -1,6 +1,4 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { checkLogo, logoTypeOf } from "../domain/logo";
-import { DEFAULT_LOGO } from "./default-logo";
 import { BOOTSTRAP_TOKEN, bearer, startHarness, tokenOf } from "./test-harness";
 
 let h: Awaited<ReturnType<typeof startHarness>>;
@@ -10,11 +8,11 @@ beforeAll(async () => {
 afterAll(() => h.dispose());
 beforeEach(() => h.reset());
 
-const TARGET = "https://journalofscience.ou.edu.vn/cfp";
+const TARGET = "https://journalofscience.example.org/cfp";
 const PNG_HEAD = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 /** Three logos told apart by their last byte: the university's, a Đơn vị's, a Link's own. */
 const png = (mark: number) => new Uint8Array([...PNG_HEAD, 0, 0, 0, mark]);
-const UNIVERSITY = png(1);
+const ORGANIZATION_LOGO = png(1);
 const UNIT = png(2);
 const OWN = png(3);
 const dataOf = (bytes: Uint8Array) => `data:image/png;base64,${Buffer.from(bytes).toString("base64")}`;
@@ -50,14 +48,15 @@ describe("a Link's QR", () => {
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     const picture = await response.text();
     expect(picture.startsWith("<svg ")).toBe(true);
-    expect(picture).toContain(dataOf(DEFAULT_LOGO));
+    // No logo has been uploaded anywhere, and none is built in.
+    expect(picture).not.toContain("<image");
     expect(await (await h.client().get("/api/links/cfp-2027/qr", { headers: bearer(key) })).text()).toBe(picture);
   });
 
   it("carries the Link and not the Đích, so it is the same picture after the Đích changes", async () => {
     const admin = await withLink();
     const before = await qrOf(admin);
-    await admin.put("/api/links/cfp-2027/target", { target: "https://ou.edu.vn/noi-khac" });
+    await admin.put("/api/links/cfp-2027/target", { target: "https://example.org/noi-khac" });
     expect(await qrOf(admin)).toBe(before);
 
     // A Link with the same Đích and another code is another picture.
@@ -67,7 +66,7 @@ describe("a Link's QR", () => {
 
   it("is refused to another Đơn vị, to its key and to a stranger", async () => {
     const admin = await withLink();
-    const publisher = await member(admin, 2, "nxb@ou.edu.vn");
+    const publisher = await member(admin, 2, "nxb@example.org");
     const { key } = (await (await admin.post("/api/units/2/keys", { name: "NXB" })).json()) as { key: string };
 
     expect((await publisher.get("/api/links/cfp-2027/qr")).status).toBe(403);
@@ -101,17 +100,12 @@ describe("the look of a Link's QR", () => {
 });
 
 describe("the logo on a QR", () => {
-  it("is the university's built-in logo until one is uploaded, and a PNG the upload rules accept", () => {
-    expect(checkLogo(DEFAULT_LOGO)).toBeNull();
-    expect(logoTypeOf(DEFAULT_LOGO)).toBe("image/png");
-  });
-
   it("is chosen at three levels, the lower winning", async () => {
     const admin = await withLink();
-    expect(await qrOf(admin)).toContain(dataOf(DEFAULT_LOGO));
+    expect(await qrOf(admin)).not.toContain("<image");
 
-    expect((await admin.upload("/api/admin/qr-logo", UNIVERSITY)).status).toBe(204);
-    expect(await qrOf(admin)).toContain(dataOf(UNIVERSITY));
+    expect((await admin.upload("/api/admin/qr-logo", ORGANIZATION_LOGO)).status).toBe(204);
+    expect(await qrOf(admin)).toContain(dataOf(ORGANIZATION_LOGO));
 
     expect((await admin.upload("/api/units/1/qr-logo", UNIT)).status).toBe(204);
     expect(await qrOf(admin)).toContain(dataOf(UNIT));
@@ -129,22 +123,22 @@ describe("the logo on a QR", () => {
     expect(await qrOf(admin)).toContain(dataOf(UNIT));
 
     expect((await admin.delete("/api/units/1/qr-logo")).status).toBe(204);
-    expect(await qrOf(admin)).toContain(dataOf(UNIVERSITY));
+    expect(await qrOf(admin)).toContain(dataOf(ORGANIZATION_LOGO));
 
     expect((await admin.delete("/api/admin/qr-logo")).status).toBe(204);
-    expect(await qrOf(admin)).toContain(dataOf(DEFAULT_LOGO));
+    expect(await qrOf(admin)).not.toContain("<image");
   });
 
   it("keeps the size a Link's logo takes in its box, for every later download", async () => {
     const admin = await withLink();
-    await admin.upload("/api/admin/qr-logo", UNIVERSITY);
+    await admin.upload("/api/admin/qr-logo", ORGANIZATION_LOGO);
     const full = await qrOf(admin);
 
     const set = await admin.put("/api/links/cfp-2027/qr-logo", { scale: 60 });
     expect(await set.json()).toEqual({ logoChoice: "inherit", logoScale: 60 });
     const smaller = await qrOf(admin);
     expect(smaller).not.toBe(full);
-    expect(smaller).toContain(dataOf(UNIVERSITY));
+    expect(smaller).toContain(dataOf(ORGANIZATION_LOGO));
     expect(await (await admin.get("/api/links?unitId=1")).json()).toMatchObject({ links: [{ logoScale: 60 }] });
 
     // Choosing another logo keeps the size; asking for none keeps it for when a logo returns.
@@ -163,7 +157,7 @@ describe("the logo on a QR", () => {
     await admin.upload("/api/links/cfp-2027/qr-logo", OWN);
     const printed = await qrOf(admin);
 
-    await admin.upload("/api/admin/qr-logo", UNIVERSITY);
+    await admin.upload("/api/admin/qr-logo", ORGANIZATION_LOGO);
     await admin.upload("/api/units/1/qr-logo", UNIT);
     expect(await qrOf(admin)).toBe(printed);
     expect(await (await admin.get("/api/links?unitId=1")).json()).toMatchObject({ links: [{ logoChoice: "custom" }] });
@@ -196,19 +190,19 @@ describe("the logo on a QR", () => {
       expect(await attempt(path, new Uint8Array())).toEqual({ error: "bad-logo", problem: "empty" });
     }
     expect(h.logoFiles.size).toBe(0);
-    expect(await qrOf(admin)).toContain(dataOf(DEFAULT_LOGO));
+    expect(await qrOf(admin)).not.toContain("<image");
     expect((await admin.put("/api/links/cfp-2027/qr-logo", { choice: "custom" })).status).toBe(422);
   });
 
   it("is each level's own to set: a member for a Link, a Quản lý đơn vị for the Đơn vị, an administrator for all", async () => {
     const admin = await withLink();
-    const editor = await member(admin, 1, "bien-tap@ou.edu.vn");
-    const publisher = await member(admin, 2, "nxb@ou.edu.vn");
+    const editor = await member(admin, 1, "bien-tap@example.org");
+    const publisher = await member(admin, 2, "nxb@example.org");
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
 
     expect((await editor.upload("/api/links/cfp-2027/qr-logo", OWN)).status).toBe(200);
     expect((await editor.upload("/api/units/1/qr-logo", UNIT)).status).toBe(403);
-    expect((await editor.upload("/api/admin/qr-logo", UNIVERSITY)).status).toBe(403);
+    expect((await editor.upload("/api/admin/qr-logo", ORGANIZATION_LOGO)).status).toBe(403);
     expect((await editor.get("/api/units/1/qr-preview")).status).toBe(403);
     expect((await publisher.upload("/api/links/cfp-2027/qr-logo", OWN)).status).toBe(403);
     // Choosing a logo is not one of the things the API does.
@@ -217,14 +211,14 @@ describe("the logo on a QR", () => {
 
   it("shows a manager and an administrator what their logo looks like on a sample QR", async () => {
     const admin = await withLink();
-    await admin.upload("/api/admin/qr-logo", UNIVERSITY);
-    expect(await (await admin.get("/api/units/1/qr-logo")).json()).toEqual({ own: false, university: true });
-    expect(await (await admin.get("/api/units/1/qr-preview")).text()).toContain(dataOf(UNIVERSITY));
+    await admin.upload("/api/admin/qr-logo", ORGANIZATION_LOGO);
+    expect(await (await admin.get("/api/units/1/qr-logo")).json()).toEqual({ organization: true, own: false });
+    expect(await (await admin.get("/api/units/1/qr-preview")).text()).toContain(dataOf(ORGANIZATION_LOGO));
 
     await admin.upload("/api/units/1/qr-logo", UNIT);
-    expect(await (await admin.get("/api/units/1/qr-logo")).json()).toEqual({ own: true, university: true });
+    expect(await (await admin.get("/api/units/1/qr-logo")).json()).toEqual({ organization: true, own: true });
     expect(await (await admin.get("/api/units/1/qr-preview")).text()).toContain(dataOf(UNIT));
-    expect(await (await admin.get("/api/admin/qr-preview")).text()).toContain(dataOf(UNIVERSITY));
+    expect(await (await admin.get("/api/admin/qr-preview")).text()).toContain(dataOf(ORGANIZATION_LOGO));
     expect(await (await admin.get("/api/admin/qr-logo")).json()).toEqual({ set: true });
   });
 
@@ -239,7 +233,7 @@ describe("the logo on a QR", () => {
     expect(await qrOf(admin)).toContain(dataOf(UNIT));
     expect(h.logoFiles.size).toBe(1);
 
-    await admin.post("/api/admin/units", { managerEmail: "khoa@ou.edu.vn", name: "Khoa Luật" });
+    await admin.post("/api/admin/units", { managerEmail: "khoa@example.org", name: "Khoa Luật" });
     await admin.upload("/api/units/3/qr-logo", OWN);
     await admin.post("/api/admin/units/3/merge", { intoUnitId: 1 });
     expect(await qrOf(admin)).toContain(dataOf(UNIT));
@@ -247,7 +241,7 @@ describe("the logo on a QR", () => {
 
   it("travels with the export, so an imported installation gives the same pictures", async () => {
     const admin = await withLink();
-    await admin.upload("/api/admin/qr-logo", UNIVERSITY);
+    await admin.upload("/api/admin/qr-logo", ORGANIZATION_LOGO);
     await admin.upload("/api/units/2/qr-logo", UNIT);
     await admin.upload("/api/links/cfp-2027/qr-logo", OWN);
     await admin.post("/api/links", { code: "cua-nxb", name: "NXB", target: TARGET, unitId: 2 });
@@ -264,7 +258,7 @@ describe("the logo on a QR", () => {
     expect(h.logoFiles.size).toBe(3);
 
     const again = h.client();
-    await again.login("admin@ou.edu.vn", "mat-khau-quan-tri");
+    await again.login("admin@example.org", "mat-khau-quan-tri");
     expect([await qrOf(again), await qrOf(again, "cua-nxb")]).toEqual(before);
     expect(before[0]).toContain(dataOf(OWN));
   });

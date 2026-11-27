@@ -3,8 +3,14 @@ import { createMiddleware } from "hono/factory";
 import { hashSecret } from "../domain/secret";
 import type { Actor, AppContext, AppDeps, AppEnv } from "./context";
 
-const SESSION_COOKIE = "oul_session";
-const API_KEY_PREFIX = "oul_";
+const SESSION_COOKIE = "linkstead_session";
+/** What a Khóa API starts with, so one found in a log is recognisable. */
+const API_KEY_PREFIX = "lsk_";
+/**
+ * Every prefix a live key may have: today's, and `oul_` from keys issued while the project was OU
+ * Link - an application holding one must keep working.
+ */
+const API_KEY_PREFIXES = [API_KEY_PREFIX, "oul_"];
 const BEARER = /^Bearer\s+(\S+)$/i;
 /** Calls one Khóa API may make in a minute. Generous for an application, tight for a leaked key. */
 const KEY_CALLS_PER_MINUTE = 120;
@@ -36,7 +42,7 @@ const resolveActor = ({ store, now = () => new Date() }: AppDeps) => {
     c.set("actor", null);
 
     const bearer = BEARER.exec(c.req.header("authorization") ?? "")?.[1];
-    if (bearer?.startsWith(API_KEY_PREFIX)) {
+    if (bearer && API_KEY_PREFIXES.some((prefix) => bearer.startsWith(prefix))) {
       const refusal = await resolveKey(c, bearer);
       if (refusal) {
         return refusal;

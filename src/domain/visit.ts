@@ -1,3 +1,5 @@
+import { dayIn } from "./time-zone";
+
 /** What counts as a Lượt mở, and which day it belongs to (CONTEXT.md). */
 
 /**
@@ -25,13 +27,12 @@ const isPreviewFetcher = (userAgent: string | null | undefined): boolean =>
 /** A request with no user agent at all is a script, not a person holding a phone. */
 const isMachineAgent = (userAgent: string | null | undefined): boolean => !userAgent || isPreviewFetcher(userAgent);
 
-const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
-
 /**
- * The day a Lượt mở is counted under, as `yyyy-mm-dd` in Vietnam time. The university reads these
- * numbers by its own calendar; a UTC day would file an 06:00 scan under yesterday.
+ * The day a Visit is counted under, as `yyyy-mm-dd` in the Organization's time zone. It reads these
+ * numbers by its own calendar; a UTC day would file a 06:00 scan in Asia under yesterday. A day
+ * once counted stays where it was, even if the zone is changed later.
  */
-const visitDay = (at: Date): string => new Date(at.getTime() + VN_OFFSET_MS).toISOString().slice(0, 10);
+const visitDay = (at: Date, timeZone: string): string => dayIn(at, timeZone);
 
 /**
  * The country a Lượt mở came from, as the network in front of the system reports it - two capital

@@ -5,18 +5,18 @@ const OWN = ["go.example.edu.vn"];
 
 describe("checkTarget", () => {
   it("accepts any https address elsewhere", () => {
-    expect(checkTarget("https://journalofscience.ou.edu.vn/index.php/econ-en", OWN)).toBeNull();
+    expect(checkTarget("https://journalofscience.example.org/index.php/econ-en", OWN)).toBeNull();
     expect(checkTarget("  https://forms.gle/abc  ", OWN)).toBeNull();
   });
 
   it("refuses anything that is not https", () => {
-    expect(checkTarget("http://ou.edu.vn", OWN)).toBe("not-https");
+    expect(checkTarget("http://example.org", OWN)).toBe("not-https");
     expect(checkTarget("javascript:alert(1)", OWN)).toBe("not-https");
-    expect(checkTarget("mailto:someone@ou.edu.vn", OWN)).toBe("not-https");
+    expect(checkTarget("mailto:someone@example.org", OWN)).toBe("not-https");
   });
 
   it("refuses what is not an address at all", () => {
-    expect(checkTarget("ou.edu.vn/trang", OWN)).toBe("not-a-url");
+    expect(checkTarget("example.org/trang", OWN)).toBe("not-a-url");
     expect(checkTarget("", OWN)).toBe("not-a-url");
   });
 
@@ -26,6 +26,6 @@ describe("checkTarget", () => {
   });
 
   it("refuses an address too long to be one", () => {
-    expect(checkTarget(`https://ou.edu.vn/${"a".repeat(2048)}`, OWN)).toBe("too-long");
+    expect(checkTarget(`https://example.org/${"a".repeat(2048)}`, OWN)).toBe("too-long");
   });
 });

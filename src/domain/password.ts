@@ -38,6 +38,8 @@ const checkNewPassword = (password: string): "too-short" | null => (password.len
  */
 const stretchPassword = async (password: string, email: string): Promise<string> => {
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
+  // The prefix is the project's first name, and stays: changing it would turn away every password
+  // already set, in every installation.
   const salt = encoder.encode(`ou-link:${normalizeEmail(email)}`);
   const bits = await crypto.subtle.deriveBits(
     { hash: "SHA-256", iterations: STRETCH_ITERATIONS, name: "PBKDF2", salt },

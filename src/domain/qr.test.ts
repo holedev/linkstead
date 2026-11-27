@@ -4,7 +4,7 @@ import { checkLogo, logoTypeOf, MAX_LOGO_BYTES } from "./logo";
 import { dotMarks, logoBox, type Mark, QUIET_ZONE, qrMatrix, renderQrSvg } from "./qr";
 import { isLogoScale, isQrStyle, QR_STYLES, type QrStyle } from "./qr-style";
 
-const LINK = "https://go.ou.edu.vn/hoi-thao-khoa-hoc-quoc-te-2027";
+const LINK = "https://go.example.org/hoi-thao-khoa-hoc-quoc-te-2027";
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16]);
 const SVG = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
@@ -166,7 +166,7 @@ describe("renderQrSvg", () => {
   });
 
   it("keeps the logo centred, on a white backing, within a fifth of the width", () => {
-    for (const text of ["https://go.ou.edu.vn/abc", LINK, `${LINK}-${"x".repeat(40)}`]) {
+    for (const text of ["https://go.example.org/abc", LINK, `${LINK}-${"x".repeat(40)}`]) {
       const { size } = qrMatrix(text, true);
       const box = logoBox(size);
       expect(box.logo).toBeLessThanOrEqual(size / 5);

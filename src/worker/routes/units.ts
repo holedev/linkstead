@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import { isUniversityEmail, normalizeEmail } from "../../domain/email";
+import { isAllowedEmail, normalizeEmail } from "../../domain/email";
 import { hashSecret, newSecret } from "../../domain/secret";
 import { API_KEY_PREFIX } from "../actor";
 import type { AppContext, AppDeps, AppEnv } from "../context";
@@ -50,8 +50,8 @@ const registerUnitRoutes = (app: Hono<AppEnv>, { store, now = () => new Date() }
     const body = await readJson(c);
     const email = normalizeEmail(text(body?.email));
     const role = body?.role === "manager" ? "manager" : "member";
-    if (!isUniversityEmail(email)) {
-      return c.json({ error: "not-university-email" }, 422);
+    if (!isAllowedEmail(email, (await store.getOrganization()).emailDomains)) {
+      return c.json({ error: "email-not-allowed" }, 422);
     }
 
     const account = (await store.findAccountByEmail(email)) ?? (await store.createAccount(email, false));

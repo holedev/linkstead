@@ -8,7 +8,7 @@ beforeAll(async () => {
 afterAll(() => h.dispose());
 beforeEach(() => h.reset());
 
-const TARGET = "https://journalofscience.ou.edu.vn/cfp";
+const TARGET = "https://journalofscience.example.org/cfp";
 const GENERATED = /^[a-km-np-z2-9]{6}$/;
 
 const visits = async () =>
@@ -83,9 +83,9 @@ describe("creating a Link", () => {
     const attempt = async (target: string) =>
       (await (await admin.post("/api/links", { name: "Thử", target, unitId: 1 })).json()) as object;
 
-    expect(await attempt("http://ou.edu.vn/")).toEqual({ error: "bad-target", problem: "not-https" });
+    expect(await attempt("http://example.org/")).toEqual({ error: "bad-target", problem: "not-https" });
     expect(await attempt(`${ORIGIN}/khac`)).toEqual({ error: "bad-target", problem: "points-at-self" });
-    expect(await attempt("ou.edu.vn")).toEqual({ error: "bad-target", problem: "not-a-url" });
+    expect(await attempt("example.org")).toEqual({ error: "bad-target", problem: "not-a-url" });
   });
 
   it("requires a Tên link", async () => {
@@ -95,11 +95,11 @@ describe("creating a Link", () => {
 
   it("is refused to someone not signed in, and to a member of another Đơn vị", async () => {
     const admin = await h.signedInAdmin();
-    const added = await admin.post("/api/units/2/members", { email: "nxb@ou.edu.vn" });
+    const added = await admin.post("/api/units/2/members", { email: "nxb@example.org" });
     const publisher = h.client();
     const { setupUrl } = (await added.json()) as { setupUrl: string };
-    await publisher.setup(tokenOf(setupUrl), "nxb@ou.edu.vn", "mat-khau-du-dai");
-    await publisher.login("nxb@ou.edu.vn", "mat-khau-du-dai");
+    await publisher.setup(tokenOf(setupUrl), "nxb@example.org", "mat-khau-du-dai");
+    await publisher.login("nxb@example.org", "mat-khau-du-dai");
 
     expect((await h.client().post("/api/links", { name: "Thử", target: TARGET, unitId: 1 })).status).toBe(401);
     expect((await publisher.post("/api/links", { name: "Thử", target: TARGET, unitId: 1 })).status).toBe(403);
@@ -122,11 +122,11 @@ describe("reading one Link", () => {
   it("is refused to a stranger, a member of another Đơn vị and every Khóa API", async () => {
     const admin = await h.signedInAdmin();
     await admin.post("/api/links", { code: "cfp-2027", name: "Poster", target: TARGET, unitId: 1 });
-    const added = await admin.post("/api/units/2/members", { email: "nxb@ou.edu.vn" });
+    const added = await admin.post("/api/units/2/members", { email: "nxb@example.org" });
     const publisher = h.client();
     const { setupUrl } = (await added.json()) as { setupUrl: string };
-    await publisher.setup(tokenOf(setupUrl), "nxb@ou.edu.vn", "mat-khau-du-dai");
-    await publisher.login("nxb@ou.edu.vn", "mat-khau-du-dai");
+    await publisher.setup(tokenOf(setupUrl), "nxb@example.org", "mat-khau-du-dai");
+    await publisher.login("nxb@example.org", "mat-khau-du-dai");
     const { key } = (await (await admin.post("/api/units/1/keys", { name: "CRM" })).json()) as { key: string };
 
     expect((await h.client().get("/api/links/cfp-2027")).status).toBe(401);

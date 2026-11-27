@@ -39,7 +39,7 @@ const status = (link: { enabled: boolean; disabledBySystem: boolean }): string =
 };
 
 /** The only shapes a logo's key has. A snapshot cannot make the import write anywhere else. */
-const LOGO_KEY = /^(system\/logo|(units|links)\/\d+\/[\w-]+)$/;
+const LOGO_KEY = /^(system\/logo|system\/ui-logo\/[\w-]+|(units|links)\/\d+\/[\w-]+)$/;
 
 const isSnapshot = (value: Record<string, unknown> | null): value is Snapshot =>
   value?.version === 1 && typeof value.tables === "object" && value.tables !== null && !Array.isArray(value.tables);
@@ -90,7 +90,7 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
         link.visits
       ])
     );
-    return download(c, csv, "text/csv; charset=utf-8", `ou-link-don-vi-${unit.id}-links.csv`);
+    return download(c, csv, "text/csv; charset=utf-8", `linkstead-unit-${unit.id}-links.csv`);
   });
 
   /** A Đơn vị's Lượt mở, one row per Link per day that had any. */
@@ -104,7 +104,7 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
       ["Mã link", "Ngày", "Lượt mở (ước tính)"],
       visits.map((visit) => [visit.code, visit.day, visit.count])
     );
-    return download(c, csv, "text/csv; charset=utf-8", `ou-link-don-vi-${unit.id}-luot-mo.csv`);
+    return download(c, csv, "text/csv; charset=utf-8", `linkstead-unit-${unit.id}-visits.csv`);
   });
 
   /** Where a Đơn vị's Lượt mở came from: one row per Link, day, and country or referring site. */
@@ -124,7 +124,7 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
         row.count
       ])
     );
-    return download(c, csv, "text/csv; charset=utf-8", `ou-link-don-vi-${unit.id}-nguon-luot-mo.csv`);
+    return download(c, csv, "text/csv; charset=utf-8", `linkstead-unit-${unit.id}-visit-sources.csv`);
   });
 
   /** Everything, for moving to another installation (ADR-0001). It holds password and key hashes. */
@@ -145,7 +145,7 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
       }
     }
     const day = snapshot.exportedAt.slice(0, 10);
-    return download(c, JSON.stringify(snapshot), "application/json; charset=utf-8", `ou-link-${day}.json`);
+    return download(c, JSON.stringify(snapshot), "application/json; charset=utf-8", `linkstead-${day}.json`);
   });
 
   /**

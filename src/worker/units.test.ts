@@ -28,38 +28,38 @@ const join = async (
 describe("adding a Thành viên", () => {
   it("creates the Tài khoản and returns a one-time link to pass on", async () => {
     const admin = await h.signedInAdmin();
-    const added = await admin.post("/api/units/1/members", { email: "Dong.Nghiep@ou.edu.vn" });
+    const added = await admin.post("/api/units/1/members", { email: "Dong.Nghiep@example.org" });
     const body = (await added.json()) as { email: string; role: string; setupUrl: string };
 
     expect(added.status).toBe(201);
-    expect(body).toMatchObject({ email: "dong.nghiep@ou.edu.vn", role: "member" });
+    expect(body).toMatchObject({ email: "dong.nghiep@example.org", role: "member" });
 
     const member = h.client();
-    await member.setup(tokenOf(body.setupUrl), "dong.nghiep@ou.edu.vn", PASSWORD);
-    const login = await member.login("dong.nghiep@ou.edu.vn", PASSWORD);
+    await member.setup(tokenOf(body.setupUrl), "dong.nghiep@example.org", PASSWORD);
+    const login = await member.login("dong.nghiep@example.org", PASSWORD);
     expect(((await login.json()) as { units: unknown[] }).units).toEqual([
-      { role: "member", unitId: 1, unitName: "Tạp chí Khoa học & Nhà xuất bản" }
+      { role: "member", unitId: 1, unitName: "Journal & Press" }
     ]);
   });
 
   it("adds someone who already has a password to a second Đơn vị without a new link", async () => {
     const admin = await h.signedInAdmin();
-    await join(admin, "hai-noi@ou.edu.vn", 1);
+    await join(admin, "hai-noi@example.org", 1);
 
-    const second = await admin.post("/api/units/2/members", { email: "hai-noi@ou.edu.vn" });
+    const second = await admin.post("/api/units/2/members", { email: "hai-noi@example.org" });
     expect(second.status).toBe(201);
     expect(((await second.json()) as { setupUrl: string | null }).setupUrl).toBeNull();
   });
 
   it("lists members without ever exposing a password hash", async () => {
     const admin = await h.signedInAdmin();
-    await admin.post("/api/units/1/members", { email: "chua-dat@ou.edu.vn" });
+    await admin.post("/api/units/1/members", { email: "chua-dat@example.org" });
     const listed = await admin.get("/api/units/1/members");
     const text = await listed.clone().text();
 
     expect(((await listed.json()) as { members: unknown[] }).members).toEqual([
-      { email: "admin@ou.edu.vn", hasPassword: true, role: "manager" },
-      { email: "chua-dat@ou.edu.vn", hasPassword: false, role: "member" }
+      { email: "admin@example.org", hasPassword: true, role: "manager" },
+      { email: "chua-dat@example.org", hasPassword: false, role: "member" }
     ]);
     expect(text).not.toContain("pbkdf2");
   });
@@ -67,39 +67,39 @@ describe("adding a Thành viên", () => {
   it("refuses an address outside the university, and a member added twice", async () => {
     const admin = await h.signedInAdmin();
     expect((await admin.post("/api/units/1/members", { email: "ai-do@gmail.com" })).status).toBe(422);
-    await admin.post("/api/units/1/members", { email: "mot-lan@ou.edu.vn" });
-    expect((await admin.post("/api/units/1/members", { email: "mot-lan@ou.edu.vn" })).status).toBe(409);
+    await admin.post("/api/units/1/members", { email: "mot-lan@example.org" });
+    expect((await admin.post("/api/units/1/members", { email: "mot-lan@example.org" })).status).toBe(409);
   });
 
   it("is for a Quản lý đơn vị of that Đơn vị only", async () => {
     const admin = await h.signedInAdmin();
-    const member = await join(admin, "thanh-vien@ou.edu.vn", 1);
-    const manager = await join(admin, "quan-ly@ou.edu.vn", 1, "manager");
+    const member = await join(admin, "thanh-vien@example.org", 1);
+    const manager = await join(admin, "quan-ly@example.org", 1, "manager");
 
-    expect((await h.client().post("/api/units/1/members", { email: "x@ou.edu.vn" })).status).toBe(401);
-    expect((await member.post("/api/units/1/members", { email: "x@ou.edu.vn" })).status).toBe(403);
-    expect((await manager.post("/api/units/1/members", { email: "x@ou.edu.vn" })).status).toBe(201);
+    expect((await h.client().post("/api/units/1/members", { email: "x@example.org" })).status).toBe(401);
+    expect((await member.post("/api/units/1/members", { email: "x@example.org" })).status).toBe(403);
+    expect((await manager.post("/api/units/1/members", { email: "x@example.org" })).status).toBe(201);
     // Managing one Đơn vị says nothing about another.
-    expect((await manager.post("/api/units/2/members", { email: "y@ou.edu.vn" })).status).toBe(403);
-    expect((await manager.post("/api/units/99/members", { email: "y@ou.edu.vn" })).status).toBe(404);
+    expect((await manager.post("/api/units/2/members", { email: "y@example.org" })).status).toBe(403);
+    expect((await manager.post("/api/units/99/members", { email: "y@example.org" })).status).toBe(404);
   });
 
   it("issues a fresh link for a forgotten password, which ends the old sessions", async () => {
     const admin = await h.signedInAdmin();
-    const member = await join(admin, "quen@ou.edu.vn", 1);
+    const member = await join(admin, "quen@example.org", 1);
 
-    const reissued = await admin.post("/api/units/1/members/password-setup", { email: "quen@ou.edu.vn" });
+    const reissued = await admin.post("/api/units/1/members/password-setup", { email: "quen@example.org" });
     const { setupUrl } = (await reissued.json()) as { setupUrl: string };
-    await h.client().setup(tokenOf(setupUrl), "quen@ou.edu.vn", "mat-khau-moi-tinh");
+    await h.client().setup(tokenOf(setupUrl), "quen@example.org", "mat-khau-moi-tinh");
 
     expect((await member.get("/api/auth/me")).status).toBe(401);
-    expect((await h.client().login("quen@ou.edu.vn", PASSWORD)).status).toBe(401);
-    expect((await admin.post("/api/units/2/members/password-setup", { email: "quen@ou.edu.vn" })).status).toBe(404);
+    expect((await h.client().login("quen@example.org", PASSWORD)).status).toBe(401);
+    expect((await admin.post("/api/units/2/members/password-setup", { email: "quen@example.org" })).status).toBe(404);
   });
 });
 
 describe("Khóa API", () => {
-  const LINK = { name: "Thử", target: "https://ou.edu.vn/" };
+  const LINK = { name: "Thử", target: "https://example.org/" };
 
   it("is shown once, works for its Đơn vị, and stops working when revoked", async () => {
     const admin = await h.signedInAdmin();
@@ -107,7 +107,7 @@ describe("Khóa API", () => {
     const { id, key } = (await issued.json()) as { id: number; key: string };
 
     expect(issued.status).toBe(201);
-    expect(key.startsWith("oul_")).toBe(true);
+    expect(key.startsWith("lsk_")).toBe(true);
 
     const app = h.client();
     expect((await app.post("/api/links", LINK, { headers: bearer(key) })).status).toBe(201);
@@ -123,7 +123,7 @@ describe("Khóa API", () => {
     const app = h.client();
 
     expect((await app.post("/api/units/1/keys", { name: "con" }, { headers: bearer(key) })).status).toBe(401);
-    expect((await app.post("/api/units/1/members", { email: "x@ou.edu.vn" }, { headers: bearer(key) })).status).toBe(
+    expect((await app.post("/api/units/1/members", { email: "x@example.org" }, { headers: bearer(key) })).status).toBe(
       401
     );
   });

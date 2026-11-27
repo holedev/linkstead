@@ -9,7 +9,7 @@ const link = (over: Partial<Parameters<typeof applyFilter>[0][number]>) => ({
   groupId: null,
   name: "Link",
   note: "",
-  target: "https://ou.edu.vn/",
+  target: "https://example.org/",
   visits: 0,
   ...over
 });
@@ -46,7 +46,7 @@ describe("finding Links", () => {
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "so-3" }))).toEqual(["so-3"]);
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "zalo bai" }))).toEqual(["so-3"]);
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "zalo hoi" }))).toEqual([]);
-    expect(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "ou.edu.vn" })).toHaveLength(3);
+    expect(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "example.org" })).toHaveLength(3);
   });
 
   it("shows at the top only the Links in no Nhóm, and inside a Nhóm only its own", () => {
@@ -63,12 +63,15 @@ describe("finding Links", () => {
 
   it("filters by state wherever it is", () => {
     expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, group: 2, status: "on" }))).toEqual([]);
-    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "ou", status: "off" }))).toEqual(["cu"]);
-    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "ou", status: "on" }))).toEqual(["cfp-2027", "so-3"]);
+    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "example", status: "off" }))).toEqual(["cu"]);
+    expect(codes(applyFilter(LINKS, { ...DEFAULT_FILTER, query: "example", status: "on" }))).toEqual([
+      "cfp-2027",
+      "so-3"
+    ]);
   });
 
   it("orders newest first by default, or oldest, most opened, or by name", () => {
-    const everywhere = { ...DEFAULT_FILTER, query: "ou.edu.vn" };
+    const everywhere = { ...DEFAULT_FILTER, query: "example.org" };
     expect(codes(applyFilter(LINKS, everywhere))).toEqual(["cfp-2027", "so-3", "cu"]);
     expect(codes(applyFilter(LINKS, { ...everywhere, sort: "old" }))).toEqual(["cu", "so-3", "cfp-2027"]);
     expect(codes(applyFilter(LINKS, { ...everywhere, sort: "visits" }))).toEqual(["so-3", "cfp-2027", "cu"]);

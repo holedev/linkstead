@@ -12,9 +12,9 @@ describe("reading CSV", () => {
   });
 
   it("takes the semicolons Excel saves under Vietnamese settings", () => {
-    expect(parseCsv("Tên link;Đích\r\nBài 1;https://ou.edu.vn/a,b\r\n")).toEqual([
+    expect(parseCsv("Tên link;Đích\r\nBài 1;https://example.org/a,b\r\n")).toEqual([
       ["Tên link", "Đích"],
-      ["Bài 1", "https://ou.edu.vn/a,b"]
+      ["Bài 1", "https://example.org/a,b"]
     ]);
   });
 
