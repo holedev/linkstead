@@ -37,6 +37,12 @@ describe("checkSettings", () => {
     expect(checkSettings({ brandColor: "blue" }, DEFAULT_SETTINGS)).toEqual({ problem: "bad-brand-color" });
   });
 
+  it("keeps a time zone spelled as it was given, not as the runtime would rename it", () => {
+    expect(checkSettings({ timeZone: "Asia/Ho_Chi_Minh" }, DEFAULT_SETTINGS)).toEqual({
+      settings: { ...DEFAULT_SETTINGS, timeZone: "Asia/Ho_Chi_Minh" }
+    });
+  });
+
   it("starts from a colour that passes its own rule", () => {
     expect(contrastWithWhite(DEFAULT_SETTINGS.brandColor)).toBeGreaterThanOrEqual(4.5);
   });

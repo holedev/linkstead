@@ -79,9 +79,11 @@ const readDomains = (given: unknown): string[] | undefined => {
   return domains.length <= MAX_DOMAINS && domains.every((domain) => DOMAIN.test(domain)) ? domains : undefined;
 };
 
-/** A zone in the spelling the runtime gives it, so one zone is never stored two ways. */
-const readTimeZone = (given: unknown): string | undefined =>
-  isTimeZone(given) ? new Intl.DateTimeFormat("en-US", { timeZone: given }).resolvedOptions().timeZone : undefined;
+/**
+ * A zone as it was given, once the runtime knows it. Not in the runtime's own spelling: Workers
+ * would turn `Asia/Ho_Chi_Minh` into the older `Asia/Saigon`, which nobody typed.
+ */
+const readTimeZone = (given: unknown): string | undefined => (isTimeZone(given) ? given.trim() : undefined);
 
 const readColor = (given: unknown): string | undefined => {
   const color = typeof given === "string" ? given.trim().toLowerCase() : "";
