@@ -1,0 +1,140 @@
+/**
+ * Finding Links on the Links screen: what was typed, which state, which Group, in what order. Pure,
+ * so it is tested without a browser; the screen keeps it in the address, so a filtered view can
+ * be bookmarked or sent to a colleague.
+ */
+
+/** Switched on or off - among the Links in use - or the archived ones, which are listed only here. */
+type Status = "all" | "on" | "off" | "archived";
+type Sort = "new" | "old" | "visits" | "name";
+/**
+ * Where on the Links screen: inside one Group, by its id, or at the top - "root" - where the Group
+ * show as folders and the Links in none are listed, as the Unit's shared ones.
+ */
+type GroupFilter = number | "root";
+
+type LinkFilter = { query: string; status: Status; group: GroupFilter; sort: Sort };
+
+type Filterable = {
+  code: string;
+  name: string;
+  note: string;
+  target: string;
+  enabled: boolean;
+  archived: boolean;
+  groupId: number | null;
+  visits: number;
+  createdAt: string;
+};
+
+const DEFAULT_FILTER: LinkFilter = { group: "root", query: "", sort: "new", status: "all" };
+
+const STATUSES: readonly Status[] = ["all", "on", "off", "archived"];
+const SORTS: readonly Sort[] = ["new", "old", "visits", "name"];
+
+const MARKS = /\p{Diacritic}/gu;
+const SPACES = /\s+/;
+
+/**
+ * Text as it is compared: lowercase, without Vietnamese marks, đ as d - so "hoi thao" finds
+ * "Hội thảo", as people type on a phone without switching keyboards.
+ */
+const fold = (text: string): string =>
+  text.normalize("NFD").replace(MARKS, "").replaceAll("đ", "d").replaceAll("Đ", "d").toLowerCase();
+
+/** Every word typed must appear somewhere in the Link's name, code, Target or note. */
+const matchesQuery = (link: Filterable, query: string): boolean => {
+  const words = fold(query).split(SPACES).filter(Boolean);
+  if (words.length === 0) {
+    return true;
+  }
+  const haystack = fold(`${link.name} ${link.code} ${link.target} ${link.note}`);
+  return words.every((word) => haystack.includes(word));
+};
+
+/**
+ * Inside a Group, its Links. At the top, the Links in no Group - unless something is searched for,
+ * or the archive is open, either of which looks through every Link, wherever it is sorted.
+ */
+const matchesGroup = (link: Filterable, filter: LinkFilter): boolean => {
+  if (filter.group !== "root") {
+    return link.groupId === filter.group;
+  }
+  return Boolean(filter.query.trim()) || filter.status === "archived" || link.groupId === null;
+};
+
+/** The archived Links show only when asked for; the others, by whether they are switched on. */
+const matchesStatus = (link: Filterable, status: Status): boolean => {
+  if (status === "archived") {
+    return link.archived;
+  }
+  return !link.archived && (status === "all" || (status === "on") === link.enabled);
+};
+
+const COLLATOR = new Intl.Collator("vi");
+
+const ORDER: Record<Sort, (a: Filterable, b: Filterable) => number> = {
+  name: (a, b) => COLLATOR.compare(a.name, b.name),
+  new: (a, b) => b.createdAt.localeCompare(a.createdAt),
+  old: (a, b) => a.createdAt.localeCompare(b.createdAt),
+  visits: (a, b) => b.visits - a.visits
+};
+
+const applyFilter = <T extends Filterable>(links: readonly T[], filter: LinkFilter): T[] =>
+  links
+    .filter(
+      (link) => matchesQuery(link, filter.query) && matchesGroup(link, filter) && matchesStatus(link, filter.status)
+    )
+    .sort(ORDER[filter.sort]);
+
+const readGroup = (raw: string | null): GroupFilter => {
+  const id = Number(raw);
+  return raw && Number.isInteger(id) && id > 0 ? id : "root";
+};
+
+/** The filter an address describes. Anything it does not understand falls back to the default. */
+const readFilter = (params: URLSearchParams): LinkFilter => {
+  const status = params.get("status");
+  const sort = params.get("sort");
+  const group = params.get("group");
+  return {
+    group: readGroup(group),
+    query: params.get("q") ?? "",
+    sort: SORTS.includes(sort as Sort) ? (sort as Sort) : "new",
+    status: STATUSES.includes(status as Status) ? (status as Status) : "all"
+  };
+};
+
+/** The address parameters for a filter, leaving out whatever is the default. */
+const writeFilter = (filter: LinkFilter): URLSearchParams => {
+  const params = new URLSearchParams();
+  if (filter.query) {
+    params.set("q", filter.query);
+  }
+  if (filter.status !== "all") {
+    params.set("status", filter.status);
+  }
+  if (filter.group !== "root") {
+    params.set("group", String(filter.group));
+  }
+  if (filter.sort !== "new") {
+    params.set("sort", filter.sort);
+  }
+  return params;
+};
+
+/** Whether the list is narrowed by a search or a state - being inside a Group is where, not a filter. */
+const isFiltering = (filter: LinkFilter): boolean => Boolean(filter.query.trim()) || filter.status !== "all";
+
+export {
+  applyFilter,
+  DEFAULT_FILTER,
+  fold,
+  type GroupFilter,
+  isFiltering,
+  type LinkFilter,
+  readFilter,
+  type Sort,
+  type Status,
+  writeFilter
+};

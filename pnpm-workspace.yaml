@@ -1,0 +1,6 @@
+# esbuild and workerd download their platform binary at install; wrangler and vitest need both.
+allowBuilds:
+  # Pulled in by swagger-ui-dist only to report installs; nothing here needs it to run.
+  '@scarf/scarf': false
+  esbuild: true
+  workerd: true

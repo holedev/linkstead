@@ -1,0 +1,8 @@
+node_modules
+.wrangler
+.dev.vars
+dist
+*.log
+# Agent skills, installed from skills-lock.json, not redistributed here.
+.agents/
+.claude/skills/

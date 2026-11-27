@@ -1,0 +1,61 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "root": true,
+  // The house style, written out here. Listed after ultracite so these overrides win.
+  "extends": ["ultracite/biome/core"],
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "ignoreUnknown": false,
+    // `src/ui/components/ui` and `src/ui/hooks` are shadcn's own files, kept as shadcn ships them so
+    // they can be updated from it; our rules are for the code we write. `.agents` and `.claude`
+    // hold installed agent skills, kept as their authors ship them.
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "!**/*.d.ts",
+      "!.agents",
+      "!.claude",
+      "!migrations",
+      "!src/ui/components/ui",
+      "!src/ui/hooks"
+    ]
+  },
+  "assist": {
+    "enabled": true,
+    "actions": { "source": { "organizeImports": "on" } }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "jsxQuoteStyle": "single",
+      "trailingCommas": "none",
+      "arrowParentheses": "always"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      // `noAwaitInLoops`: statements against the database run in order on purpose, and a retry
+      // loop has to wait for each attempt. `Promise.all` would be the bug here, not the fix.
+      // An inline handler in JSX is how a form field is written; hoisting each one would add a
+      // name per keystroke handler and make no measurable difference on screens this small.
+      "performance": { "noAwaitInLoops": "off", "noJsxPropsBind": "off" },
+      "style": {
+        "useConst": "off",
+        "useImportType": "off",
+        "useConsistentTypeDefinitions": {
+          "level": "error",
+          "options": { "style": "type" }
+        }
+      }
+    }
+  }
+}

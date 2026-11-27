@@ -1,0 +1,10 @@
+linkstead
+Copyright (c) 2026 Phan Lê Hồ. Released under the MIT License (LICENSE).
+
+linkstead began as OU Link, written for Ho Chi Minh City Open University, which agreed to its
+release as open source. The early history of this repository contains the university's logo
+(`src/ui/public/brand/logo-ou*`, `src/worker/default-logo.ts`). That logo is the university's
+trademark and is not covered by the MIT License; it is not part of any current version.
+
+Be Vietnam Pro (`src/ui/public/brand/fonts/`) is licensed under the SIL Open Font License 1.1
+(`src/ui/public/brand/fonts/OFL.txt`).
