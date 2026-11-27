@@ -2,19 +2,30 @@
 status: accepted
 ---
 
-# The trial runs on Cloudflare Workers and stays portable
+# linkstead runs on Cloudflare Workers and stays portable
 
-OU Link is meant for the whole university and is expected to be taken over by the university's IT
-office, which runs its own servers. The first version nevertheless runs on Cloudflare Workers,
-because a server that is down takes every printed QR in the university down with it and the trial
-should not depend on one machine. So that the move back remains possible, request handling must not
-depend on Workers-only APIs, and the data must be exportable and re-importable whole.
+A Link that does not answer breaks everything printed with it, so linkstead runs where one machine
+going down does not take it down: Cloudflare Workers, with D1 for data and R2 for logo files. The
+Workers Free plan is enough for an organization's own links.
+
+Cloudflare is the one supported way to run it, not the only possible one. An organization may need
+to bring it onto its own servers later, so request handling must not depend on Workers-only APIs,
+and the data must be exportable and re-importable whole.
 
 ## Consequences
 
-- The trial runs on a temporary domain. Every Link created during it is disposable, and **no QR is
-  printed** until the university's own domain is in place - a QR carrying the temporary domain dies
-  with it, which is the failure this system exists to prevent.
-- Whether a subdomain of `ou.edu.vn` can be attached to Workers at all is unverified and depends on
-  how the university manages its DNS. It must be confirmed with the IT office before the official
-  domain is promised on Cloudflare.
+- The app is written against two seams, `Store` and `LogoFiles` (`src/worker/store.ts`).
+  `store-d1.ts` and `index.ts` are the only files that know about Cloudflare. Running elsewhere
+  means writing those two again, not touching the handlers.
+- A System Administrator can export the whole installation, and another installation can import
+  it (`docs/export-and-import.md`).
+- An installation's domain is printed on every QR, and a QR carrying a domain dies with it. Choose
+  the domain before printing anything; a trial on a temporary domain should print nothing.
+
+## Considered Options
+
+- **A Node server with SQLite** - not supported in this version. It would be easier for some to
+  host, but every test and every release would have to cover two runtimes, and the country of a
+  Visit and the daily safety check would need their own way in. The seams keep it possible.
+- **Cloudflare-only, using Workers APIs freely** - rejected: it would close the way back to an
+  organization's own servers.
