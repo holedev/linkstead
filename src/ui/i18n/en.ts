@@ -221,6 +221,12 @@ const en = {
     namePlaceholder: "Conference 2027",
     rename: "Rename"
   },
+  hourly: {
+    bar: (hour: number, count: string) => `${hour}:00-${hour}:59: ${count} visits`,
+    note: "Hours on the organization's clocks. Kept for three months only, and an estimate like every count of Visits.",
+    summary: (hour: number, total: string) => `${total} visits by hour of day, most at ${hour}:00`,
+    title: "By hour of day"
+  },
   keys: {
     active: "In use",
     docs: "API documentation (Swagger)",
@@ -747,11 +753,15 @@ const en = {
     visits: "visits"
   },
   visitSources: {
+    byBrowser: "By browser",
     byCountry: "By country",
+    byDevice: "By device",
     byReferrer: "By referring site",
+    devices: { desktop: "Computer", mobile: "Phone", other: "Other", tablet: "Tablet" } as Record<string, string>,
     fromElsewhere: (count: string) => `and ${count} visits from elsewhere`,
     noData: "No figures yet.",
     note: "Only counts, nothing about who opened. Visits from before the system began recording countries and sources are not in these two lists.",
+    otherBrowser: "Other browsers",
     unknown: "Not known",
     unknownSite: "Not known (scanned QR, typed address, chat app)"
   }

@@ -61,6 +61,9 @@ const dayIn = (at: Date, timeZone: string): string => {
   return `${pad(clock.year, 4)}-${pad(clock.month)}-${pad(clock.day)}`;
 };
 
+/** The hour, 0 to 23, a clock in the zone shows at a moment. */
+const hourIn = (at: Date, timeZone: string): number => wallClockOf(at, timeZone).hour;
+
 /** A moment as the `datetime-local` value (`yyyy-mm-ddThh:mm`) a clock in the zone shows. */
 const toWallClock = (at: Date, timeZone: string): string => {
   const clock = wallClockOf(at, timeZone);
@@ -102,4 +105,4 @@ const fromWallClock = (value: string, timeZone: string): Date | null => {
   return new Date(matching.length > 0 ? Math.min(...matching) : asUtc - before);
 };
 
-export { dayIn, fromWallClock, isTimeZone, toWallClock };
+export { dayIn, fromWallClock, hourIn, isTimeZone, toWallClock };

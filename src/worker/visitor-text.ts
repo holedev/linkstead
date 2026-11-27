@@ -93,7 +93,7 @@ const en: VisitorText = {
         title: "Visits per day"
       },
       {
-        text: "No IP address, device or anything else about the person opening a link is kept.",
+        text: "No IP address, and nothing that could tell who opened a link, is kept - a device is only counted by its kind.",
         title: "Respectful of visitors"
       },
       {
@@ -207,7 +207,7 @@ const vi: VisitorText = {
         title: "Lượt mở theo ngày"
       },
       {
-        text: "Không lưu địa chỉ IP, thiết bị hay bất cứ thông tin nào về người mở liên kết.",
+        text: "Không lưu địa chỉ IP hay bất cứ thông tin nào nhận ra được người mở liên kết - thiết bị chỉ được đếm theo loại.",
         title: "Tôn trọng người xem"
       },
       {

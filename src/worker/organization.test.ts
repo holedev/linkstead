@@ -29,7 +29,7 @@ const memberOf = async (admin: Browser, email: string) => {
 
 describe("the Organization", () => {
   it("tells anyone what its pages need, before anyone signs in", async () => {
-    expect(await organizationOf()).toEqual({ ...ORGANIZATION, uiLogo: null });
+    expect(await organizationOf()).toEqual({ ...ORGANIZATION, hourlyVisits: false, uiLogo: null });
   });
 
   it("is set by a System Administrator, a part at a time", async () => {
@@ -38,6 +38,7 @@ describe("the Organization", () => {
     expect(saved.status).toBe(200);
     expect(await organizationOf()).toEqual({
       ...ORGANIZATION,
+      hourlyVisits: false,
       language: "en",
       name: "Another University",
       uiLogo: null
@@ -62,7 +63,7 @@ describe("the Organization", () => {
     expect(await attempt({ brandColor: "#ffff00" })).toEqual({ error: "bad-brand-color" });
     expect(await attempt({ emailDomains: ["not a domain"] })).toEqual({ error: "bad-email-domains" });
     expect(await attempt({ language: "fr" })).toEqual({ error: "bad-language" });
-    expect(await organizationOf()).toEqual({ ...ORGANIZATION, uiLogo: null });
+    expect(await organizationOf()).toEqual({ ...ORGANIZATION, hourlyVisits: false, uiLogo: null });
   });
 });
 
@@ -171,7 +172,7 @@ describe("a fresh installation", () => {
         { headers: bearer(BOOTSTRAP_TOKEN) }
       );
     expect(await attempt.json()).toEqual({ error: "email-not-allowed" });
-    expect(await organizationOf()).toEqual({ ...ORGANIZATION, uiLogo: null });
+    expect(await organizationOf()).toEqual({ ...ORGANIZATION, hourlyVisits: false, uiLogo: null });
   });
 
   it("takes the Organization and its UI logo from an export", async () => {

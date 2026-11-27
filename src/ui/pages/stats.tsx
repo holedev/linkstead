@@ -4,8 +4,10 @@ import { Card, ErrorText, formatNumber } from "@/components/app";
 import { cn } from "@/lib/utils";
 import { api, type UnitVisits } from "../api";
 import { text } from "../i18n";
+import { organization } from "../organization";
 import { useSession } from "../session";
 import { useLoaded } from "../use-loaded";
+import { HourlyVisitsChart } from "./hourly-visits";
 import { VisitSources } from "./visit-sources";
 
 /**
@@ -253,8 +255,13 @@ const StatsPage = () => {
             </Card>
             <Card>
               <h2 className='mb-3 font-medium'>{t.sources}</h2>
-              <VisitSources countries={data.countries} referrers={data.referrers} />
+              <VisitSources visits={data} />
             </Card>
+            {organization().hourlyVisits && (
+              <Card>
+                <HourlyVisitsChart load={(days) => api.unitVisitHours(unitId, days)} stamp={String(unitId)} />
+              </Card>
+            )}
           </div>
         </>
       )}

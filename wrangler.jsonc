@@ -7,8 +7,11 @@
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-11-01",
   "observability": { "enabled": true },
-  // The daily safety check of every Target (`src/worker/safety.ts`), in UTC.
-  "triggers": { "crons": ["17 3 * * *"] },
+  // The daily safety check of every Target (`src/worker/safety.ts`), in UTC; and every quarter-hour,
+  // the rollup of Visits from Analytics Engine into D1 (`src/worker/rollup.ts`), which does
+  // nothing unless Analytics Engine is set up. Keep the second exactly as written: the Worker
+  // tells the two apart by it.
+  "triggers": { "crons": ["17 3 * * *", "*/15 * * * *"] },
   "assets": {
     // The built UI: `dist/client/app/**`, so its files are served under `/app`.
     "directory": "./dist/client",
@@ -17,6 +20,9 @@
     // default, a Link's address would be looked up among the files before the Worker ever saw it.
     "run_worker_first": ["/*", "!/app/assets/*", "!/app/brand/*"]
   },
+  // Visits through Workers Analytics Engine (ADR-0008) - optional. To turn it on, add the binding
+  // below and set CF_ACCOUNT_ID (a var) and CF_API_TOKEN (a secret, Account Analytics Read):
+  //   "analytics_engine_datasets": [{ "binding": "VISIT_EVENTS", "dataset": "linkstead_visits" }],
   // Logo files, for QR and for the UI. Created on the first deploy if it does not exist.
   "r2_buckets": [{ "binding": "LOGOS", "bucket_name": "linkstead-logos" }],
   "d1_databases": [

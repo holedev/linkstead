@@ -299,7 +299,7 @@ const dailyVisitSources = sqliteTable(
   {
     count: integer("count").notNull().default(0),
     day: text("day").notNull(),
-    kind: text("kind", { enum: ["country", "referrer"] }).notNull(),
+    kind: text("kind", { enum: ["country", "referrer", "device", "browser"] }).notNull(),
     linkId: integer("link_id")
       .notNull()
       .references(() => links.id),
@@ -328,6 +328,16 @@ const organization = sqliteTable("organization", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" })
 });
 
+/**
+ * How far the Visits written to Workers Analytics Engine have been added into the counts above
+ * (ADR-0008): one row, id 1, moved on by the rollup in the same batch as the counts it adds, so a
+ * quarter-hour is never added twice. Empty where Visits are written to D1 directly.
+ */
+const visitRollup = sqliteTable("visit_rollup", {
+  id: integer("id").primaryKey(),
+  rolledThrough: integer("rolled_through", { mode: "timestamp_ms" }).notNull()
+});
+
 export {
   accounts,
   apiKeys,
@@ -345,5 +355,6 @@ export {
   statusChanges,
   targetChanges,
   unitChanges,
-  units
+  units,
+  visitRollup
 };

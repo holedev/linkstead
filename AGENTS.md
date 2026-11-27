@@ -87,9 +87,13 @@ Each is a rule, not a default.
 
 **Visits**
 
-- Counted per Link per day, and per day by country and by referring site (host only), and kept
-  forever. Nothing identifying the visitor is stored - no IP, no device, no full address
-  (ADR-0005).
+- Counted per Link per day, and per day by country, referring site (host only), device kind and
+  browser family, and kept forever. Nothing identifying the visitor is stored - no IP, no user
+  agent, no city, no full address (ADR-0005, ADR-0008).
+- Where Analytics Engine is set up (binding `VISIT_EVENTS` plus `CF_ACCOUNT_ID` and the secret
+  `CF_API_TOKEN`), a Visit is one data point, and a quarter-hourly cron (`worker/rollup.ts`) adds
+  settled quarter-hours into the same D1 counts; the time of each Visit lives there three months,
+  for the view by hour. Otherwise each Visit is counted in D1 at once (ADR-0008).
 - Openings made by preview fetchers (Zalo, Facebook, Messenger) are skipped where recognisable, and
   the UI presents the number as an estimate.
 
@@ -141,13 +145,14 @@ by `Authorization: Bearer <API Key>`; a route says which of the two it accepts.
 | `PUT /api/links/:code/target` | a Member, or an API Key | changes the Target, logged |
 | `POST /api/links/:code/disable`, `.../enable` | a Member, an API Key, or a System Administrator | switches a Link off and on, logged |
 | `GET /api/links/:code` | a Member | one Link, for its page in the UI; never an API Key |
-| `GET /api/links/:code/visits`, `GET /api/links/:code/qr` | a Member, or an API Key | Visits per day, country and referring site; the QR as SVG, `?style=` one of the fixed looks in `domain/qr-style.ts` |
+| `GET /api/links/:code/visits`, `GET /api/links/:code/qr` | a Member, or an API Key | Visits per day, country, referring site, device and browser; the QR as SVG, `?style=` one of the fixed looks in `domain/qr-style.ts` |
+| `GET /api/links/:code/visits/hours`, `GET /api/units/:unitId/visits/hours?days=` | a Member | Visits by hour of day over 7, 30 or 90 days, from Analytics Engine; `404 hourly-unavailable` without it |
 | `GET /api/links/:code/history` | a Member | every change of Target, state and Unit |
 | `POST /api/links/:code/archive`, `.../unarchive` | a Member | puts a Link away from the list, or back; it keeps opening |
 | `PUT /api/links/:code/access`, `PUT /api/links/:code/qr-shape` | a Member | the Link's password and expiry (ADR-0006); how its QR is drawn |
 | `POST /:code` | anyone | the password page's form: right, a 303 to the Target; 10 wrong in a minute, 429 |
 | `DELETE /api/links/:code` | Unit Manager, or a System Administrator | deletes a Link, with `{"confirmCode"}` the Link Code typed back; the code stays taken (ADR-0004) |
-| `GET /api/units/:unitId/visits?days=` | a Member | the Unit's Visits at a glance: per day, most opened Links, countries, referring sites |
+| `GET /api/units/:unitId/visits?days=` | a Member | the Unit's Visits at a glance: per day, most opened Links, countries, referring sites, devices, browsers |
 | `PUT /api/links/:code/details`, `PUT /api/links/:code/qr-logo` | a Member | rewords Link Name and note; the Link's logo choice |
 | `PUT /api/links/:code/group`, `/api/units/:unitId/groups...` | a Member | sorts a Link into a Group; makes, renames and deletes the Unit's Groups |
 | `GET`, `PUT /api/links/:code/preview` | a Member | the share preview: what the Target says, and the Link's own title, description and image |
@@ -183,7 +188,8 @@ The API's `passwordKey` is that value, never the password.
   Organization's settings may be, how days and wall clocks work in a time zone. No I/O.
 - `src/worker/app.tsx` and `src/worker/routes/` - the request handling, written against the
   `Store` in `store.ts` and nothing Cloudflare-specific. `store-d1.ts` and `index.ts` are the only
-  files that know about Workers (D1, and R2 behind the `LogoFiles` seam); that seam is ADR-0001.
+  files that know about Workers (D1, R2 behind the `LogoFiles` seam, Analytics Engine behind the
+  `VisitEvents` seam); those seams are ADR-0001.
   `index.ts` also keeps the Organization in memory for a minute per isolate.
 - `src/worker/actor.ts` - works out who is asking. It refuses nothing but a cross-site write; each
   route decides what it needs.

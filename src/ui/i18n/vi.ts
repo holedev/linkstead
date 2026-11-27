@@ -217,6 +217,12 @@ const vi: Messages = {
     namePlaceholder: "Hội thảo 2027",
     rename: "Đổi tên"
   },
+  hourly: {
+    bar: (hour, count) => `${hour}:00-${hour}:59: ${count} lượt mở`,
+    note: "Giờ theo múi giờ của tổ chức. Chỉ giữ ba tháng, và là con số ước tính như mọi số lượt mở.",
+    summary: (hour, total) => `${total} lượt mở theo giờ trong ngày, nhiều nhất lúc ${hour}:00`,
+    title: "Theo giờ trong ngày"
+  },
   keys: {
     active: "Đang dùng",
     docs: "Tài liệu API (Swagger)",
@@ -734,11 +740,15 @@ const vi: Messages = {
     visits: "lượt mở"
   },
   visitSources: {
+    byBrowser: "Theo trình duyệt",
     byCountry: "Theo quốc gia",
+    byDevice: "Theo thiết bị",
     byReferrer: "Theo nguồn giới thiệu",
+    devices: { desktop: "Máy tính", mobile: "Điện thoại", other: "Khác", tablet: "Máy tính bảng" },
     fromElsewhere: (count) => `và ${count} lượt mở từ những nơi khác`,
     noData: "Chưa có số liệu.",
     note: "Chỉ đếm số lượt, không lưu gì về người mở. Lượt mở từ trước khi hệ thống bắt đầu ghi quốc gia và nguồn không nằm trong hai danh sách này.",
+    otherBrowser: "Trình duyệt khác",
     unknown: "Không rõ",
     unknownSite: "Không rõ (quét QR, gõ tay, ứng dụng chat)"
   }

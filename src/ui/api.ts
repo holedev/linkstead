@@ -64,7 +64,11 @@ type Visits = {
   days: { day: string; count: number }[];
   countries: VisitSource[];
   referrers: VisitSource[];
+  devices: VisitSource[];
+  browsers: VisitSource[];
 };
+/** Visits by hour of the day, 0 to 23, over the last `days` - where Analytics Engine keeps them. */
+type HourlyVisits = { days: number; hours: number[] };
 /** A Unit's Visits over a stretch of days, or since the start when `since` is null. */
 type UnitVisits = Visits & {
   since: string | null;
@@ -83,6 +87,8 @@ type Organization = {
   brandColor: string;
   /** Where the UI's logo is served, or null when none was uploaded. */
   uiLogo: string | null;
+  /** Whether Visits go through Analytics Engine, so they can be read by hour (ADR-0008). */
+  hourlyVisits: boolean;
 };
 type OrganizationSettings = Partial<
   Pick<Organization, "name" | "emailDomains" | "language" | "timeZone" | "brandColor">
@@ -238,6 +244,8 @@ const api = {
   linkQr: (code: string, style: QrStyle = DEFAULT_QR_STYLE) =>
     svg(`/api/links/${code}/qr${style === DEFAULT_QR_STYLE ? "" : `?style=${style}`}`),
   links: (unitId: number) => call<{ links: Link[] }>("GET", `/api/links?unitId=${unitId}`),
+  linkVisitHours: (code: string, days: number) =>
+    call<HourlyVisits>("GET", `/api/links/${code}/visits/hours?days=${days}`),
   /** The password is stretched here, in the browser; the server is sent the result and never the password. */
   login: async (email: string, password: string) =>
     call<Me>("POST", "/api/auth/login", { email, passwordKey: await stretchPassword(password, email) }),
@@ -275,6 +283,8 @@ const api = {
   unarchiveLink: (code: string) => call<Link>("POST", `/api/links/${code}/unarchive`),
   unitLogo: (unitId: number) => call<{ organization: boolean; own: boolean }>("GET", `/api/units/${unitId}/qr-logo`),
   unitLogoPreview: (unitId: number) => svg(`/api/units/${unitId}/qr-preview`),
+  unitVisitHours: (unitId: number, days: number) =>
+    call<HourlyVisits>("GET", `/api/units/${unitId}/visits/hours?days=${days}`),
   unitVisits: (unitId: number, days: number | null) =>
     call<UnitVisits>("GET", `/api/units/${unitId}/visits${days ? `?days=${days}` : ""}`),
   updateLinkDetails: (code: string, name: string, note: string) =>
@@ -290,6 +300,7 @@ export {
   api,
   type FoundLink,
   type HistoryEntry,
+  type HourlyVisits,
   type Link,
   type LinkGroup,
   type LogoChoice,

@@ -30,6 +30,8 @@ type LinkPreview = { previewTitle: string; previewDescription: string; previewIm
 
 type OpenableLink = LinkPreview & {
   id: number;
+  /** The Unit it belongs to, which an event of its Visit carries. */
+  unitId: number;
   target: string;
   enabled: boolean;
   /** Deleted: it opens nowhere, and its code is never given out again (ADR-0004). */
@@ -112,7 +114,19 @@ type Snapshot = {
 type DayVisits = { day: string; count: number };
 
 /** Where Visits came from: a country (two letters) or a referring site; "" is "not known". */
-type VisitSource = { kind: "country" | "referrer"; value: string; count: number };
+/** The four ways a Visit is counted besides its day (ADR-0005, ADR-0008). */
+type VisitSourceKind = "country" | "referrer" | "device" | "browser";
+
+type VisitSource = { kind: VisitSourceKind; value: string; count: number };
+
+/** Where a Visit came from: "" is "not known" for each. */
+type VisitOrigin = { country: string; referrer: string; device: string; browser: string };
+
+/** Counts the rollup adds, already gathered per Link and day (`worker/rollup.ts`). */
+type VisitCounts = {
+  totals: { linkId: number; day: string; count: number }[];
+  sources: { linkId: number; day: string; kind: VisitSourceKind; value: string; count: number }[];
+};
 
 /** Which Visits to add up: one Link's or a whole Unit's, from a day on (`yyyy-mm-dd`) or ever. */
 type VisitScope = ({ linkId: number } | { unitId: number }) & { since?: string };
@@ -156,10 +170,17 @@ type Store = {
   /** The Link behind a normalised Link Code, or null when there is none. */
   findLinkByCode: (code: string) => Promise<OpenableLink | null>;
   /**
-   * Adds one Visit to a Link's count for a day (`yyyy-mm-dd`), and to the counts of the country
-   * and the site it came from ("" when not known).
+   * Adds one Visit to a Link's count for a day (`yyyy-mm-dd`), and to the counts of where it came
+   * from ("" when not known). Where Visits go to Analytics Engine, the rollup adds them instead.
    */
-  recordVisit: (linkId: number, day: string, source: { country: string; referrer: string }) => Promise<void>;
+  recordVisit: (linkId: number, day: string, origin: VisitOrigin) => Promise<void>;
+  /** How far the Analytics Engine Visits have been added in, or null before the first rollup. */
+  visitRollupMark: () => Promise<Date | null>;
+  /**
+   * Adds counts gathered from Analytics Engine and moves the mark to `through`, together or not at
+   * all. Counts for a Link that does not exist here are dropped.
+   */
+  addVisitCounts: (counts: VisitCounts, through: Date) => Promise<void>;
 
   // ── Links ─────────────────────────────────────────────────────────────────
   /** Whether the administrators hold this code back, on top of the system's own list. */
@@ -241,7 +262,7 @@ type Store = {
   /** Visits of every Link a Unit owns, by Link Code, day, and where they came from. */
   listVisitSourcesByUnit: (
     unitId: number
-  ) => Promise<{ code: string; day: string; kind: "country" | "referrer"; value: string; count: number }[]>;
+  ) => Promise<{ code: string; day: string; kind: VisitSourceKind; value: string; count: number }[]>;
   /** Visits added up by country and by referring site, most first. */
   listVisitSources: (scope: VisitScope) => Promise<VisitSource[]>;
   /** A Unit's Visits per day, all its Links together, oldest first. */
@@ -387,6 +408,9 @@ export type {
   Store,
   UnitOverview,
   UnitRecord,
+  VisitCounts,
+  VisitOrigin,
   VisitScope,
-  VisitSource
+  VisitSource,
+  VisitSourceKind
 };

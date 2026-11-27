@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import type { EventCount, VisitEvent } from "../domain/visit-events";
 import type { SafetyCheck } from "./safety";
 import type { LogoFiles, Store } from "./store";
 
@@ -9,6 +10,16 @@ import type { LogoFiles, Store } from "./store";
 type Actor =
   | { kind: "account"; accountId: number; email: string; isSystemAdmin: boolean; sessionHash: string }
   | { kind: "key"; apiKeyId: number; unitId: number };
+
+/**
+ * Where Visits go as events, and how they are read back (ADR-0008) - Workers Analytics Engine on
+ * Cloudflare, behind this seam like logo files are. `write` never waits and never fails a redirect.
+ */
+type VisitEvents = {
+  write: (event: VisitEvent) => void;
+  /** Visits between two moments by quarter-hour and Link, for one Link, one Unit, or all. */
+  counts: (range: { from: Date; to: Date; linkId?: number; unitId?: number }) => Promise<EventCount[]>;
+};
 
 type AppDeps = {
   store: Store;
@@ -40,9 +51,14 @@ type AppDeps = {
    * a file, since the UI routes in the browser. Unset where no UI has been built.
    */
   serveUi?: (request: Request) => Promise<Response>;
+  /**
+   * Visits as events, where Analytics Engine is set up. Unset, each Visit is counted in the Store
+   * directly, and there is no view by hour.
+   */
+  visitEvents?: VisitEvents;
 };
 
 type AppEnv = { Variables: { actor: Actor | null } };
 type AppContext = Context<AppEnv>;
 
-export type { Actor, AppContext, AppDeps, AppEnv };
+export type { Actor, AppContext, AppDeps, AppEnv, VisitEvents };

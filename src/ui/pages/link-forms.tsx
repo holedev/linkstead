@@ -20,6 +20,7 @@ import { messageOf } from "../messages";
 import { organization } from "../organization";
 import { useSession } from "../session";
 import { isPast } from "./access-form";
+import { HourlyVisitsChart } from "./hourly-visits";
 import { VisitSources } from "./visit-sources";
 
 /**
@@ -241,7 +242,12 @@ const VisitsPanel = ({ link }: { link: Link }) => {
       )}
       {data && (
         <div className='mt-5 border-t pt-4'>
-          <VisitSources countries={data.countries} referrers={data.referrers} />
+          <VisitSources visits={data} />
+        </div>
+      )}
+      {organization().hourlyVisits && (
+        <div className='mt-5 border-t pt-4'>
+          <HourlyVisitsChart load={(days) => api.linkVisitHours(link.code, days)} stamp={link.code} />
         </div>
       )}
     </div>

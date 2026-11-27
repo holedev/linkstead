@@ -2,7 +2,15 @@ import { type Context, Hono } from "hono";
 import { isWellFormedCode, normalizeCode, SYSTEM_RESERVED_CODES } from "../domain/link-code";
 import { matchesLinkPassword } from "../domain/link-password";
 import { lockedPreview, mergePreview, readPreview, renderPreviewPage } from "../domain/preview";
-import { isMachineAgent, isPreviewFetcher, referrerSite, visitCountry, visitDay } from "../domain/visit";
+import {
+  browserFamily,
+  deviceClass,
+  isMachineAgent,
+  isPreviewFetcher,
+  referrerSite,
+  visitCountry,
+  visitDay
+} from "../domain/visit";
 import { resolveActor } from "./actor";
 import type { AppDeps, AppEnv } from "./context";
 import { fetchPage as fetchRealPage } from "./fetch-page";
@@ -19,7 +27,7 @@ import { presentOrganization, registerOrganizationRoutes } from "./routes/organi
 import { registerQrRoutes } from "./routes/qr";
 import { registerStatsRoutes } from "./routes/stats";
 import { registerUnitRoutes } from "./routes/units";
-import type { OpenableLink } from "./store";
+import type { OpenableLink, VisitOrigin } from "./store";
 import type { Site } from "./visitor-page";
 import type { NoticeKind } from "./visitor-text";
 
@@ -52,13 +60,19 @@ const MAX_WRONG_PASSWORDS = 10;
 const MINUTE_MS = 60_000;
 
 /**
- * Where a Visit came from, as counts only (ADR-0005): the country the network in front reports,
- * and the referring site's host.
+ * Where a Visit came from, as counts only (ADR-0005, ADR-0008): the country the network in front
+ * reports, the referring site's host, and the device and browser in one coarse word each - the
+ * user agent they are read from is not kept.
  */
-const sourceOf = (c: Context) => ({
-  country: visitCountry(c.req.header("cf-ipcountry")),
-  referrer: referrerSite(c.req.header("referer"), new URL(c.req.url).hostname)
-});
+const originOf = (c: Context): VisitOrigin => {
+  const userAgent = c.req.header("user-agent");
+  return {
+    browser: browserFamily(userAgent),
+    country: visitCountry(c.req.header("cf-ipcountry")),
+    device: deviceClass(userAgent),
+    referrer: referrerSite(c.req.header("referer"), new URL(c.req.url).hostname)
+  };
+};
 
 /**
  * The request handling, free of anything Workers-specific (ADR-0001): it is handed a `Store` and
@@ -162,13 +176,21 @@ const createApp = (deps: AppDeps) => {
     if (!isMachineAgent(c.req.header("user-agent"))) {
       // A failed count must never cost the visitor their redirect.
       const at = now();
-      const source = sourceOf(c);
-      defer(
-        store
-          .getOrganization()
-          .then(({ timeZone }) => store.recordVisit(link.id, visitDay(at, timeZone), source))
-          .catch(() => undefined)
-      );
+      const origin = originOf(c);
+      if (deps.visitEvents) {
+        try {
+          deps.visitEvents.write({ linkId: link.id, unitId: link.unitId, ...origin });
+        } catch {
+          // Analytics Engine refused the point: the Visit goes uncounted, the visitor goes on.
+        }
+      } else {
+        defer(
+          store
+            .getOrganization()
+            .then(({ timeZone }) => store.recordVisit(link.id, visitDay(at, timeZone), origin))
+            .catch(() => undefined)
+        );
+      }
     }
     return c.redirect(link.target, status);
   };

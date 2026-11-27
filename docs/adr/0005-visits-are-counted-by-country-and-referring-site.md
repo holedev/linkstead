@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ADR-0008
 ---
 
 # Visits are counted by country and by referring site

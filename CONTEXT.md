@@ -82,10 +82,11 @@ A **Link Code** nobody may take by being first - the names of departments, of th
 own programmes, of the system's own pages. Only a **System Administrator** hands one out.
 
 **Visit** (Vi: Lượt mở):
-One opening of a **Link**, counted per Link per day, and per day by **Country** and **Referring
-Site**. The day is the **Organization**'s, in its time zone. Nothing that identifies the visitor is
-kept. It is an estimate of interest, not a number of people: openings a machine makes to build a
-preview are left out where they can be recognised.
+One opening of a **Link**, counted per Link per day, and per day by **Country**, **Referring
+Site**, **Device** and **Browser**. The day is the **Organization**'s, in its time zone. Nothing that
+identifies the visitor is kept. It is an estimate of interest, not a number of people: openings a
+machine makes to build a preview are left out where they can be recognised. Where Visits go through
+Analytics Engine, the hour of each is also known, for three months (ADR-0008).
 _Avoid_: click, scan, hit.
 
 **Country** (Vi: Quốc gia):
@@ -96,6 +97,16 @@ count (ADR-0005).
 The site a **Visit** came from - its host name and nothing else of the address. Usually unknown:
 a scanned **QR**, a typed address and most chat apps send none (ADR-0005).
 _Avoid_: referrer URL, traffic source.
+
+**Device** (Vi: Thiết bị):
+The kind of device a **Visit** came from - phone, tablet, computer or other - and nothing finer:
+no model, no system version. Only ever a count (ADR-0008).
+
+**Browser** (Vi: Trình duyệt):
+The family of browser a **Visit** came from - Chrome, Safari, or the app it was opened inside, such
+as Zalo or Facebook - without a version. Read from the user agent, which is then dropped. Only ever
+a count (ADR-0008).
+_Avoid_: user agent.
 
 **Disabled Link** (Vi: Link bị tắt):
 A **Link** that shows the Organization's notice instead of sending its visitor on. Its **Link

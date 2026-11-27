@@ -229,7 +229,9 @@ describe("a Unit's Visits at a glance", () => {
     const csv = await (await admin.get("/api/units/1/visit-sources.csv")).text();
     expect(csv.split("\r\n")).toEqual([
       "Mã link,Ngày,Loại,Giá trị,Lượt mở (ước tính)",
+      "cfp-2027,2027-03-01,Trình duyệt,safari,1",
       "cfp-2027,2027-03-01,Quốc gia,VN,1",
+      "cfp-2027,2027-03-01,Thiết bị,mobile,1",
       "cfp-2027,2027-03-01,Nguồn giới thiệu,Không rõ,1",
       ""
     ]);

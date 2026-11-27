@@ -6,6 +6,7 @@ import type { Language } from "../../domain/organization";
 import { hashSecret } from "../../domain/secret";
 import type { AppContext, AppDeps, AppEnv } from "../context";
 import { positiveInt, readJson } from "../http";
+import { rollUp } from "../rollup";
 import type { Snapshot, Store } from "../store";
 import { SYSTEM_LOGO_KEY } from "./qr";
 
@@ -45,11 +46,15 @@ const CSV_TEXT: Record<
     yes: string;
     country: string;
     referrer: string;
+    device: string;
+    browser: string;
     unknown: string;
   }
 > = {
   en: {
+    browser: "Browser",
     country: "Country",
+    device: "Device",
     links: [
       "Link Code",
       "Link",
@@ -72,7 +77,9 @@ const CSV_TEXT: Record<
     yes: "Yes"
   },
   vi: {
+    browser: "Trình duyệt",
     country: "Quốc gia",
+    device: "Thiết bị",
     links: [
       "Mã link",
       "Link",
@@ -109,7 +116,10 @@ const LOGO_KEY = /^(system\/logo|system\/ui-logo\/[\w-]+|(units|links)\/\d+\/[\w
 const isSnapshot = (value: Record<string, unknown> | null): value is Snapshot =>
   value?.version === 1 && typeof value.tables === "object" && value.tables !== null && !Array.isArray(value.tables);
 
-const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new Date(), bootstrapToken }: AppDeps) => {
+const registerExportRoutes = (
+  app: Hono<AppEnv>,
+  { store, logos, now = () => new Date(), bootstrapToken, visitEvents }: AppDeps
+) => {
   /** Logos are checked again like any upload. One that fails is left out: its QR shows no logo. */
   const importLogos = async (files: Record<string, unknown>) => {
     for (const [key, encoded] of Object.entries(files)) {
@@ -173,13 +183,7 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
     const rows = await store.listVisitSourcesByUnit(unit.id);
     const csv = toCsv(
       words.sources,
-      rows.map((row) => [
-        row.code,
-        row.day,
-        row.kind === "country" ? words.country : words.referrer,
-        row.value || words.unknown,
-        row.count
-      ])
+      rows.map((row) => [row.code, row.day, words[row.kind], row.value || words.unknown, row.count])
     );
     return download(c, csv, "text/csv; charset=utf-8", `linkstead-unit-${unit.id}-visit-sources.csv`);
   });
@@ -192,6 +196,10 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
     }
     if (!actor.isSystemAdmin) {
       return c.json({ error: "forbidden" }, 403);
+    }
+    // Visits still only in Analytics Engine are added first: the file is to hold everything.
+    if (visitEvents) {
+      await rollUp(store, visitEvents, now());
     }
     const snapshot = await store.exportAll(now());
     snapshot.logos = {};

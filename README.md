@@ -110,6 +110,30 @@ every setting are then managed in the UI (**Settings**, **Units**...).
 Moving from another installation instead? Import its export before bootstrapping:
 [docs/export-and-import.md](docs/export-and-import.md).
 
+### Turn on Analytics Engine (optional)
+
+On Cloudflare, Visits can go through [Workers Analytics Engine](https://developers.cloudflare.com/analytics/analytics-engine/)
+instead of a row write each in D1 - for links scanned many thousands of times a day, and for a view
+of Visits by hour of day over the last three months. A quarter-hourly cron adds them into the same
+daily counts, so everything else reads as before ([ADR-0008](docs/adr/0008-visits-may-pass-through-workers-analytics-engine.md)).
+Nothing more is recorded about visitors than without it: no IP address, no user agent.
+
+1. Add the binding to `wrangler.jsonc` (the line is there, commented out):
+
+   ```jsonc
+   "analytics_engine_datasets": [{ "binding": "VISIT_EVENTS", "dataset": "linkstead_visits" }],
+   ```
+
+2. Give the Worker your account id as a variable, `CF_ACCOUNT_ID` (in `wrangler.jsonc` under
+   `vars`, or in the dashboard), and an API token with **Account → Account Analytics → Read** as a
+   secret:
+
+   ```bash
+   pnpm exec wrangler secret put CF_API_TOKEN
+   ```
+
+3. Deploy. With any of the three missing, Visits keep going to D1 directly.
+
 ### Turn on the safety check
 
 Checking destinations uses Google Safe Browsing, which is free but needs a key:

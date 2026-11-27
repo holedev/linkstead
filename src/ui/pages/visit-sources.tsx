@@ -1,11 +1,11 @@
 import { formatNumber } from "@/components/app";
-import type { VisitSource } from "../api";
+import type { VisitSource, Visits } from "../api";
 import { locale, text } from "../i18n";
 
 /**
- * Where Visits came from - by Country and by Referring Site - as short ranked lists. Counts
- * only (ADR-0005): "" is "not known", which for referring sites is usually the largest group,
- * since a scanned QR sends none.
+ * Where Visits came from - by Country, Referring Site, Device and Browser - as short ranked lists.
+ * Counts only (ADR-0005, ADR-0008): "" is "not known", which for referring sites is usually the
+ * largest group, since a scanned QR sends none.
  */
 
 const SHOWN = 8;
@@ -32,6 +32,24 @@ const countryName = (code: string): string => {
 };
 
 const siteName = (host: string): string => host || t.unknownSite;
+
+/** A device class as a word in the UI's language. */
+const deviceName = (device: string): string => t.devices[device] ?? t.unknown;
+
+/** Browser families by the names their makers give them; "other" in the UI's language. */
+const BROWSER_NAMES: Record<string, string> = {
+  chrome: "Chrome",
+  edge: "Edge",
+  facebook: "Facebook / Messenger",
+  firefox: "Firefox",
+  instagram: "Instagram",
+  opera: "Opera",
+  safari: "Safari",
+  samsung: "Samsung Internet",
+  zalo: "Zalo"
+};
+
+const browserName = (browser: string): string => BROWSER_NAMES[browser] ?? t.otherBrowser;
 
 const SourceList = ({
   title,
@@ -74,12 +92,14 @@ const SourceList = ({
   );
 };
 
-/** Both lists side by side, or stacked on a phone. */
-const VisitSources = ({ countries, referrers }: { countries: VisitSource[]; referrers: VisitSource[] }) => (
+/** The four lists side by side, two by two, or stacked on a phone. */
+const VisitSources = ({ visits }: { visits: Pick<Visits, "countries" | "referrers" | "devices" | "browsers"> }) => (
   <div className='space-y-2'>
     <div className='grid gap-5 sm:grid-cols-2'>
-      <SourceList nameOf={countryName} sources={countries} title={t.byCountry} />
-      <SourceList nameOf={siteName} sources={referrers} title={t.byReferrer} />
+      <SourceList nameOf={countryName} sources={visits.countries} title={t.byCountry} />
+      <SourceList nameOf={siteName} sources={visits.referrers} title={t.byReferrer} />
+      <SourceList nameOf={deviceName} sources={visits.devices} title={t.byDevice} />
+      <SourceList nameOf={browserName} sources={visits.browsers} title={t.byBrowser} />
     </div>
     <p className='text-muted-foreground text-xs'>{t.note}</p>
   </div>

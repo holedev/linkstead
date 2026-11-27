@@ -53,6 +53,11 @@ mà chiếm quyền quản trị.
 
 Muốn dùng script thì gọi `POST /api/bootstrap` - xem [README.md](README.md#create-the-first-administrator).
 
+Muốn dùng **Workers Analytics Engine** cho lượt mở (chịu tải lớn hơn, xem theo giờ trong 90 ngày):
+thêm binding `VISIT_EVENTS`, biến `CF_ACCOUNT_ID` và secret `CF_API_TOKEN` - xem
+[README.md](README.md#turn-on-analytics-engine-optional). Không lưu thêm gì về người mở: không IP,
+không user agent.
+
 Chi tiết về chạy trên máy, kiểm tra đích an toàn, API và kiểm tra mã: xem [README.md](README.md).
 
 ## Giấy phép

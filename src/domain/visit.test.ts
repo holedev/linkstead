@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMachineAgent, referrerSite, visitCountry, visitDay } from "./visit";
+import { browserFamily, deviceClass, isMachineAgent, referrerSite, visitCountry, visitDay } from "./visit";
 
 describe("isMachineAgent", () => {
   it("recognises the preview fetchers a shared Link meets first", () => {
@@ -56,5 +56,47 @@ describe("where a Visit came from", () => {
     expect(referrerSite("not a url", "go.test")).toBe("");
     expect(referrerSite("https://go.test/app/", "go.test")).toBe("");
     expect(referrerSite("ftp://files.example/", "go.test")).toBe("");
+  });
+});
+
+describe("the device and browser a Visit came from", () => {
+  const IPHONE_SAFARI =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+  const ANDROID_CHROME =
+    "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+  const ANDROID_TABLET =
+    "Mozilla/5.0 (Linux; Android 13; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+  const IPAD =
+    "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+  const WINDOWS_EDGE =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0";
+  const MAC_FIREFOX = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.0; rv:121.0) Gecko/20100101 Firefox/121.0";
+  const ZALO =
+    "Mozilla/5.0 (Linux; Android 14; SM-S918B Build/UP1A) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0.0.0 Mobile Safari/537.36 Zalo android/12100726 ZaloTheme/light ZaloLanguage/vi";
+  const MESSENGER =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/MessengerForiOS;FBAV/440.0]";
+  const SAMSUNG =
+    "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/23.0 Chrome/115.0.0.0 Mobile Safari/537.36";
+
+  it("keeps only the kind of device, a tablet before a phone", () => {
+    expect(deviceClass(IPHONE_SAFARI)).toBe("mobile");
+    expect(deviceClass(ANDROID_CHROME)).toBe("mobile");
+    expect(deviceClass(ANDROID_TABLET)).toBe("tablet");
+    expect(deviceClass(IPAD)).toBe("tablet");
+    expect(deviceClass(WINDOWS_EDGE)).toBe("desktop");
+    expect(deviceClass(MAC_FIREFOX)).toBe("desktop");
+    expect(deviceClass("curl/8.0")).toBe("other");
+    expect(deviceClass(undefined)).toBe("other");
+  });
+
+  it("keeps only the browser's family, naming the app a Link was opened inside", () => {
+    expect(browserFamily(IPHONE_SAFARI)).toBe("safari");
+    expect(browserFamily(ANDROID_CHROME)).toBe("chrome");
+    expect(browserFamily(WINDOWS_EDGE)).toBe("edge");
+    expect(browserFamily(MAC_FIREFOX)).toBe("firefox");
+    expect(browserFamily(SAMSUNG)).toBe("samsung");
+    expect(browserFamily(ZALO)).toBe("zalo");
+    expect(browserFamily(MESSENGER)).toBe("facebook");
+    expect(browserFamily("curl/8.0")).toBe("other");
   });
 });

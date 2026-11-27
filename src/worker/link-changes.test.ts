@@ -239,7 +239,7 @@ describe("switching a Link off and on", () => {
 });
 
 describe("reading Visits", () => {
-  it("answers per Vietnamese day, country and referring site, to a member and to the Unit's key", async () => {
+  it("answers per day, country, referring site, device and browser, to a member and to the Unit's key", async () => {
     const admin = await withLink();
     const key = await keyOf(admin, 1, "CRM");
     const visitor = h.client();
@@ -251,6 +251,7 @@ describe("reading Visits", () => {
     await visitor.get("/cfp-2027");
 
     const expected = {
+      browsers: [{ count: 3, value: "safari" }],
       countries: [
         { count: 2, value: "VN" },
         { count: 1, value: "" }
@@ -259,6 +260,7 @@ describe("reading Visits", () => {
         { count: 2, day: "2027-03-01" },
         { count: 1, day: "2027-03-02" }
       ],
+      devices: [{ count: 3, value: "mobile" }],
       referrers: [
         { count: 2, value: "facebook.com" },
         { count: 1, value: "" }

@@ -16,7 +16,8 @@ import {
   statusChanges,
   targetChanges,
   unitChanges,
-  units
+  units,
+  visitRollup
 } from "../db/schema";
 import { DEFAULT_SETTINGS, isLanguage } from "../domain/organization";
 import type {
@@ -26,7 +27,8 @@ import type {
   OrganizationRecord,
   Snapshot,
   Store,
-  VisitScope
+  VisitScope,
+  VisitSourceKind
 } from "./store";
 
 const ACCOUNT_COLUMNS = {
@@ -193,6 +195,36 @@ const createD1Store = (database: D1Database): Store => {
         .onConflictDoNothing()
         .returning({ code: reservedCodes.code });
       return inserted.length > 0;
+    },
+
+    addVisitCounts: async (counts, through) => {
+      // `WHERE EXISTS` drops a count for a Link this installation does not have: a dataset can
+      // be shared by mistake, and one unknown Link must not fail the whole batch.
+      const totals = counts.totals.map((row) =>
+        database
+          .prepare(
+            `INSERT INTO daily_visits (link_id, day, count) SELECT ?1, ?2, ?3 WHERE EXISTS (SELECT 1 FROM links WHERE id = ?1)
+             ON CONFLICT (link_id, day) DO UPDATE SET count = count + excluded.count`
+          )
+          .bind(row.linkId, row.day, row.count)
+      );
+      const sources = counts.sources.map((row) =>
+        database
+          .prepare(
+            `INSERT INTO daily_visit_sources (link_id, day, kind, value, count) SELECT ?1, ?2, ?3, ?4, ?5
+             WHERE EXISTS (SELECT 1 FROM links WHERE id = ?1)
+             ON CONFLICT (link_id, day, kind, value) DO UPDATE SET count = count + excluded.count`
+          )
+          .bind(row.linkId, row.day, row.kind, row.value, row.count)
+      );
+      const mark = database
+        .prepare(
+          `INSERT INTO visit_rollup (id, rolled_through) VALUES (1, ?1)
+           ON CONFLICT (id) DO UPDATE SET rolled_through = excluded.rolled_through`
+        )
+        .bind(through.getTime());
+      // One batch, one transaction: the counts and the mark move together.
+      await database.batch([...totals, ...sources, mark]);
     },
 
     changeTarget: async ({ linkId, oldTarget, newTarget, by, at }) => {
@@ -402,6 +434,7 @@ const createD1Store = (database: D1Database): Store => {
           previewImage: links.previewImage,
           previewTitle: links.previewTitle,
           target: links.target,
+          unitId: links.unitId,
           unsafe: sql<boolean>`${links.unsafeSince} IS NOT NULL`.mapWith(Boolean)
         })
         .from(links)
@@ -862,8 +895,8 @@ const createD1Store = (database: D1Database): Store => {
       return row?.count ?? 0;
     },
 
-    recordVisit: async (linkId, day, source) => {
-      const countSource = (kind: "country" | "referrer", value: string) =>
+    recordVisit: async (linkId, day, origin) => {
+      const countSource = (kind: VisitSourceKind, value: string) =>
         database
           .prepare(
             `INSERT INTO daily_visit_sources (link_id, day, kind, value, count) VALUES (?1, ?2, ?3, ?4, 1)
@@ -877,8 +910,10 @@ const createD1Store = (database: D1Database): Store => {
              ON CONFLICT (link_id, day) DO UPDATE SET count = count + 1`
           )
           .bind(linkId, day),
-        countSource("country", source.country),
-        countSource("referrer", source.referrer)
+        countSource("country", origin.country),
+        countSource("referrer", origin.referrer),
+        countSource("device", origin.device),
+        countSource("browser", origin.browser)
       ]);
     },
 
@@ -1043,7 +1078,10 @@ const createD1Store = (database: D1Database): Store => {
 
     updateLinkPreview: async (linkId, preview) => {
       await db.update(links).set(preview).where(eq(links.id, linkId));
-    }
+    },
+
+    visitRollupMark: async () =>
+      (await db.select().from(visitRollup).where(eq(visitRollup.id, 1)).get())?.rolledThrough ?? null
   };
 };
 

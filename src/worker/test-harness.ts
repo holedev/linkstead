@@ -2,7 +2,11 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getPlatformProxy } from "wrangler";
 import { stretchPassword } from "../domain/password";
+import type { EventCount, VisitEvent } from "../domain/visit-events";
+import { quarterOf } from "../domain/visit-events";
 import { createApp } from "./app";
+import type { VisitEvents } from "./context";
+import { rollUp } from "./rollup";
 import { createD1Store } from "./store-d1";
 
 /**
@@ -32,6 +36,7 @@ const PHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKi
 
 // Children before parents, so the foreign keys never object.
 const TABLES = [
+  "visit_rollup",
   "link_password_failures",
   "daily_visit_sources",
   "daily_visits",
@@ -65,7 +70,47 @@ const passwordKey = (email: string, password: string): Promise<string> => {
 
 type RequestOptions = { body?: unknown; headers?: Record<string, string>; bytes?: Uint8Array };
 
-const startHarness = async () => {
+/**
+ * Analytics Engine as the app sees it, in memory: events kept with the moment they were written,
+ * read back by quarter-hour like the SQL API answers. Unsampled, so every count is exact.
+ */
+const memoryVisitEvents = (clock: { now: Date }) => {
+  const events: (VisitEvent & { at: Date })[] = [];
+  const seam: VisitEvents = {
+    counts: (range) => {
+      const counts = new Map<string, EventCount>();
+      for (const event of events) {
+        const inside =
+          event.at >= range.from &&
+          event.at < range.to &&
+          (range.linkId === undefined || event.linkId === range.linkId) &&
+          (range.unitId === undefined || event.unitId === range.unitId);
+        if (!inside) {
+          continue;
+        }
+        const quarter = quarterOf(event.at);
+        const key = [quarter.getTime(), event.linkId, event.country, event.referrer, event.device, event.browser].join(
+          "|"
+        );
+        const { unitId: _unitId, at: _at, ...rest } = event;
+        const count = counts.get(key) ?? { ...rest, count: 0, quarter };
+        count.count += 1;
+        counts.set(key, count);
+      }
+      return Promise.resolve([...counts.values()]);
+    },
+    write: (event) => {
+      events.push({ ...event, at: clock.now });
+    }
+  };
+  return { events, seam };
+};
+
+/**
+ * `visitEvents`: run as an installation whose Visits go through Analytics Engine (ADR-0008),
+ * with `events` and `rollUp` to look at and move them.
+ */
+const startHarness = async ({ visitEvents: withEvents = false }: { visitEvents?: boolean } = {}) => {
   const proxy = await getPlatformProxy<{ DB: D1Database }>({ persist: false });
   const db = proxy.env.DB;
 
@@ -89,6 +134,7 @@ const startHarness = async () => {
   }
 
   const clock = { now: new Date("2027-03-01T03:00:00Z") };
+  const analytics = memoryVisitEvents(clock);
   const deferred: Promise<unknown>[] = [];
   // Logo files in memory: the app only knows the `LogoFiles` seam, so this is as real as R2 to it.
   const logoFiles = new Map<string, Uint8Array>();
@@ -119,7 +165,8 @@ const startHarness = async () => {
     now: () => clock.now,
     serveUi: () =>
       Promise.resolve(new Response("<!doctype html><title>ui</title>", { headers: { "content-type": "text/html" } })),
-    store: createD1Store(db)
+    store: createD1Store(db),
+    visitEvents: withEvents ? analytics.seam : undefined
   });
 
   /** Runs one migration's statements again, by a part of its file name. */
@@ -146,6 +193,7 @@ const startHarness = async () => {
     );
     clock.now = new Date("2027-03-01T03:00:00Z");
     logoFiles.clear();
+    analytics.events.length = 0;
     pages.clear();
     unsafe.clear();
   };
@@ -216,11 +264,15 @@ const startHarness = async () => {
     logoFiles,
     pages,
     reset,
+    /** Runs the quarter-hourly rollup now, as the cron would. */
+    rollUp: () => rollUp(createD1Store(db), analytics.seam, clock.now),
     run,
     runMigration,
     signedInAdmin,
     store: createD1Store(db),
-    unsafe
+    unsafe,
+    /** Every Visit written as an event, when the harness runs with Analytics Engine. */
+    visitEventLog: analytics.events
   };
 };
 

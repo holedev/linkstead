@@ -7,7 +7,7 @@ import type { Organization } from "./api";
  * and a System Administrator who changes them sees the change on the next page load.
  */
 
-const FALLBACK: Organization = { ...DEFAULT_SETTINGS, uiLogo: null };
+const FALLBACK: Organization = { ...DEFAULT_SETTINGS, hourlyVisits: false, uiLogo: null };
 
 let current: Organization = FALLBACK;
 

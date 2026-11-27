@@ -294,6 +294,12 @@ const openApiDocument = (origin: string, organizationName: string) => ({
           200: {
             content: json({
               properties: {
+                browsers: {
+                  description:
+                    "By browser family (`chrome`, `safari`, `zalo`, `facebook`, ... or `other`), most first. Only the family is kept, never the user agent.",
+                  items: SOURCE,
+                  type: "array"
+                },
                 countries: {
                   description: "By country (two letters), most first. An empty `value` is not known.",
                   items: SOURCE,
@@ -306,6 +312,11 @@ const openApiDocument = (origin: string, organizationName: string) => ({
                   },
                   type: "array"
                 },
+                devices: {
+                  description: "By kind of device (`mobile`, `tablet`, `desktop`, `other`), most first.",
+                  items: SOURCE,
+                  type: "array"
+                },
                 referrers: {
                   description:
                     "By referring site (host only), most first. An empty `value` is not known: a scanned QR, a typed address and most chat apps send none.",
@@ -316,7 +327,7 @@ const openApiDocument = (origin: string, organizationName: string) => ({
               },
               type: "object"
             }),
-            description: "Visits by day, country and referring site, and in all."
+            description: "Visits by day, country, referring site, device and browser, and in all."
           },
           ...ON_A_LINK
         },

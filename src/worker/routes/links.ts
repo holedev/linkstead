@@ -517,7 +517,7 @@ const registerLinkRoutes = (
     return c.json({ history: (await store.listHistory(reach.link.id)).map(presentEntry) });
   });
 
-  /** Visits per Vietnamese day, oldest first. Days nobody opened the Link are left out. */
+  /** Visits per day of the Organization, oldest first. Days nobody opened the Link are left out. */
   app.get("/api/links/:code/visits", async (c) => {
     const reach = await reachLink(c, store);
     if (reach instanceof Response) {
@@ -526,8 +526,10 @@ const registerLinkRoutes = (
     const days = await store.listVisits(reach.link.id);
     const sources = await store.listVisitSources({ linkId: reach.link.id });
     return c.json({
+      browsers: sourcesOf(sources, "browser"),
       countries: sourcesOf(sources, "country"),
       days,
+      devices: sourcesOf(sources, "device"),
       referrers: sourcesOf(sources, "referrer"),
       total: days.reduce((sum, day) => sum + day.count, 0)
     });

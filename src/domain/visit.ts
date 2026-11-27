@@ -89,4 +89,50 @@ const referrerSite = (referer: string | null | undefined, ownHost: string): stri
   return SITE_ALIASES[host] ?? host;
 };
 
-export { isMachineAgent, isPreviewFetcher, referrerSite, visitCountry, visitDay };
+/**
+ * What sort of device a Visit came from, told from its user agent and kept as one coarse word -
+ * the user agent itself is never stored (ADR-0008). A tablet is asked before a phone: iPads and
+ * Android tablets also say "Mobile" in some apps.
+ */
+type DeviceClass = "mobile" | "tablet" | "desktop" | "other";
+
+const TABLET = /iPad|Tablet|PlayBook|Silk|(Android(?!.*Mobile))/i;
+const MOBILE = /Mobi|iPhone|iPod|Android|Windows Phone|BlackBerry|Opera Mini/i;
+const DESKTOP = /Windows NT|Macintosh|X11|CrOS|Linux x86_64/i;
+
+const deviceClass = (userAgent: string | null | undefined): DeviceClass => {
+  const ua = userAgent ?? "";
+  if (TABLET.test(ua)) {
+    return "tablet";
+  }
+  if (MOBILE.test(ua)) {
+    return "mobile";
+  }
+  return DESKTOP.test(ua) ? "desktop" : "other";
+};
+
+/**
+ * Which browser a Visit came from, as its family only: no version, no build. In-app browsers come
+ * first - a Link opened inside Zalo or Facebook says Safari or Chrome too, but where it was opened
+ * is what a Unit wants to know. The order matters: Edge and Samsung Internet also say Chrome, and
+ * Chrome also says Safari.
+ */
+const BROWSERS: [string, RegExp][] = [
+  ["zalo", /Zalo/i],
+  ["facebook", /FBAN|FBAV|FB_IAB|FBIOS|Messenger/i],
+  ["instagram", /Instagram/i],
+  ["edge", /Edg(e|A|iOS)?\//],
+  ["samsung", /SamsungBrowser\//],
+  ["opera", /OPR\/|Opera/],
+  ["firefox", /Firefox\/|FxiOS\//],
+  ["chrome", /Chrome\/|CriOS\//],
+  ["safari", /Safari\//]
+];
+
+const browserFamily = (userAgent: string | null | undefined): string => {
+  const ua = userAgent ?? "";
+  return BROWSERS.find(([, pattern]) => pattern.test(ua))?.[0] ?? "other";
+};
+
+export type { DeviceClass };
+export { browserFamily, deviceClass, isMachineAgent, isPreviewFetcher, referrerSite, visitCountry, visitDay };
