@@ -6,8 +6,10 @@ import { text } from "../i18n";
 import { messageOf } from "../messages";
 import { exampleEmail } from "../organization";
 import { useSession } from "../session";
+import { useLoaded } from "../use-loaded";
+import { FirstRunPage } from "./first-run";
 
-const LoginPage = () => {
+const SignInForm = () => {
   const { me, refresh } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -69,6 +71,19 @@ const LoginPage = () => {
       <p className='text-muted-foreground text-sm'>{t.noAccount}</p>
     </SignInFrame>
   );
+};
+
+/**
+ * Signing in - or, on an installation that has no System Administrator yet, setting it up. Asked
+ * first, so a fresh installation never shows a sign-in form nobody can use.
+ */
+const LoginPage = () => {
+  const { data, error } = useLoaded(0, () => api.bootstrapState());
+  if (!data) {
+    // Not knowing, the form people need every day is the one to offer.
+    return error ? <SignInForm /> : null;
+  }
+  return data.needed ? <FirstRunPage secretSet={data.secretSet} /> : <SignInForm />;
 };
 
 export { LoginPage };

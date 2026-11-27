@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
 import { isAllowedEmail, normalizeEmail } from "../../domain/email";
-import { checkSettings } from "../../domain/organization";
+import { checkSettings, type OrganizationSettings } from "../../domain/organization";
 import { isStretched, sealPassword, verifyPassword } from "../../domain/password";
 import { hashSecret, newSecret } from "../../domain/secret";
 import { SESSION_COOKIE } from "../actor";
@@ -61,12 +61,48 @@ const startSession = async (c: AppContext, store: Store, accountId: number, now:
   });
 };
 
+/**
+ * What a bootstrap call asks for - the first administrator's email, the password as the browser
+ * stretched it if one was given, the Organization's settings - or the first thing wrong with it.
+ */
+const readBootstrap = (
+  body: Record<string, unknown>,
+  current: OrganizationSettings
+): { email: string; passwordKey: string | null; settings: OrganizationSettings } | { error: string } => {
+  const { email: _email, passwordKey: _passwordKey, ...given } = body;
+  const passwordKey = body.passwordKey === undefined ? null : text(body.passwordKey);
+  if (passwordKey !== null && !isStretched(passwordKey)) {
+    return { error: "bad-password-key" };
+  }
+  const checked = checkSettings(given, current);
+  if ("problem" in checked) {
+    return { error: checked.problem };
+  }
+  const email = normalizeEmail(text(body.email));
+  if (!isAllowedEmail(email, checked.settings.emailDomains)) {
+    return { error: "email-not-allowed" };
+  }
+  return { email, passwordKey, settings: checked.settings };
+};
+
 const registerAuthRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(), bootstrapToken }: AppDeps) => {
+  /**
+   * Whether the installation still waits for its first System Administrator, so the UI shows its
+   * first-run screen instead of signing in - and whether the secret that screen asks for is set.
+   */
+  app.get("/api/bootstrap", async (c) =>
+    c.json({ needed: (await store.countSystemAdmins()) === 0, secretSet: Boolean(bootstrapToken) })
+  );
+
   /**
    * Creates the first System Administrator, once, and with it the Organization's first settings:
    * any of name, emailDomains, language, timeZone and brandColor, beside the email (ADR-0007).
    * Guarded by a secret set at deploy rather than by a seeded account, so no person's address has
-   * to be written into a migration.
+   * to be written into a migration, and nobody who reaches a fresh installation first can take it.
+   *
+   * With `passwordKey` - the password as the browser stretched it, as the first-run screen sends
+   * it - the password is set and the session starts at once. Without it, as from a script, the
+   * answer carries a one-time link for setting the password.
    */
   app.post("/api/bootstrap", async (c) => {
     const given = BEARER.exec(c.req.header("authorization") ?? "")?.[1];
@@ -76,26 +112,26 @@ const registerAuthRoutes = (app: Hono<AppEnv>, { store, now = () => new Date(), 
     if ((await store.countSystemAdmins()) > 0) {
       return c.json({ error: "already-bootstrapped" }, 409);
     }
-    const body = (await readJson(c)) ?? {};
-    const { email: _email, ...settings } = body;
     const current = await store.getOrganization();
-    const checked = checkSettings(settings, current);
-    if ("problem" in checked) {
-      return c.json({ error: checked.problem }, 422);
+    const asked = readBootstrap((await readJson(c)) ?? {}, current);
+    if ("error" in asked) {
+      return c.json({ error: asked.error }, 422);
     }
-    const email = normalizeEmail(text(body.email));
-    if (!isAllowedEmail(email, checked.settings.emailDomains)) {
-      return c.json({ error: "email-not-allowed" }, 422);
-    }
+    const { email, passwordKey, settings } = asked;
     if (await store.findAccountByEmail(email)) {
       return c.json({ error: "account-exists" }, 409);
     }
 
-    await store.saveOrganization({ ...checked.settings, uiLogoKey: current.uiLogoKey }, now());
+    await store.saveOrganization({ ...settings, uiLogoKey: current.uiLogoKey }, now());
     const account = await store.createAccount(email, true);
     // The first administrator manages every Unit that exists, or nobody could add its members.
     for (const unit of await store.listUnits()) {
       await store.addMembership(account.id, unit.id, "manager");
+    }
+    if (passwordKey !== null) {
+      await store.setPassword(account.id, await sealPassword(passwordKey));
+      await startSession(c, store, account.id, now());
+      return c.json(await describeAccount(store, account.id), 201);
     }
     return c.json({ email, setupUrl: await issueSetupLink(store, account.id, new URL(c.req.url).origin, now()) }, 201);
   });

@@ -194,6 +194,22 @@ const en = {
     saving: "Saving...",
     showPassword: "Show password"
   },
+  firstRun: {
+    domains: "Accepted email domains (optional)",
+    domainsHint: "One per line, such as example.org. Leave empty to accept any address.",
+    email: "Your email",
+    emailHint: "You sign in with it. It becomes the first System Administrator.",
+    lead: "This installation has no System Administrator yet. Create yours, and say whose links these are. Everything here can be changed later under Settings.",
+    noSecret:
+      "The setup code is not set yet. Set BOOTSTRAP_TOKEN as a secret of the Worker - with `wrangler secret put BOOTSTRAP_TOKEN`, or in the Cloudflare dashboard under the Worker's Settings, Variables and Secrets - then reload this page.",
+    organization: "Organization",
+    organizationName: "Name of the organization",
+    secret: "Setup code",
+    secretHint: "The BOOTSTRAP_TOKEN you set when deploying. It proves this installation is yours.",
+    submit: "Create and sign in",
+    title: "Set up linkstead",
+    wrongSecret: "The setup code is not right."
+  },
   groups: {
     actionsFor: (name: string) => `Actions for the Group ${name}`,
     delete: "Delete Group",

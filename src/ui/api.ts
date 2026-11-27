@@ -195,6 +195,29 @@ const api = {
   adminUploadLogo: (file: File) => upload("/api/admin/qr-logo", file),
   adminUploadUiLogo: (file: File) => upload("/api/admin/ui-logo", file),
   archiveLink: (code: string) => call<Link>("POST", `/api/links/${code}/archive`),
+  /**
+   * Creates the first System Administrator with the Organization's settings, from the first-run
+   * screen. `secret` is the deploy's `BOOTSTRAP_TOKEN`; the password is stretched here, and the
+   * answer starts the session.
+   */
+  bootstrap: async (secret: string, input: OrganizationSettings & { email: string; password: string }): Promise<Me> => {
+    const { password, ...rest } = input;
+    const response = await fetch("/api/bootstrap", {
+      body: JSON.stringify({ ...rest, passwordKey: await stretchPassword(password, input.email) }),
+      credentials: "same-origin",
+      headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
+      method: "POST"
+    }).catch(() => null);
+    if (!response) {
+      throw new ApiFailure(0, "network");
+    }
+    if (!response.ok) {
+      throw await failureOf(response);
+    }
+    return (await response.json()) as Me;
+  },
+  /** Whether the installation still waits for its first System Administrator. */
+  bootstrapState: () => call<{ needed: boolean; secretSet: boolean }>("GET", "/api/bootstrap"),
   changeTarget: (code: string, target: string, expectedTarget: string, resetPreview = false) =>
     call<Link>("PUT", `/api/links/${code}/target`, { expectedTarget, resetPreview, target }),
   createGroup: (unitId: number, name: string) => call<LinkGroup>("POST", `/api/units/${unitId}/groups`, { name }),

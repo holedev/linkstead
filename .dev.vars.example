@@ -1,0 +1,4 @@
+# The setup code: the first-run screen asks for it before creating the first System
+# Administrator, so nobody who reaches a fresh installation first can take it. Choose a long,
+# random value. Once the first administrator exists it opens nothing but the import of an export.
+BOOTSTRAP_TOKEN=

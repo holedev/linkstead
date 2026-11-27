@@ -66,5 +66,12 @@
       "name": "pnpm",
       "version": "11.20.0"
     }
+  },
+  "cloudflare": {
+    "bindings": {
+      "BOOTSTRAP_TOKEN": {
+        "description": "The setup code. The first-run screen at `/app` asks for it before creating the first **System Administrator**, so choose a long, random value and keep it until you have signed in."
+      }
+    }
   }
 }

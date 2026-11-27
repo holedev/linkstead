@@ -133,7 +133,8 @@ by `Authorization: Bearer <API Key>`; a route says which of the two it accepts.
 | `GET /robots.txt` | anyone | keeps crawlers out of `/app` and `/api` |
 | `GET /app/*` | anyone | the UI |
 | `GET /api/organization`, `GET /api/organization/logo` | anyone | the Organization's name, language, time zone, colour, email domains and UI logo |
-| `POST /api/bootstrap` | holder of `BOOTSTRAP_TOKEN` | creates the first System Administrator, once, with the Organization's first settings |
+| `GET /api/bootstrap` | anyone | whether the installation still waits for its first System Administrator, so `/app` shows the first-run screen (`pages/first-run.tsx`) |
+| `POST /api/bootstrap` | holder of `BOOTSTRAP_TOKEN` | creates the first System Administrator, once, with the Organization's first settings; with `passwordKey` sets the password and signs them in, without it answers a one-time link |
 | `POST /api/auth/setup/account`, `POST /api/auth/setup` | holder of a one-time link | says whose link it is; sets a password |
 | `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | a person | the session |
 | `POST /api/links`, `GET /api/links` | a Member, or an API Key | creates a Link, lists a Unit's Links |
@@ -163,15 +164,13 @@ its Links off and on and move them, but cannot change a Target or read a history
 new or changed Target that Google lists as unsafe is refused, and the Worker's daily cron
 (`wrangler.jsonc`) checks every Target again. Without the key, nothing is checked.
 
-**Starting a fresh deployment.** Set the secret, create the administrator with the Organization,
-then remove the secret:
-
-1. `wrangler secret put BOOTSTRAP_TOKEN`
-2. `POST /api/bootstrap` with `Authorization: Bearer <that secret>` and
-   `{"email", "name", "emailDomains", "language", "timeZone", "brandColor"}` - all but the email
-   optional. The answer carries the one-time link. It works only while no System Administrator
-   exists.
-3. `wrangler secret delete BOOTSTRAP_TOKEN`
+**Starting a fresh deployment.** `BOOTSTRAP_TOKEN` is the setup code: declared in
+`.dev.vars.example`, so the Deploy to Cloudflare button asks for it. While no System Administrator
+exists, `/app` shows the first-run screen, which asks for the code, the first administrator's email
+and password, and the Organization's settings, then signs them in. A script does the same with
+`POST /api/bootstrap`, `Authorization: Bearer <code>` and `{"email", "name", "emailDomains",
+"language", "timeZone", "brandColor"}`. The code keeps whoever reaches a fresh installation first
+from taking it; afterwards it opens only the import.
 
 **Passwords are stretched in the browser** (ADR-0003, `src/domain/password.ts`): the server is
 sent the stretched value and stores a salted HMAC of it, so signing in fits the Workers Free plan.

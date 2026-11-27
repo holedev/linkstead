@@ -57,8 +57,9 @@ so running it elsewhere means rewriting those two (ADR-0001). The full layout an
 ## Running your own
 
 The quickest way is the **Deploy to Cloudflare** button above: it copies this repository into your
-GitHub account, creates the D1 database and the R2 bucket, runs the migrations and deploys. The
-Workers Free plan is enough. Then [create the first administrator](#create-the-first-administrator).
+GitHub account, creates the D1 database and the R2 bucket, runs the migrations and deploys. It asks
+for one secret, `BOOTSTRAP_TOKEN`: the setup code, a long random value of your choosing. The
+Workers Free plan is enough. Then open `/app` and [set it up](#create-the-first-administrator).
 
 By hand:
 
@@ -69,7 +70,8 @@ pnpm run deploy
 ```
 
 `pnpm run deploy` builds the UI, applies the migrations and deploys; wrangler creates the database
-and the bucket named in `wrangler.jsonc` the first time. (Type `pnpm run deploy`: `pnpm deploy` is
+and the bucket named in `wrangler.jsonc` the first time. Then set the setup code:
+`pnpm exec wrangler secret put BOOTSTRAP_TOKEN`. (Type `pnpm run deploy`: `pnpm deploy` is
 a different, built-in pnpm command.)
 
 To keep your own configuration - another Worker name, an existing database, a cron at another hour -
@@ -81,39 +83,29 @@ dies with it.
 
 ### Create the first administrator
 
-There is no open sign-up and the system sends no email. The first person is created with a secret
-set at deploy; everyone after is added by someone already inside.
+There is no open sign-up and the system sends no email. While an installation has no system
+administrator, `/app` shows a **first-run screen** instead of signing in. Give it the setup code
+(`BOOTSTRAP_TOKEN`), your email and a password (12 characters at least), and your organization's
+name, language, time zone and - if you want to restrict accounts - its email domains. You are
+signed in at once; the screen never shows again. Everyone after is added by someone already inside.
 
-1. Set the secret (for a local run, a line in `.dev.vars`):
+The setup code is what keeps whoever reaches a fresh installation first from taking it. Once you
+are in, it opens nothing but the import of an export into an unused installation; delete it with
+`pnpm exec wrangler secret delete BOOTSTRAP_TOKEN` if you will not import.
 
-   ```bash
-   pnpm exec wrangler secret put BOOTSTRAP_TOKEN
-   ```
+From a script instead, call `/api/bootstrap`: the answer carries a one-time link to set the
+password.
 
-2. Call `/api/bootstrap` with the secret, your email and, optionally, your organization's
-   settings:
+```bash
+curl -X POST https://<your-worker>/api/bootstrap \
+  -H "Authorization: Bearer <setup-code>" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.org","name":"Example University","emailDomains":["example.org"],"language":"en","timeZone":"Europe/Berlin","brandColor":"#1d4ed8"}'
+```
 
-   ```bash
-   curl -X POST https://<your-worker>/api/bootstrap \
-     -H "Authorization: Bearer <secret>" \
-     -H "Content-Type: application/json" \
-     -d '{"email":"you@example.org","name":"Example University","emailDomains":["example.org"],"language":"en","timeZone":"Europe/Berlin","brandColor":"#1d4ed8"}'
-   ```
-
-   `language` is `en` or `vi`; `timeZone` an IANA name; `brandColor` a colour dark enough for white
-   text. Leave out `emailDomains` to accept any address.
-
-3. Open the `setupUrl` in the answer to set a password (12 characters at least), then sign in at
-   `/app`. The link works once, for 7 days.
-
-4. Delete the secret:
-
-   ```bash
-   pnpm exec wrangler secret delete BOOTSTRAP_TOKEN
-   ```
-
-Step 2 works only while there is no system administrator. Units, members, other administrators,
-the logos and every setting are then managed in the UI (**Settings**, **Units**...).
+`language` is `en` or `vi`; `timeZone` an IANA name; `brandColor` a colour dark enough for white
+text. Every field but the email is optional. Units, members, other administrators, the logos and
+every setting are then managed in the UI (**Settings**, **Units**...).
 
 Moving from another installation instead? Import its export before bootstrapping:
 [docs/export-and-import.md](docs/export-and-import.md).
@@ -139,14 +131,14 @@ Node 22 and pnpm 11.20.0 (`mise.toml`; run `mise install` if you use [mise](http
 
 ```bash
 pnpm install
-echo "BOOTSTRAP_TOKEN=any-local-secret" > .dev.vars
+cp .dev.vars.example .dev.vars   # then put a setup code after BOOTSTRAP_TOKEN=
 pnpm db:migrate:local
 pnpm build:ui
 pnpm dev
 ```
 
-The system runs at `http://localhost:8787`, the UI at `http://localhost:8787/app`. Create the first
-administrator as above, against `http://localhost:8787`. While working on the UI, run `pnpm dev:ui`
+The system runs at `http://localhost:8787`, the UI at `http://localhost:8787/app`, where the
+first-run screen asks for the setup code from `.dev.vars`. While working on the UI, run `pnpm dev:ui`
 in another window for hot reload; it calls the Worker started by `pnpm dev`.
 
 ## Using the API

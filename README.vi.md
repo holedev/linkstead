@@ -29,7 +29,8 @@ Từ vựng của dự án nằm trong [CONTEXT.md](CONTEXT.md) (thuật ngữ t
 ## Tự cài đặt
 
 Nhanh nhất là nút **Deploy to Cloudflare** ở trên: nó chép repo này vào tài khoản GitHub của bạn,
-tạo database D1 và bucket R2, chạy migration rồi deploy. Gói Workers Free là đủ.
+tạo database D1 và bucket R2, chạy migration rồi deploy. Nó hỏi một secret, `BOOTSTRAP_TOKEN`: mã
+thiết lập, một chuỗi ngẫu nhiên dài do bạn chọn. Gói Workers Free là đủ.
 
 Hoặc làm tay:
 
@@ -44,21 +45,13 @@ miền đó.
 
 ### Tạo Quản trị hệ thống đầu tiên
 
-1. `pnpm exec wrangler secret put BOOTSTRAP_TOKEN`
-2. Gọi `/api/bootstrap` với bí mật đó, email của bạn và (tùy chọn) cài đặt của tổ chức:
+Khi bản cài đặt chưa có Quản trị hệ thống, `/app` hiện **màn hình thiết lập** thay cho trang đăng
+nhập. Nhập mã thiết lập (`BOOTSTRAP_TOKEN`), email và mật khẩu của bạn (ít nhất 12 ký tự), cùng
+tên, ngôn ngữ, múi giờ và (nếu muốn giới hạn) các tên miền email của tổ chức. Xong là đăng nhập
+luôn, và màn hình này không hiện lại nữa. Mã thiết lập ngăn người lạ mở bản cài đặt mới trước bạn
+mà chiếm quyền quản trị.
 
-   ```bash
-   curl -X POST https://<địa-chỉ-worker>/api/bootstrap \
-     -H "Authorization: Bearer <bí-mật>" \
-     -H "Content-Type: application/json" \
-     -d '{"email":"ban@example.org","name":"Trường Đại học Ví Dụ","emailDomains":["example.org"],"language":"vi","timeZone":"Asia/Ho_Chi_Minh"}'
-   ```
-
-3. Mở `setupUrl` trong kết quả để đặt mật khẩu (ít nhất 12 ký tự), rồi đăng nhập tại `/app`.
-4. `pnpm exec wrangler secret delete BOOTSTRAP_TOKEN`
-
-Sau đó đơn vị, thành viên, Quản trị hệ thống khác, logo và mọi cài đặt đều làm trong giao diện
-(mục **Cài đặt**, **Đơn vị**...).
+Muốn dùng script thì gọi `POST /api/bootstrap` - xem [README.md](README.md#create-the-first-administrator).
 
 Chi tiết về chạy trên máy, kiểm tra đích an toàn, API và kiểm tra mã: xem [README.md](README.md).
 

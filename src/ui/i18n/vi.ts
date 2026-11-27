@@ -190,6 +190,22 @@ const vi: Messages = {
     saving: "Đang lưu...",
     showPassword: "Hiện mật khẩu"
   },
+  firstRun: {
+    domains: "Tên miền email được nhận (không bắt buộc)",
+    domainsHint: "Mỗi dòng một tên miền, ví dụ example.org. Để trống là nhận mọi địa chỉ.",
+    email: "Email của bạn",
+    emailHint: "Dùng để đăng nhập. Tài khoản này là Quản trị hệ thống đầu tiên.",
+    lead: "Bản cài đặt này chưa có Quản trị hệ thống. Hãy tạo tài khoản của bạn và cho biết đây là link của tổ chức nào. Mọi thứ ở đây đều đổi được sau ở mục Cài đặt.",
+    noSecret:
+      "Chưa đặt mã thiết lập. Hãy đặt BOOTSTRAP_TOKEN làm secret của Worker - bằng `wrangler secret put BOOTSTRAP_TOKEN`, hoặc trên Cloudflare dashboard ở Settings của Worker, mục Variables and Secrets - rồi tải lại trang này.",
+    organization: "Tổ chức",
+    organizationName: "Tên tổ chức",
+    secret: "Mã thiết lập",
+    secretHint: "BOOTSTRAP_TOKEN bạn đặt lúc deploy. Nó chứng minh bản cài đặt này là của bạn.",
+    submit: "Tạo và đăng nhập",
+    title: "Thiết lập linkstead",
+    wrongSecret: "Mã thiết lập không đúng."
+  },
   groups: {
     actionsFor: (name) => `Thao tác với nhóm ${name}`,
     delete: "Xóa nhóm",

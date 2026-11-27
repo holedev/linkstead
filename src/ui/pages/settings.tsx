@@ -22,6 +22,35 @@ const zones = (): string[] => {
   }
 };
 
+/** A time zone, typed or picked from the browser's list. Takes the props a `Field` hands out. */
+const TimeZoneInput = ({
+  value,
+  onChange,
+  ...props
+}: {
+  id: string;
+  "aria-describedby": string | undefined;
+  className: string;
+  value: string;
+  onChange: (zone: string) => void;
+}) => (
+  <>
+    <input
+      {...props}
+      list='time-zones'
+      onChange={(event) => onChange(event.target.value)}
+      required
+      spellCheck={false}
+      value={value}
+    />
+    <datalist id='time-zones'>
+      {zones().map((zone) => (
+        <option key={zone} value={zone} />
+      ))}
+    </datalist>
+  </>
+);
+
 /**
  * What the installation knows of its Organization (ADR-0007), for a System Administrator to set:
  * the name, the email domains Accounts may have, the language, the time zone, the colour, and the
@@ -92,23 +121,7 @@ const SettingsForm = () => {
           )}
         </Field>
         <Field hint={t.timeZoneHint} label={t.timeZone}>
-          {(props) => (
-            <>
-              <input
-                {...props}
-                list='time-zones'
-                onChange={(event) => setTimeZone(event.target.value)}
-                required
-                spellCheck={false}
-                value={timeZone}
-              />
-              <datalist id='time-zones'>
-                {zones().map((zone) => (
-                  <option key={zone} value={zone} />
-                ))}
-              </datalist>
-            </>
-          )}
+          {(props) => <TimeZoneInput {...props} onChange={setTimeZone} value={timeZone} />}
         </Field>
         {timeZone !== current.timeZone && (
           <p className='rounded-md bg-amber-50 px-3 py-2 text-amber-900 text-sm'>{t.timeZoneWarning}</p>
@@ -209,4 +222,4 @@ const AdminSettingsPage = () => (
   </>
 );
 
-export { AdminSettingsPage };
+export { AdminSettingsPage, LANGUAGE_NAMES, TimeZoneInput };
