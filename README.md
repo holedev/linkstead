@@ -1,240 +1,202 @@
-# OU Link
+# linkstead
 
-Link và QR cố định dưới tên miền của Trường Đại học Mở Thành phố Hồ Chí Minh, mà **đích có thể đổi
-sau khi đã in**. Một tấm poster, một tờ rơi hay một cuốn kỷ yếu in ra hôm nay vẫn dẫn đúng nơi khi
-trang đích chuyển chỗ vào năm sau.
+Permanent links and QR codes under your organization's own domain, whose **destination can change
+after they have been printed**. A poster, a flyer or a conference badge printed today still leads to
+the right place when the page it points to moves next year.
 
-> **Đang chạy thử trên tên miền tạm.** Mọi link tạo trong giai đoạn này đều có thể bỏ đi. **Chưa in
-> QR nào** cho tới khi có tên miền chính thức của Trường - QR mang tên miền tạm sẽ chết cùng tên miền
-> đó ([ADR-0001](docs/adr/0001-the-trial-runs-on-cloudflare-workers-and-stays-portable.md)).
+[Tiếng Việt](README.vi.md)
 
-## Hệ thống làm gì
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/holedev/linkstead)
 
-- **Link cố định.** Mỗi link có một Mã link (`/hoi-thao-2027`) không bao giờ đổi và không bao giờ
-  cấp lại. Link có thể bị tắt, được lưu trữ (ẩn khỏi danh sách, vẫn mở được) hoặc bị xóa. Link đã
-  xóa vẫn giữ mã, để QR đã in không bao giờ dẫn tới nơi khác. Mã tự chọn, hoặc để hệ thống sinh 6
-  ký tự.
-- **Mật khẩu và hạn dùng.** Link có thể yêu cầu mật khẩu trước khi chuyển tới đích, và có thể hết
-  hạn vào một thời điểm (giờ Việt Nam). Link hết hạn vẫn giữ mã, gia hạn là mở lại.
-- **Tạo nhiều link một lần.** Nhập tệp CSV (Tên link, Đích, Mã link, Nhóm, Ghi chú), xem trước lỗi
-  từng dòng, rồi tải QR của mọi link vừa tạo thành một tệp zip.
-- **Đổi đích có kiểm soát.** Đổi đích phải qua bước xác nhận hiện đích cũ và đích mới, và được ghi
-  vào lịch sử cùng người đổi.
-- **QR.** QR luôn chứa địa chỉ link, không chứa đích. Logo chọn theo ba cấp: của Trường (có sẵn
-  logo chính thức, đổi được), của đơn vị, của riêng từng link (hoặc không logo). Ô vuông hoặc chấm tròn bo góc. Tải về dạng SVG hoặc PNG.
-- **Theo đơn vị.** Link thuộc về đơn vị (tạp chí, khoa, phòng), không thuộc về cá nhân, nên vẫn còn
-  khi người tạo rời đi. Một tài khoản có thể thuộc nhiều đơn vị.
-- **Lượt mở.** Đếm theo link theo ngày, theo quốc gia và theo trang giới thiệu (chỉ tên miền).
-  Không lưu gì nhận ra được người mở. Có trang tổng quan cho cả đơn vị. Là con số ước tính.
-- **Kiểm tra đích.** Đích bị Google Safe Browsing xếp là lừa đảo hay mã độc thì không đặt được. Mỗi
-  ngày hệ thống kiểm tra lại mọi đích; link có đích mới bị xếp như vậy sẽ hiện trang cảnh báo thay
-  vì chuyển đi.
-- **API cho ứng dụng.** Mỗi đơn vị cấp Khóa API để ứng dụng của mình tạo link, đổi đích, tắt/bật,
-  liệt kê, đọc lượt mở và lấy QR.
-- **Mang dữ liệu đi được.** Đơn vị tải CSV; Quản trị hệ thống xuất toàn bộ thành một tệp mà bản cài
-  đặt khác nhập lại được.
+## What it does
 
-Từ vựng của dự án (Link, Mã link, Đích, Đơn vị, Lượt mở...) được định nghĩa trong
+- **Permanent links.** Each link has a Link Code (`/conference-2027`) that never changes and is
+  never given out again. A link can be switched off, archived (hidden from the list, still opens)
+  or deleted; a deleted link keeps its code, so a printed QR never leads somewhere new. Choose the
+  code, or let the system make a 6-character one.
+- **Controlled changes.** Changing where a link leads goes through a confirmation showing the old
+  and the new destination, and is recorded with who made it.
+- **QR codes.** A QR always carries the link, never the destination. The logo in its middle is
+  chosen at three levels: the organization's, a unit's, or the link's own (or none). Squares or
+  rounded dots, SVG or PNG.
+- **Units, not people.** Links belong to units - a department, a journal, an office - so they stay
+  when the person who made them leaves. An account may belong to several units.
+- **Passwords and expiry.** A link may ask for a password before sending visitors on, and may
+  expire at a moment of your choosing; an expired link keeps its code.
+- **Many at once.** Import a CSV, review every row, and download the QR codes of all that were
+  made as one zip.
+- **Visits.** Counted per link per day, by country and by referring site (host only). Nothing that
+  identifies a visitor is kept. Previews made by chat apps are left out.
+- **Safe destinations.** A destination Google Safe Browsing lists as phishing or malware cannot be
+  set, and every destination is checked again daily.
+- **An API.** Each unit issues API keys so its own software can create links, change destinations,
+  switch them off and on, list them, read visits and fetch QR codes.
+- **Your data stays yours.** Units download CSV; a system administrator exports everything to a
+  file another installation can import.
+- **Your organization's own.** Its name, colour and logo, its email domains, its language (English
+  or Vietnamese) and its time zone are set in the UI.
+
+The project's vocabulary (Link, Link Code, Target, Unit, Visit...) is defined in
 [CONTEXT.md](CONTEXT.md).
 
-## Kiến trúc
+## Architecture
 
-Một Cloudflare Worker duy nhất:
+One Cloudflare Worker:
 
-| Phần | Công nghệ |
+| Part | Technology |
 | --- | --- |
-| API và chuyển hướng link | [Hono](https://hono.dev) |
-| Giao diện quản trị (`/app`, tiếng Việt) | React, Vite, Tailwind, shadcn/ui |
-| Cơ sở dữ liệu | Cloudflare D1 qua Drizzle |
-| Tệp logo | Cloudflare R2 |
+| API and link redirects | [Hono](https://hono.dev) |
+| Admin UI (`/app`) | React, Vite, Tailwind, shadcn/ui |
+| Database | Cloudflare D1 through Drizzle |
+| Logo files | Cloudflare R2 |
 
-Phần xử lý yêu cầu không phụ thuộc API riêng của Workers: nó chỉ biết hai "đường nối" `Store` và
-`LogoFiles`, để sau này chuyển về máy chủ của Trường chỉ cần viết lại hai phần đó. Cấu trúc thư mục
-và danh sách route đầy đủ nằm trong [AGENTS.md](AGENTS.md).
+Request handling depends on no Workers-only API: it knows only two seams, `Store` and `LogoFiles`,
+so running it elsewhere means rewriting those two (ADR-0001). The full layout and route list are in
+[AGENTS.md](AGENTS.md).
 
-## Yêu cầu
+## Running your own
 
-- Node 22 và pnpm 11.20.0 (khai trong `mise.toml`; chạy `mise install` nếu dùng [mise](https://mise.jdx.dev)).
-- Tài khoản Cloudflare, nếu muốn deploy. Gói Workers Free là đủ.
+The quickest way is the **Deploy to Cloudflare** button above: it copies this repository into your
+GitHub account, creates the D1 database and the R2 bucket, runs the migrations and deploys. The
+Workers Free plan is enough. Then [create the first administrator](#create-the-first-administrator).
 
-## Chạy trên máy
+By hand:
 
 ```bash
 pnpm install
-```
-
-Tạo tệp `.dev.vars` ở thư mục gốc, chứa bí mật dùng để tạo Quản trị hệ thống đầu tiên:
-
-```
-BOOTSTRAP_TOKEN=mot-chuoi-bi-mat-tuy-chon
-```
-
-```bash
-pnpm db:migrate:local
-```
-
-```bash
-pnpm build:ui
-```
-
-```bash
-pnpm dev
-```
-
-Hệ thống chạy ở `http://localhost:8787`, giao diện ở `http://localhost:8787/app`. Tiếp theo, tạo
-Quản trị hệ thống đầu tiên như mục [Tạo Quản trị hệ thống đầu tiên](#tạo-quản-trị-hệ-thống-đầu-tiên),
-với địa chỉ `http://localhost:8787`.
-
-Khi sửa giao diện, chạy thêm `pnpm dev:ui` ở một cửa sổ khác để có hot reload; nó gọi API của Worker
-đang chạy bằng `pnpm dev`.
-
-## Deploy lên Cloudflare
-
-```bash
 pnpm exec wrangler login
-```
-
-Tạo cơ sở dữ liệu D1 rồi ghi `database_id` nhận được vào `wrangler.jsonc` (bỏ qua nếu id trong tệp
-đã là database của bạn - kiểm tra bằng `pnpm exec wrangler d1 list`):
-
-```bash
-pnpm exec wrangler d1 create ou-link
-```
-
-```bash
-pnpm db:migrate:remote
-```
-
-```bash
-pnpm exec wrangler r2 bucket create ou-link-logos
-```
-
-```bash
 pnpm run deploy
 ```
 
-Phải gõ `pnpm run deploy`: `pnpm deploy` là một lệnh khác có sẵn của pnpm.
+`pnpm run deploy` builds the UI, applies the migrations and deploys; wrangler creates the database
+and the bucket named in `wrangler.jsonc` the first time. (Type `pnpm run deploy`: `pnpm deploy` is
+a different, built-in pnpm command.)
 
-### Tự động deploy khi đẩy lên `main`
+To keep your own configuration - another Worker name, an existing database, a cron at another hour -
+copy `wrangler.jsonc` into your own repository or deploy setup, and update linkstead by moving to a
+newer release. Run `pnpm db:migrate:remote` before deploying a release that adds migrations.
 
-`.github/workflows/deploy.yml` chạy lint, kiểm tra kiểu và test cho mỗi pull request. Với mỗi lần đẩy lên
-`main`, nếu các bước đó qua, nó build giao diện, chạy migration lên database thật rồi deploy. Lần nào
-có bước lỗi thì không deploy, bản đang chạy giữ nguyên.
+**Choose your domain before printing anything.** A QR carries the domain it was made under, and
+dies with it.
 
-Cần đặt hai secret một lần, ở GitHub: **Settings → Secrets and variables → Actions → New repository
-secret**:
+### Create the first administrator
 
-- `CLOUDFLARE_ACCOUNT_ID` - Account ID, ở trang Workers & Pages của Cloudflare (cột bên phải).
-- `CLOUDFLARE_API_TOKEN` - tạo ở **My Profile → API Tokens → Create Token**, mẫu **Edit Cloudflare
-  Workers**, thêm quyền **Account → D1 → Edit**.
+There is no open sign-up and the system sends no email. The first person is created with a secret
+set at deploy; everyone after is added by someone already inside.
 
-Kết quả từng lần chạy ở tab **Actions** của repo. Vẫn deploy tay được như trên khi cần:
-`pnpm db:migrate:remote` rồi `pnpm run deploy`.
-
-## Tạo Quản trị hệ thống đầu tiên
-
-Hệ thống không có đăng ký tự do và không gửi email. Người đầu tiên được tạo bằng một bí mật đặt lúc
-deploy; những người sau do người đã ở trong hệ thống thêm vào.
-
-1. Đặt bí mật (với bản chạy trên máy thì là dòng trong `.dev.vars`):
+1. Set the secret (for a local run, a line in `.dev.vars`):
 
    ```bash
    pnpm exec wrangler secret put BOOTSTRAP_TOKEN
    ```
 
-2. Gọi `/api/bootstrap` với bí mật đó và email `@ou.edu.vn` của bạn.
-
-   bash:
+2. Call `/api/bootstrap` with the secret, your email and, optionally, your organization's
+   settings:
 
    ```bash
-   curl -X POST https://<địa-chỉ-worker>/api/bootstrap \
-     -H "Authorization: Bearer <bí-mật>" \
+   curl -X POST https://<your-worker>/api/bootstrap \
+     -H "Authorization: Bearer <secret>" \
      -H "Content-Type: application/json" \
-     -d '{"email":"ten-cua-ban@ou.edu.vn"}'
+     -d '{"email":"you@example.org","name":"Example University","emailDomains":["example.org"],"language":"en","timeZone":"Europe/Berlin","brandColor":"#1d4ed8"}'
    ```
 
-   PowerShell:
+   `language` is `en` or `vi`; `timeZone` an IANA name; `brandColor` a colour dark enough for white
+   text. Leave out `emailDomains` to accept any address.
 
-   ```powershell
-   Invoke-RestMethod -Method Post -Uri "https://<địa-chỉ-worker>/api/bootstrap" -Headers @{ Authorization = "Bearer <bí-mật>" } -ContentType "application/json" -Body '{"email":"ten-cua-ban@ou.edu.vn"}' | Format-List
-   ```
+3. Open the `setupUrl` in the answer to set a password (12 characters at least), then sign in at
+   `/app`. The link works once, for 7 days.
 
-3. Mở `setupUrl` trong kết quả để đặt mật khẩu (ít nhất 12 ký tự), rồi đăng nhập tại `/app`. Đường
-   dẫn dùng được một lần, trong 7 ngày.
-
-4. Xóa bí mật:
+4. Delete the secret:
 
    ```bash
    pnpm exec wrangler secret delete BOOTSTRAP_TOKEN
    ```
 
-Bước 2 chỉ chạy được khi chưa có Quản trị hệ thống nào. Người này tự động là Quản lý của hai đơn vị
-có sẵn (Tạp chí Khoa học, Nhà xuất bản). Thêm đơn vị, thành viên và Quản trị hệ thống khác đều làm
-trong giao diện.
+Step 2 works only while there is no system administrator. Units, members, other administrators,
+the logos and every setting are then managed in the UI (**Settings**, **Units**...).
 
-## Bật kiểm tra đích an toàn
+Moving from another installation instead? Import its export before bootstrapping:
+[docs/export-and-import.md](docs/export-and-import.md).
 
-Kiểm tra đích dùng Google Safe Browsing, miễn phí nhưng cần một khóa:
+### Turn on the safety check
 
-1. Ở [Google Cloud Console](https://console.cloud.google.com/), tạo (hoặc chọn) một project, bật
-   **Safe Browsing API**, rồi tạo một API key ở **APIs & Services → Credentials**.
-2. Đặt khóa cho Worker:
+Checking destinations uses Google Safe Browsing, which is free but needs a key:
+
+1. In the [Google Cloud Console](https://console.cloud.google.com/), create (or choose) a project,
+   enable the **Safe Browsing API**, and create an API key under **APIs & Services → Credentials**.
+2. Give it to the Worker:
 
    ```bash
    pnpm exec wrangler secret put SAFE_BROWSING_KEY
    ```
 
-Chưa đặt khóa thì hệ thống vẫn chạy, chỉ là không kiểm tra đích. Lượt kiểm tra hằng ngày chạy lúc
-03:17 giờ Việt Nam (`triggers.crons` trong `wrangler.jsonc`).
+Without the key the system still runs; it just checks nothing. The daily check runs at the time in
+`triggers.crons` in `wrangler.jsonc` (UTC).
 
-## Dùng API
+## Running locally
 
-Tài liệu đầy đủ, thử được ngay trên trình duyệt: **`/app/api-docs`** (Swagger, không cần đăng nhập). Bản mô tả
-OpenAPI ở `/api/openapi.json`, dùng được để sinh mã client.
-
-Quản lý đơn vị cấp Khóa API trong giao diện (mục **Khóa API**); khóa chỉ hiện một lần. Ứng dụng gửi
-khóa trong header `Authorization: Bearer <khóa>`. Một khóa chỉ làm việc trên link của đơn vị mình và
-bị từ chối khi vượt 120 lượt gọi mỗi phút.
-
-| Việc | Route |
-| --- | --- |
-| Tạo link | `POST /api/links` - `{ "name", "target", "code"?, "note"? }` |
-| Liệt kê link của đơn vị | `GET /api/links` |
-| Đổi đích | `PUT /api/links/:code/target` - `{ "target" }` |
-| Tắt, bật | `POST /api/links/:code/disable`, `POST /api/links/:code/enable` |
-| Đọc lượt mở theo ngày | `GET /api/links/:code/visits` |
-| Lấy QR (SVG) | `GET /api/links/:code/qr` - thêm `?style=` để đổi màu: `light-on-dark`, `blue-on-light`, `dark-on-clear`, `light-on-clear` |
+Node 22 and pnpm 11.20.0 (`mise.toml`; run `mise install` if you use [mise](https://mise.jdx.dev)).
 
 ```bash
-curl -X POST https://<địa-chỉ-worker>/api/links \
-  -H "Authorization: Bearer <khóa-api>" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Poster hội thảo, bản in A3","target":"https://example.ou.edu.vn/hoi-thao","code":"hoi-thao-2027"}'
+pnpm install
+echo "BOOTSTRAP_TOKEN=any-local-secret" > .dev.vars
+pnpm db:migrate:local
+pnpm build:ui
+pnpm dev
 ```
 
-Mọi thay đổi qua API đều được ghi dưới tên khóa đã thực hiện. Tài khoản, đơn vị và khóa chỉ quản lý
-được trong giao diện, không qua API.
+The system runs at `http://localhost:8787`, the UI at `http://localhost:8787/app`. Create the first
+administrator as above, against `http://localhost:8787`. While working on the UI, run `pnpm dev:ui`
+in another window for hot reload; it calls the Worker started by `pnpm dev`.
 
-## Kiểm tra mã
+## Using the API
+
+The full documentation, to try in the browser: **`/app/api-docs`** (Swagger, no sign-in needed).
+The OpenAPI description is at `/api/openapi.json`, for generating clients.
+
+A unit manager issues API keys in the UI (**API Keys**); a key is shown once. An application sends
+it as `Authorization: Bearer <key>`. A key works on its own unit's links only, and is refused past
+120 calls a minute.
+
+| Task | Route |
+| --- | --- |
+| Create a link | `POST /api/links` - `{ "name", "target", "code"?, "note"? }` |
+| List the unit's links | `GET /api/links` |
+| Change the destination | `PUT /api/links/:code/target` - `{ "target" }` |
+| Switch off, on | `POST /api/links/:code/disable`, `POST /api/links/:code/enable` |
+| Read visits per day | `GET /api/links/:code/visits` |
+| Get the QR (SVG) | `GET /api/links/:code/qr` - add `?style=` for another look: `light-on-dark`, `blue-on-light`, `dark-on-clear`, `light-on-clear` |
+
+```bash
+curl -X POST https://<your-worker>/api/links \
+  -H "Authorization: Bearer <api-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Conference poster, A3 print","target":"https://example.org/conference","code":"conference-2027"}'
+```
+
+Every change made through the API is recorded under the key that made it. Accounts, units, keys and
+settings are managed in the UI only, never through the API.
+
+## Checking the code
 
 ```bash
 pnpm test
-```
-
-```bash
 pnpm check-types
-```
-
-```bash
 pnpm lint:check
 ```
 
-Test chạy trên một D1 cục bộ thật với đúng các migration, nên kiểm tra cả câu SQL mà Worker sẽ chạy.
-Commit theo conventional commits, được commitlint kiểm tra.
+The tests run against a real local D1 with the real migrations, so they check the SQL the Worker
+will run. Commits follow conventional commits, checked by commitlint.
 
-## Tài liệu
+## Documents
 
-- [CONTEXT.md](CONTEXT.md) - từ vựng của dự án.
-- [AGENTS.md](AGENTS.md) - các quy tắc thiết kế, danh sách route, cấu trúc thư mục.
-- [docs/adr/](docs/adr/) - các quyết định khó đảo ngược và lý do.
-- [docs/export-and-import.md](docs/export-and-import.md) - xuất dữ liệu và nhập vào bản cài đặt khác.
+- [CONTEXT.md](CONTEXT.md) - the project's vocabulary.
+- [AGENTS.md](AGENTS.md) - the design rules, the route list, the layout.
+- [docs/adr/](docs/adr/) - the decisions that are hard to reverse, and why.
+- [docs/export-and-import.md](docs/export-and-import.md) - exporting, and importing into another
+  installation.
+
+## License
+
+MIT - see [LICENSE](LICENSE) and [NOTICE](NOTICE). linkstead began as OU Link, written for Ho Chi
+Minh City Open University.
