@@ -42,7 +42,7 @@ const fetchPage = async (start: string): Promise<FetchedPage | null> => {
         return null;
       }
       const response = await fetch(url, {
-        headers: { accept: "text/html", "user-agent": "OU-Link-Preview/1.0" },
+        headers: { accept: "text/html", "user-agent": "linkstead-preview/1.0" },
         redirect: "manual",
         signal: AbortSignal.timeout(TIMEOUT_MS)
       });

@@ -228,14 +228,30 @@ describe("opening a Link", () => {
     expect(body).toContain('href="/"');
   });
 
-  it("introduces OU Link at the bare domain, with the way in for staff", async () => {
+  it("introduces the Organization's links at the bare domain, with the way in for staff", async () => {
     const response = await h.client().get("/");
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("OU Link");
+    expect(body).toContain("<title>Example University</title>");
+    expect(body).toContain("--org:#114fa0");
     expect(body).toContain('href="/app"');
     expect(body).not.toContain('name="robots"');
+  });
+
+  it("speaks the Organization's language on a notice, with English beneath only when that is another", async () => {
+    const vietnamese = await (await h.client().get("/khong-co")).text();
+    expect(vietnamese).toContain('<html lang="vi">');
+    expect(vietnamese).toContain("Không tìm thấy liên kết");
+    expect(vietnamese).toContain("Link not found");
+
+    const admin = await h.signedInAdmin();
+    await admin.put("/api/admin/settings", { language: "en" });
+    const english = await (await h.client().get("/khong-co")).text();
+    expect(english).toContain('<html lang="en">');
+    expect(english).toContain("Link not found");
+    expect(english).not.toContain("Không tìm thấy");
+    expect(english).not.toContain('class="en" lang="en"');
   });
 
   it("shows a different notice for a Link bị tắt, and does not count the opening", async () => {

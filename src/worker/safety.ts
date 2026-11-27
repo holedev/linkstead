@@ -33,7 +33,7 @@ const googleSafeBrowsing =
     try {
       const response = await fetcher(`https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`, {
         body: JSON.stringify({
-          client: { clientId: "ou-link", clientVersion: "1" },
+          client: { clientId: "linkstead", clientVersion: "1" },
           threatInfo: {
             platformTypes: ["ANY_PLATFORM"],
             threatEntries: urls.map((url) => ({ url })),

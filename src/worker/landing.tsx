@@ -1,10 +1,22 @@
 import { raw } from "hono/html";
-import { ArrowRightIcon, Footer, Icon, LinkIcon, TopBand, UNIVERSITY, VisitorPage } from "./visitor-page";
+import {
+  AlsoEnglish,
+  ArrowRightIcon,
+  Footer,
+  Icon,
+  LinkIcon,
+  type Site,
+  TopBand,
+  VisitorPage,
+  WithAddress
+} from "./visitor-page";
+import { named, textsFor } from "./visitor-text";
 
 /**
- * What answers at `/`: what OU Link is, for the visitor who trimmed a Link down to its domain and
- * for the colleague who is about to be given an account. Bilingual where a visitor reads it; the
- * part about working with Links is in Vietnamese, as the admin UI is.
+ * What answers at `/`: what these links are, for the visitor who trimmed a Link down to its domain
+ * and for the colleague who is about to be given an account. In the Organization's language, with
+ * English beneath where a visitor reads it; the part about working with Links is in its language
+ * only, as the admin UI is.
  */
 
 const STYLE = `
@@ -40,21 +52,6 @@ section.block{padding:3rem 0;border-top:1px solid var(--border)}
 .visitor h3{font-size:1.1rem}
 .visitor p{margin-top:.4rem}
 `;
-
-const STEPS = [
-  {
-    text: "Một đơn vị của Trường tạo liên kết với một mã ngắn, dễ đọc, dễ gõ - tự đặt hoặc để hệ thống tạo.",
-    title: "Tạo liên kết"
-  },
-  {
-    text: "Mã QR luôn chứa địa chỉ của liên kết, không chứa trang đích, nên có thể in lên poster, sách, thẻ hội nghị.",
-    title: "In mã QR"
-  },
-  {
-    text: "Trang đích có thể thay bất cứ lúc nào. Mã đã in vẫn dùng được; mỗi lần đổi đều ghi lại ai đổi và khi nào.",
-    title: "Đổi đích khi cần"
-  }
-];
 
 const BuildingIcon = () => (
   <Icon>
@@ -115,128 +112,104 @@ const CodeIcon = () => (
   </Icon>
 );
 
-const FEATURES = [
-  {
-    icon: <BuildingIcon />,
-    text: "Liên kết thuộc về đơn vị, không thuộc về một người. Người phụ trách đổi việc, liên kết vẫn ở lại.",
-    title: "Của đơn vị, không của cá nhân"
-  },
-  {
-    icon: <HistoryIcon />,
-    text: "Mã liên kết không bao giờ bị đổi, xóa hay cấp lại cho việc khác. Không dùng nữa thì tắt.",
-    title: "Không bao giờ mất"
-  },
-  {
-    icon: <QrIcon />,
-    text: "Mã QR mang logo của Trường hoặc của đơn vị, nhiều kiểu màu, tải về dạng SVG hoặc PNG để in.",
-    title: "QR có logo"
-  },
-  {
-    icon: <ChartIcon />,
-    text: "Đếm số lượt mở mỗi ngày, bỏ qua các lượt xem trước của Zalo, Facebook, Messenger.",
-    title: "Lượt mở theo ngày"
-  },
-  {
-    icon: <ShieldIcon />,
-    text: "Không lưu địa chỉ IP, thiết bị hay bất cứ thông tin nào về người mở liên kết.",
-    title: "Tôn trọng người xem"
-  },
-  {
-    icon: <CodeIcon />,
-    text: "Phần mềm của đơn vị có thể tạo và cập nhật liên kết qua API, bằng khóa riêng của đơn vị.",
-    title: "API cho ứng dụng"
-  }
+const FEATURE_ICONS = [
+  <BuildingIcon key='building' />,
+  <HistoryIcon key='history' />,
+  <QrIcon key='qr' />,
+  <ChartIcon key='chart' />,
+  <ShieldIcon key='shield' />,
+  <CodeIcon key='code' />
 ];
 
-const DESCRIPTION =
-  "OU Link: đường dẫn ngắn và mã QR bền vững của Trường Đại học Mở Thành phố Hồ Chí Minh - in một lần, đổi trang đích bất cứ lúc nào.";
-
-const Demo = ({ host }: { host: string }) => (
-  <div aria-label='Ví dụ một liên kết' class='card demo' role='img'>
-    <div class='row'>
-      <span class='dot'>
-        <LinkIcon />
-      </span>
-      <div class='grow'>
-        <span class='label'>Liên kết in trên poster</span>
-        <code class='address'>{host}/hoi-thao-2027</code>
+/** The example a visitor sees: one printed address, and the two places it led to over time. */
+const Demo = ({ host, site }: { host: string; site: Site }) => {
+  const { demo } = textsFor(site.language).main.landing;
+  return (
+    <div aria-label={demo.label} class='card demo' role='img'>
+      <div class='row'>
+        <span class='dot'>
+          <LinkIcon />
+        </span>
+        <div class='grow'>
+          <span class='label'>{demo.printed}</span>
+          <code class='address'>{host}/conference-2027</code>
+        </div>
       </div>
+      <div class='down'>
+        <Icon size={22}>
+          <path d='M12 5v14' />
+          <path d='m19 12-7 7-7-7' />
+        </Icon>
+      </div>
+      <span class='label'>{demo.leadsTo}</span>
+      <div class='row'>
+        <code class='address was grow'>example.org/call-for-papers</code>
+        <span class='tag'>{demo.before}</span>
+      </div>
+      <div class='row' style='margin-top:.5rem'>
+        <code class='address grow'>example.org/programme</code>
+        <span class='tag'>{demo.today}</span>
+      </div>
+      <p class='note muted'>{demo.note}</p>
     </div>
-    <div class='down'>
-      <Icon size={22}>
-        <path d='M12 5v14' />
-        <path d='m19 12-7 7-7-7' />
-      </Icon>
-    </div>
-    <span class='label'>Dẫn tới</span>
-    <div class='row'>
-      <code class='address was grow'>ou.edu.vn/thong-bao-hoi-thao</code>
-      <span class='tag'>tháng 3</span>
-    </div>
-    <div class='row' style='margin-top:.5rem'>
-      <code class='address grow'>ou.edu.vn/chuong-trinh-hoi-thao</code>
-      <span class='tag'>hôm nay</span>
-    </div>
-    <p class='note muted'>Poster đã in không cần in lại - chỉ trang đích thay đổi.</p>
-  </div>
-);
+  );
+};
 
-const Landing = ({ url }: { url: string }) => {
+const Landing = ({ url, site }: { url: string; site: Site }) => {
   const { host, origin } = new URL(url);
+  const { main, english } = textsFor(site.language);
+  const text = main.landing;
+  const description = named(text.description, site.name);
+  const example = `${host}/…`;
   return (
     <VisitorPage
-      description={DESCRIPTION}
+      description={description}
       head={
         <>
           <meta content='website' property='og:type' />
-          <meta content={`OU Link - ${UNIVERSITY}`} property='og:title' />
-          <meta content={DESCRIPTION} property='og:description' />
+          <meta content={site.name} property='og:title' />
+          <meta content={description} property='og:description' />
           <meta content={`${origin}/`} property='og:url' />
           <style>{raw(STYLE)}</style>
         </>
       }
       indexable
-      title={`OU Link - ${UNIVERSITY}`}
+      site={site}
+      title={site.name}
     >
-      <TopBand>
+      <TopBand site={site}>
         <a class='btn primary' href='/app'>
-          Đăng nhập
+          {text.signIn}
         </a>
       </TopBand>
       <main>
         <div class='wrap hero'>
           <div>
-            <span class='eyebrow'>{UNIVERSITY}</span>
+            <span class='eyebrow'>{site.name}</span>
             <h1>
-              Đường dẫn và mã QR <span>bền vững</span> của Trường
+              {text.headline} <span>{text.headlineStress}</span>
             </h1>
-            <p class='lead muted'>
-              OU Link cho mỗi ấn phẩm, sự kiện, bài báo một địa chỉ ngắn dưới tên miền của Trường. Địa chỉ ấy không bao
-              giờ đổi; nơi nó dẫn tới thì cập nhật được bất cứ lúc nào, kể cả sau khi mã QR đã được in.
-            </p>
-            <p class='en' lang='en'>
-              Permanent short links and QR codes for Ho Chi Minh City Open University: printed once, pointed wherever
-              they need to go.
-            </p>
+            <p class='lead muted'>{named(text.lead, site.name)}</p>
+            {english ? <AlsoEnglish>{named(english.landing.description, site.name)}</AlsoEnglish> : null}
             <div class='actions'>
               <a class='btn primary' href='/app'>
-                Đăng nhập để quản lý liên kết
+                {text.signInToManage}
                 <ArrowRightIcon />
               </a>
-              <a class='btn' href='#cach-hoat-dong'>
-                Cách hoạt động
+              <a class='btn' href='#how-it-works'>
+                {text.howItWorks}
               </a>
             </div>
           </div>
-          <Demo host={host} />
+          <Demo host={host} site={site} />
         </div>
 
-        <section class='block' id='cach-hoat-dong'>
+        <section class='block' id='how-it-works'>
           <div class='wrap'>
-            <h2>Cách hoạt động</h2>
-            <p class='muted'>Ba bước, và mã QR đã in không bao giờ phải in lại vì đổi trang đích.</p>
+            <h2>{text.howItWorks}</h2>
+            <p class='muted'>{text.howItWorksLead}</p>
             <ol class='steps'>
-              {STEPS.map((step, index) => (
+              {text.steps.map((step, index) => (
                 <li class='card' key={step.title}>
                   <span class='num'>{index + 1}</span>
                   <h3>{step.title}</h3>
@@ -249,22 +222,19 @@ const Landing = ({ url }: { url: string }) => {
 
         <section class='block'>
           <div class='wrap'>
-            <h2>Dành cho các đơn vị của Trường</h2>
-            <p class='muted'>
-              Tài khoản là email @ou.edu.vn, do quản lý đơn vị mời. Mỗi đơn vị quản lý liên kết, thành viên và khóa API
-              của riêng mình.
-            </p>
+            <h2>{named(text.forUnits, site.name)}</h2>
+            <p class='muted'>{text.forUnitsLead}</p>
             <ul class='features'>
-              {FEATURES.map((feature) => (
+              {text.features.map((feature, index) => (
                 <li class='card' key={feature.title}>
-                  <span class='dot'>{feature.icon}</span>
+                  <span class='dot'>{FEATURE_ICONS[index]}</span>
                   <h3>{feature.title}</h3>
                   <p>{feature.text}</p>
                 </li>
               ))}
             </ul>
             <p class='muted' style='margin-top:1.25rem'>
-              Lập trình viên: xem <a href='/app/api-docs'>tài liệu API</a>.
+              {text.developers} <a href='/app/api-docs'>{text.apiDocs}</a>.
             </p>
           </div>
         </section>
@@ -273,24 +243,24 @@ const Landing = ({ url }: { url: string }) => {
           <div class='wrap'>
             <div class='card visitor'>
               <div>
-                <h3>Bạn vừa mở một liên kết OU Link?</h3>
+                <h3>{text.openedOne}</h3>
                 <p class='muted'>
-                  Mọi liên kết có dạng <code>{host}/mã</code>. Nếu một liên kết đưa bạn tới trang báo lỗi, hãy kiểm tra
-                  lại mã, hoặc liên hệ đơn vị đã phát hành nó.
+                  <WithAddress address={example} name={site.name} text={text.openedOneBody} />
                 </p>
               </div>
-              <div lang='en'>
-                <h3>Opened an OU Link?</h3>
-                <p class='muted'>
-                  Every link reads <code>{host}/code</code>. If one shows an error page, check the code, or contact the
-                  unit that published it.
-                </p>
-              </div>
+              {english ? (
+                <div lang='en'>
+                  <h3>{english.landing.openedOne}</h3>
+                  <p class='muted'>
+                    <WithAddress address={example} name={site.name} text={english.landing.openedOneBody} />
+                  </p>
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
       </main>
-      <Footer />
+      <Footer site={site} />
     </VisitorPage>
   );
 };

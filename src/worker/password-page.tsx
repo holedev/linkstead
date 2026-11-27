@@ -1,7 +1,8 @@
 import { raw } from "hono/html";
 import type { Preview } from "../domain/preview";
 import { shownAddress } from "./notice";
-import { ArrowRightIcon, Footer, Icon, TopBand, VisitorPage } from "./visitor-page";
+import { AlsoEnglish, ArrowRightIcon, Footer, Icon, pair, type Site, TopBand, VisitorPage } from "./visitor-page";
+import { textsFor } from "./visitor-text";
 
 /**
  * What a visitor meets at a Link with a password (ADR-0006): the address they opened and one field.
@@ -29,16 +30,11 @@ const STYLE = `
 @media (max-width:30rem){.gate{margin-top:2vh;padding:1.25rem}}
 `;
 
-const ERRORS: Record<Exclude<PasswordState, "ask">, { vi: string; en: string }> = {
-  "too-many": {
-    en: "Too many wrong tries. Please wait a minute and try again.",
-    vi: "Nhập sai quá nhiều lần. Hãy đợi một phút rồi thử lại."
-  },
-  wrong: { en: "Wrong password.", vi: "Mật khẩu không đúng." }
-};
-
-/** Shows and hides what was typed - the page's one piece of script, and it touches nothing else. */
-const EYE_SCRIPT = `(()=>{const b=document.querySelector(".eye"),i=document.getElementById("password");if(!b||!i)return;b.hidden=false;b.addEventListener("click",()=>{const s=i.type==="password";i.type=s?"text":"password";b.setAttribute("aria-pressed",String(s));b.setAttribute("aria-label",s?"Ẩn mật khẩu · Hide password":"Hiện mật khẩu · Show password");i.focus();});})();`;
+/**
+ * Shows and hides what was typed - the page's one piece of script, and it touches nothing else.
+ * Its labels come from the button itself, so the script holds no words of any language.
+ */
+const EYE_SCRIPT = `(()=>{const b=document.querySelector(".eye"),i=document.getElementById("password");if(!b||!i)return;b.hidden=false;b.addEventListener("click",()=>{const s=i.type==="password";i.type=s?"text":"password";b.setAttribute("aria-pressed",String(s));b.setAttribute("aria-label",s?b.dataset.hide:b.dataset.show);i.focus();});})();`;
 
 const EyeIcon = () => (
   <Icon size={18}>
@@ -64,84 +60,106 @@ const LockIcon = () => (
 );
 
 /**
- * `preview` is what a chat app shows for the Link: its Đơn vị's own words, or the locked ones
- * (`lockedPreview`) - never the Đích's.
+ * `preview` is what a chat app shows for the Link: its Unit's own words, or the locked ones
+ * (`lockedPreview`) - never the Target's.
  */
-const PasswordPage = ({ url, state, preview }: { url: string; state: PasswordState; preview: Preview }) => (
-  <VisitorPage
-    description={preview.description}
-    head={
-      <>
-        <meta content='website' property='og:type' />
-        <meta content='OU Link - Trường Đại học Mở Thành phố Hồ Chí Minh' property='og:site_name' />
-        <meta content={url} property='og:url' />
-        <meta content={preview.title} property='og:title' />
-        <meta content={preview.description} property='og:description' />
-        {preview.image ? <meta content={preview.image} property='og:image' /> : null}
-        <meta content={preview.image ? "summary_large_image" : "summary"} name='twitter:card' />
-        <style>{raw(STYLE)}</style>
-      </>
-    }
-    title={`${preview.title} - OU Link`}
-  >
-    <TopBand />
-    <main class='wrap'>
-      <section class='card gate'>
-        <div class='badge'>
-          <LockIcon />
-        </div>
-        <form class='stack' method='post'>
-          <div>
-            <h1>Liên kết cần mật khẩu</h1>
-            <p class='en' lang='en'>
-              This link needs a password
-            </p>
+const PasswordPage = ({
+  url,
+  state,
+  preview,
+  site
+}: {
+  url: string;
+  state: PasswordState;
+  preview: Preview;
+  site: Site;
+}) => {
+  const { main, english } = textsFor(site.language);
+  const error = state === "wrong" ? "wrong" : "tooMany";
+  return (
+    <VisitorPage
+      description={preview.description}
+      head={
+        <>
+          <meta content='website' property='og:type' />
+          <meta content={site.name} property='og:site_name' />
+          <meta content={url} property='og:url' />
+          <meta content={preview.title} property='og:title' />
+          <meta content={preview.description} property='og:description' />
+          {preview.image ? <meta content={preview.image} property='og:image' /> : null}
+          <meta content={preview.image ? "summary_large_image" : "summary"} name='twitter:card' />
+          <style>{raw(STYLE)}</style>
+        </>
+      }
+      site={site}
+      title={`${preview.title} - ${site.name}`}
+    >
+      <TopBand site={site} />
+      <main class='wrap'>
+        <section class='card gate'>
+          <div class='badge'>
+            <LockIcon />
           </div>
-          <code class='address'>{shownAddress(url)}</code>
-          <p class='muted'>
-            Nhập mật khẩu mà đơn vị phát hành đã gửi cho bạn.{" "}
-            <span lang='en'>Enter the password its publisher gave you.</span>
-          </p>
-          {state === "ask" ? null : (
-            <p class='error' role='alert'>
-              {ERRORS[state].vi} <span lang='en'>{ERRORS[state].en}</span>
-            </p>
-          )}
-          <div>
-            <label class='label' for='password'>
-              Mật khẩu · Password
-            </label>
-            <div class='field'>
-              <input
-                autocomplete='current-password'
-                autofocus
-                id='password'
-                maxlength={100}
-                name='password'
-                required
-                type='password'
-              />
-              {/* Shown once the script below runs: without it, there is nothing for the eye to do. */}
-              <button aria-label='Hiện mật khẩu · Show password' aria-pressed='false' class='eye' hidden type='button'>
-                <span class='when-hidden'>
-                  <EyeIcon />
-                </span>
-                <span class='when-shown'>
-                  <EyeOffIcon />
-                </span>
-              </button>
+          <form class='stack' method='post'>
+            <div>
+              <h1>{main.password.title}</h1>
+              {english ? <AlsoEnglish>{english.password.title}</AlsoEnglish> : null}
             </div>
-          </div>
-          <button class='btn primary' type='submit'>
-            Mở liên kết · Open
-            <ArrowRightIcon />
-          </button>
-        </form>
-      </section>
-    </main>
-    <Footer />
-    <script>{raw(EYE_SCRIPT)}</script>
-  </VisitorPage>
-);
+            <code class='address'>{shownAddress(url)}</code>
+            <p class='muted'>
+              {main.password.enter}
+              {english ? <span lang='en'> {english.password.enter}</span> : null}
+            </p>
+            {state === "ask" ? null : (
+              <p class='error' role='alert'>
+                {main.password[error]}
+                {english ? <span lang='en'> {english.password[error]}</span> : null}
+              </p>
+            )}
+            <div>
+              <label class='label' for='password'>
+                {pair(main.password.label, english?.password.label)}
+              </label>
+              <div class='field'>
+                <input
+                  autocomplete='current-password'
+                  autofocus
+                  id='password'
+                  maxlength={100}
+                  name='password'
+                  required
+                  type='password'
+                />
+                {/* Shown once the script below runs: without it, there is nothing for the eye to do. */}
+                <button
+                  aria-label={pair(main.password.show, english?.password.show)}
+                  aria-pressed='false'
+                  class='eye'
+                  data-hide={pair(main.password.hide, english?.password.hide)}
+                  data-show={pair(main.password.show, english?.password.show)}
+                  hidden
+                  type='button'
+                >
+                  <span class='when-hidden'>
+                    <EyeIcon />
+                  </span>
+                  <span class='when-shown'>
+                    <EyeOffIcon />
+                  </span>
+                </button>
+              </div>
+            </div>
+            <button class='btn primary' type='submit'>
+              {pair(main.password.open, english?.password.open)}
+              <ArrowRightIcon />
+            </button>
+          </form>
+        </section>
+      </main>
+      <Footer site={site} />
+      <script>{raw(EYE_SCRIPT)}</script>
+    </VisitorPage>
+  );
+};
 
 export { PasswordPage, type PasswordState };

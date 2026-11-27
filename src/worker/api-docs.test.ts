@@ -25,7 +25,7 @@ describe("the API's description", () => {
   it("is public OpenAPI 3.1, pointing at the installation that serves it", async () => {
     const document = await documentOf();
     expect(document.openapi).toBe("3.1.0");
-    expect(document.servers).toEqual([{ description: "Bản đang chạy", url: ORIGIN }]);
+    expect(document.servers).toEqual([{ description: "This installation", url: ORIGIN }]);
   });
 
   it("describes exactly the six things a Khóa API does, and nothing else", async () => {

@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 import { fromBase64, toBase64 } from "../../domain/base64";
 import { toCsv } from "../../domain/csv";
 import { checkLogo } from "../../domain/logo";
+import type { Language } from "../../domain/organization";
 import { hashSecret } from "../../domain/secret";
 import type { AppContext, AppDeps, AppEnv } from "../context";
 import { positiveInt, readJson } from "../http";
@@ -10,7 +11,7 @@ import { SYSTEM_LOGO_KEY } from "./qr";
 
 const BEARER = /^Bearer\s+(\S+)$/i;
 
-/** A Thành viên's own Đơn vị, from the path. Downloads are for people: not one of the API's six things. */
+/** A Member's own Unit, from the path. Downloads are for people: not one of the API's six things. */
 const memberUnit = async (c: AppContext, store: Store): Promise<{ id: number; name: string } | Response> => {
   const actor = c.get("actor");
   if (actor?.kind !== "account") {
@@ -31,11 +32,75 @@ const download = (c: AppContext, body: string, type: string, filename: string) =
   return c.body(body);
 };
 
-const status = (link: { enabled: boolean; disabledBySystem: boolean }): string => {
-  if (link.enabled) {
-    return "Đang bật";
+/** The words of the CSV downloads, in the Organization's language: they are opened by people. */
+const CSV_TEXT: Record<
+  Language,
+  {
+    links: string[];
+    visits: string[];
+    sources: string[];
+    on: string;
+    off: string;
+    offBySystem: string;
+    yes: string;
+    country: string;
+    referrer: string;
+    unknown: string;
   }
-  return link.disabledBySystem ? "Quản trị hệ thống đã tắt" : "Đã tắt";
+> = {
+  en: {
+    country: "Country",
+    links: [
+      "Link Code",
+      "Link",
+      "Link Name",
+      "Group",
+      "Target",
+      "Note",
+      "State",
+      "Archived",
+      "Created",
+      "Visits (estimate)"
+    ],
+    off: "Switched off",
+    offBySystem: "Switched off by a System Administrator",
+    on: "On",
+    referrer: "Referring site",
+    sources: ["Link Code", "Day", "Kind", "Value", "Visits (estimate)"],
+    unknown: "Not known",
+    visits: ["Link Code", "Day", "Visits (estimate)"],
+    yes: "Yes"
+  },
+  vi: {
+    country: "Quốc gia",
+    links: [
+      "Mã link",
+      "Link",
+      "Tên link",
+      "Nhóm",
+      "Đích",
+      "Ghi chú",
+      "Trạng thái",
+      "Lưu trữ",
+      "Ngày tạo",
+      "Lượt mở (ước tính)"
+    ],
+    off: "Đã tắt",
+    offBySystem: "Quản trị hệ thống đã tắt",
+    on: "Đang bật",
+    referrer: "Nguồn giới thiệu",
+    sources: ["Mã link", "Ngày", "Loại", "Giá trị", "Lượt mở (ước tính)"],
+    unknown: "Không rõ",
+    visits: ["Mã link", "Ngày", "Lượt mở (ước tính)"],
+    yes: "Có"
+  }
+};
+
+const status = (link: { enabled: boolean; disabledBySystem: boolean }, words: (typeof CSV_TEXT)[Language]): string => {
+  if (link.enabled) {
+    return words.on;
+  }
+  return link.disabledBySystem ? words.offBySystem : words.off;
 };
 
 /** The only shapes a logo's key has. A snapshot cannot make the import write anywhere else. */
@@ -62,21 +127,11 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
       return unit;
     }
     const { origin } = new URL(c.req.url);
+    const words = CSV_TEXT[(await store.getOrganization()).language];
     const links = await store.listLinksByUnit(unit.id);
     const groupNames = new Map((await store.listGroups(unit.id)).map((group) => [group.id, group.name]));
     const csv = toCsv(
-      [
-        "Mã link",
-        "Link",
-        "Tên link",
-        "Nhóm",
-        "Đích",
-        "Ghi chú",
-        "Trạng thái",
-        "Lưu trữ",
-        "Ngày tạo",
-        "Lượt mở (ước tính)"
-      ],
+      words.links,
       links.map((link) => [
         link.code,
         `${origin}/${link.code}`,
@@ -84,8 +139,8 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
         (link.groupId && groupNames.get(link.groupId)) || "",
         link.target,
         link.note,
-        status(link),
-        link.archivedAt ? "Có" : "",
+        status(link, words),
+        link.archivedAt ? words.yes : "",
         link.createdAt.toISOString(),
         link.visits
       ])
@@ -99,9 +154,10 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
     if (unit instanceof Response) {
       return unit;
     }
+    const words = CSV_TEXT[(await store.getOrganization()).language];
     const visits = await store.listVisitsByUnit(unit.id);
     const csv = toCsv(
-      ["Mã link", "Ngày", "Lượt mở (ước tính)"],
+      words.visits,
       visits.map((visit) => [visit.code, visit.day, visit.count])
     );
     return download(c, csv, "text/csv; charset=utf-8", `linkstead-unit-${unit.id}-visits.csv`);
@@ -113,14 +169,15 @@ const registerExportRoutes = (app: Hono<AppEnv>, { store, logos, now = () => new
     if (unit instanceof Response) {
       return unit;
     }
+    const words = CSV_TEXT[(await store.getOrganization()).language];
     const rows = await store.listVisitSourcesByUnit(unit.id);
     const csv = toCsv(
-      ["Mã link", "Ngày", "Loại", "Giá trị", "Lượt mở (ước tính)"],
+      words.sources,
       rows.map((row) => [
         row.code,
         row.day,
-        row.kind === "country" ? "Quốc gia" : "Nguồn giới thiệu",
-        row.value || "Không rõ",
+        row.kind === "country" ? words.country : words.referrer,
+        row.value || words.unknown,
         row.count
       ])
     );

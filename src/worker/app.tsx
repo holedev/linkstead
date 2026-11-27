@@ -7,7 +7,7 @@ import { resolveActor } from "./actor";
 import type { AppDeps, AppEnv } from "./context";
 import { fetchPage as fetchRealPage } from "./fetch-page";
 import { Landing } from "./landing";
-import { Notice, type NoticeKind } from "./notice";
+import { Notice } from "./notice";
 import { openApiDocument } from "./openapi";
 import { PasswordPage } from "./password-page";
 import { registerAdminRoutes } from "./routes/admin";
@@ -15,11 +15,13 @@ import { registerAuthRoutes } from "./routes/auth";
 import { registerExportRoutes } from "./routes/export";
 import { registerGroupRoutes } from "./routes/groups";
 import { registerLinkRoutes } from "./routes/links";
-import { registerOrganizationRoutes } from "./routes/organization";
+import { presentOrganization, registerOrganizationRoutes } from "./routes/organization";
 import { registerQrRoutes } from "./routes/qr";
 import { registerStatsRoutes } from "./routes/stats";
 import { registerUnitRoutes } from "./routes/units";
 import type { OpenableLink } from "./store";
+import type { Site } from "./visitor-page";
+import type { NoticeKind } from "./visitor-text";
 
 /** Search engines may follow a Link to its Đích, but have no business in the UI or the API. */
 const ROBOTS = "User-agent: *\nDisallow: /app\nDisallow: /api\n";
@@ -63,11 +65,20 @@ const createApp = (deps: AppDeps) => {
   const { store, defer, now = () => new Date(), fetchPage = fetchRealPage } = deps;
   const app = new Hono<AppEnv>();
 
+  /** The Organization, as every visitor page shows it. */
+  const site = async (): Promise<Site> => presentOrganization(await store.getOrganization());
+
+  /** A notice page, in the Organization's name and language. */
+  const notice = async (c: Context, kind: NoticeKind, status: 200 | 404 | 410, target?: string) =>
+    c.html(<Notice kind={kind} site={await site()} target={target} url={c.req.url} />, status);
+
   app.use("/api/*", resolveActor(deps));
   app.get("/api/health", (c) => c.json({ ok: true }));
   // The API's description, for the Swagger page and any client generator. Public: it says what a
   // key can do, not anything a key would unlock.
-  app.get("/api/openapi.json", (c) => c.json(openApiDocument(new URL(c.req.url).origin)));
+  app.get("/api/openapi.json", async (c) =>
+    c.json(openApiDocument(new URL(c.req.url).origin, (await store.getOrganization()).name))
+  );
   registerAuthRoutes(app, deps);
   registerUnitRoutes(app, deps);
   registerLinkRoutes(app, deps);
@@ -82,17 +93,17 @@ const createApp = (deps: AppDeps) => {
 
   app.get("/robots.txt", (c) => c.text(ROBOTS));
 
-  // What OU Link is, for whoever opens the bare domain. Not a fallback: a Link that does not answer
-  // shows its notice, which only offers this page.
-  app.get("/", (c) => {
+  // What these links are, for whoever opens the bare domain. Not a fallback: a Link that does not
+  // answer shows its notice, which only offers this page.
+  app.get("/", async (c) => {
     c.header("Cache-Control", "public, max-age=300");
-    return c.html(<Landing url={c.req.url} />);
+    return c.html(<Landing site={await site()} url={c.req.url} />);
   });
 
   // The UI. It answers before the Link route does; `app` is a reserved code for that reason.
   app.on(["GET", "HEAD"], ["/app", "/app/*"], async (c) => {
     if (!deps.serveUi) {
-      return c.html(<Notice kind='unknown' url={c.req.url} />, 404);
+      return notice(c, "unknown", 404);
     }
     const served = await deps.serveUi(c.req.raw);
     // Copied so the headers can be set: a response handed back by the platform is read-only.
@@ -125,16 +136,16 @@ const createApp = (deps: AppDeps) => {
     const code = normalizeCode(c.req.param("code") ?? "");
     // Asked before the database: a malformed or system path can never be a Link.
     if (!isWellFormedCode(code) || SYSTEM_RESERVED_CODES.has(code)) {
-      return c.html(<Notice kind='unknown' url={c.req.url} />, 404);
+      return notice(c, "unknown", 404);
     }
     const link = await store.findLinkByCode(code);
     const closed = closedAs(link, now());
     if (!link || closed) {
-      return c.html(<Notice kind={closed?.kind ?? "unknown"} url={c.req.url} />, closed?.status ?? 404);
+      return notice(c, closed?.kind ?? "unknown", closed?.status ?? 404);
     }
     c.header("Cache-Control", "no-store");
     if (link.unsafe) {
-      return c.html(<Notice kind='unsafe' target={link.target} url={c.req.url} />);
+      return notice(c, "unsafe", 200, link.target);
     }
     return { code, link };
   };
@@ -168,7 +179,7 @@ const createApp = (deps: AppDeps) => {
     const { link, code } = reach;
     // A Link with a password says nothing of its Đích - to a person or to a preview fetcher.
     if (link.passwordHash) {
-      return c.html(<PasswordPage preview={lockedPreviewOf(link)} state='ask' url={c.req.url} />);
+      return c.html(<PasswordPage preview={lockedPreviewOf(link)} site={await site()} state='ask' url={c.req.url} />);
     }
     // A chat app or social site building a preview gets the tags, not a redirect: not every one
     // follows a redirect to read the Đích's. It is never counted as a Lượt mở.
@@ -190,18 +201,24 @@ const createApp = (deps: AppDeps) => {
     }
     const minute = Math.floor(now().getTime() / MINUTE_MS);
     if ((await store.passwordFailures(link.id, minute)) >= MAX_WRONG_PASSWORDS) {
-      return c.html(<PasswordPage preview={lockedPreviewOf(link)} state='too-many' url={c.req.url} />, 429);
+      return c.html(
+        <PasswordPage preview={lockedPreviewOf(link)} site={await site()} state='too-many' url={c.req.url} />,
+        429
+      );
     }
     const form = await c.req.parseBody();
     const password = typeof form.password === "string" ? form.password : "";
     if (!(await matchesLinkPassword(password, link.passwordHash))) {
       await store.countPasswordFailure(link.id, minute);
-      return c.html(<PasswordPage preview={lockedPreviewOf(link)} state='wrong' url={c.req.url} />, 401);
+      return c.html(
+        <PasswordPage preview={lockedPreviewOf(link)} site={await site()} state='wrong' url={c.req.url} />,
+        401
+      );
     }
     return sendOn(c, link, 303);
   });
 
-  app.notFound((c) => c.html(<Notice kind='unknown' url={c.req.url} />, 404));
+  app.notFound((c) => notice(c, "unknown", 404));
 
   return app;
 };
